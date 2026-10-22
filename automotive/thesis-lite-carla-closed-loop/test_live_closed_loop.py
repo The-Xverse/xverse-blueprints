@@ -1,0 +1,289 @@
+"""Lite CARLA closed-loop integration run under Maestro (Phase 7; engineering integration, not AEB
+validation). One test = one run. Configuration comes from environment variables set by ``run-live.sh``:
+
+- ``XVERSE_LIVE_RUN_DIR``: evidence directory (loop10);
+- ``XVERSE_COMPAT_SRC``: the xverse-compat checkout (adapters and descriptors);
+- ``XVERSE_LIVE_CASE``: ``nominal`` | ``no-carla`` | ``cancel-paused`` | ``freeze-vcu``.
+
+The run: XDL documents -> validation and experiment plan -> ``prepare_lifecycle`` -> owned permits and
+approvals (DLG-7: non-M1) -> schedule, coverage and collection admissions -> sealed helper images and
+bootstrap -> ``_OriginalRuntimeRun.start``. Maestro writes its own Argus evidence; the driver writes the
+flow evidence; results are written before any assertion.
+"""
+
+from __future__ import annotations
+
+from dataclasses import asdict
+from datetime import datetime, timedelta, timezone
+import copy
+import hashlib
+import json
+import os
+from pathlib import Path
+import sys
+import threading
+import time
+
+import pytest
+
+from xverse.maestro.admission import PermitApproval, PermitBinding, permit_digest
+from xverse.maestro.artifacts import ArtifactDeclaration
+from xverse.maestro.bootstrap import BootstrapAdmission, encode_bootstrap, seal_helper_image
+from xverse.maestro.bootstrap_launcher import OriginalBootstrapRegistry
+from xverse.maestro.collection_plan import admit_collection
+from xverse.maestro.coverage import ArtifactExpectation, admit_coverage
+from xverse.maestro.persistence import encode_configuration
+from xverse.maestro.prbc import BoundaryDescriptor
+from xverse.maestro.projection import Limits, ProviderDescriptor, prepare_lifecycle
+from xverse.maestro.providers import ProbePolicy
+from xverse.maestro.public_blobs import admit_broker_artifact
+from xverse.maestro.run_broker import UnitAdmission
+from xverse.maestro.runtime_entry import RuntimeScope, _OriginalRuntimeRun
+from xverse.maestro.schedule_plan import admit_schedule
+from xverse.maestro.time import HostDeadline
+from xverse_xdl.lifecycle import ExecutionPermit
+from xverse_xdl.validate import validate_sources
+
+from tests.thesis_lite.maestro.test_bootstrap_launcher import pin
+from tests.thesis_lite.maestro.test_preparation import SCHEMAS, documents as fixture_documents
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from units import units as unit_definitions  # noqa: E402
+
+RUN_ID = "lite-carla-closed-loop"
+# Maestro schedule ticks. A dispatcher cycle is not wall-time paced: it measured ~0.29 s per tick with four
+# service calls at host load ~9 (lite-20261023T002003), and is at least poll_seconds. Persistence appends
+# slow down as the evidence stream grows (live finding 03: ~2.8 events per tick, appends beyond the 0.38 s
+# budget after ~270 events). Events are ~1 per tick plus health probes at a fixed wall rate, and slower
+# appends lengthen each tick, so the run is kept short. Cycles measured 0.17 s per tick at load ~7 and
+# 0.3-0.7 s at load 9-10.5: 80 ticks span ~14-55 s, covering the 9.5 s driver episode plus ~2 s startup.
+HORIZON = 80
+POLL = 0.05
+ORDER = ("lite-driver", "carla-adapter", "legacy-vcu", "driver-stimulus")
+# the fixture's flow source starts first: the driver is the source of the actuation-command flow to the adapter
+RENAME = {"source-instance": "lite-driver-instance", "sink-instance": "carla-adapter-instance",
+          "source-binding": "lite-driver-binding", "sink-binding": "carla-adapter-binding",
+          "sample-loop": "lite-carla-closed-loop", "local-simulated-loop": "lite-carla-closed-loop-local",
+          "sample-observation-run": "lite-carla-closed-loop-run"}
+ENVIRONMENT_DIGEST = pin(b"owned-environment")
+
+
+def _rename(value):
+    text = json.dumps(value)
+    for old, new in RENAME.items():
+        text = text.replace(f'"{old}"', f'"{new}"').replace(f'/{old}"', f'/{new}"').replace(f'/{old}#', f'/{new}#')
+    return json.loads(text)
+
+
+def build_documents(defs, artifacts):
+    """Derive the blueprint's XDL documents from the platform's validated fixture set."""
+
+    docs = _rename(fixture_documents())
+    system = docs["system.json"]["spec"]
+    template_instance = next(i for i in system["componentInstances"] if i["id"] == "lite-driver-instance")
+    template_node = system["nodes"][1]
+    for name in ("legacy-vcu", "driver-stimulus"):
+        system["componentInstances"].append(dict(copy.deepcopy(template_instance), id=name + "-instance", nodeId=name + "-node"))
+        system["nodes"].append(dict(copy.deepcopy(template_node), id=name + "-node"))
+    deployment = docs["deployment.json"]["spec"]
+    template_binding = next(b for b in deployment["bindings"] if b["id"] == "lite-driver-binding")
+    for name in ("legacy-vcu", "driver-stimulus"):
+        binding = copy.deepcopy(template_binding)
+        binding["id"] = name + "-binding"
+        binding["logicalRef"]["element"] = name + "-instance"
+        binding["extensions"]["io.xverse.experiment"]["target"]["element"] = name + "-binding"
+        deployment["bindings"].append(binding)
+    deployment["artifacts"] = [dict(id=key, artifactKind="executable", version="1.0.0", digest=digest, sourceRef=Path(path).as_uri(),
+                                    maturity="prototype") for key, (path, digest) in artifacts.items()]
+    by_name = {d.name: d for d in defs}
+    for binding in deployment["bindings"]:
+        unit = by_name[binding["id"].removesuffix("-binding")]
+        binding["artifactIds"] = ["python310" if unit.executable.endswith("python3.10") else "python313"]
+        payload = binding["extensions"]["io.xverse.runtime.compatibility"]
+        payload["provider"] = {"id": "maestro-process-v1", "kind": "process"}
+        # declared action budgets (the schedule uses them: use_action_timeouts); 5 s is the platform cap.
+        # A killed legacy VCU (many zenoh threads) needs more than the fixture's 1 s to be reaped.
+        for action in payload["actions"]:
+            action["timeoutSeconds"] = {"prepare": 2, "start": 5, "observe": 2, "stop": 5, "cleanup": 5}[action["phase"]]
+        payload["process"] = {"executable": unit.executable, "arguments": list(unit.arguments), "workingDirectory": unit.working_directory,
+                              "environmentNames": sorted(unit.environment), "inheritedHandles": "closed", "implicitShell": False}
+    scenario = docs["scenario.json"]["spec"]
+    template = scenario["steps"][0]
+    scenario["steps"] = []
+    plan = []
+    for index, name in enumerate(ORDER):
+        before = [f"start-{ORDER[index - 1]}"] if index else []
+        plan += [(f"prepare-{name}", name, "prepare", 0, []), (f"start-{name}", name, "start", 0, [f"prepare-{name}"] + before),
+                 (f"observe-{name}", name, "observe", HORIZON // 2, [f"start-{name}"])]
+    stops = {"driver-stimulus": HORIZON - 3, "legacy-vcu": HORIZON - 2, "carla-adapter": HORIZON - 1, "lite-driver": HORIZON}
+    for name, tick in stops.items():
+        plan += [(f"stop-{name}", name, "stop", tick, [f"observe-{name}"]), (f"cleanup-{name}", name, "cleanup", tick, [f"stop-{name}"])]
+    for step_id, unit, phase, tick, deps in plan:
+        step = copy.deepcopy(template)
+        step["id"] = step_id
+        step["targetRef"]["element"] = unit + "-instance"
+        step["actionKind"] = "validate" if phase == "prepare" else phase
+        step["action"]["operation"] = step["actionKind"]
+        step["schedule"]["at"] = tick
+        ext = step["extensions"]["io.xverse.experiment"]
+        ext["target"]["element"] = step_id
+        ext["phase"] = phase
+        ext["dependsOn"] = deps
+        scenario["steps"].append(step)
+    return docs
+
+
+def compile_documents(docs):
+    from xverse_xdl.experiment_plan import compile_experiment_plan  # noqa: PLC0415
+
+    validation = validate_sources([(name, json.dumps(value).encode()) for name, value in docs.items()], profile_schema_paths=SCHEMAS)
+    assert validation.is_valid, [(d.code, d.message) for d in validation.diagnostics]
+    result = compile_experiment_plan(validation.resources)
+    assert result.is_valid, [(d.code, d.message) for d in result.diagnostics]
+    return result, validation.resources
+
+
+def _digest(path):
+    return "sha256:" + hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap_binary, tmp_path):
+    run_dir = Path(os.environ["XVERSE_LIVE_RUN_DIR"])
+    compat = Path(os.environ["XVERSE_COMPAT_SRC"])
+    case = os.environ.get("XVERSE_LIVE_CASE", "nominal")
+    for sub in ("home", "carla-home", "driver"):
+        (run_dir / sub).mkdir(parents=True, exist_ok=True)
+    record = {"runId": RUN_ID, "case": case, "nonM1": True, "startedWallNs": time.time_ns(), "monotonicStartNs": time.monotonic_ns()}
+    factory, _, _ = environment
+    manager, _ = factory(seconds=95, run_id=RUN_ID, operation=2)
+    work = tmp_path / "work"
+    work.mkdir()
+    socket_path = f"/run/user/{os.getuid()}/xverse-lite/{RUN_ID}.sock"
+    Path(socket_path).parent.mkdir(parents=True, exist_ok=True)
+    plan_path = run_dir / "experiment-plan.json"
+    # a 9.5 s driver episode covers the stimulus start offset (~1.5 s measured) and its 7 s profile
+    defs = unit_definitions(compat=compat, run_dir=run_dir, work=work, socket_path=socket_path, plan=plan_path, episode_s=9.5,
+                            pause_after_s=4.0 if case == "cancel-paused" else None)
+    artifacts = {"python310": ("/usr/bin/python3.10", _digest("/usr/bin/python3.10")),
+                 "python313": (defs[0].executable, _digest(defs[0].executable))}
+    docs = build_documents(defs, artifacts)
+    if case == "freeze-vcu":  # Phase 5 freeze (cgroup.freeze) of the legacy VCU unit; thaw on clear (automatic)
+        from tests.thesis_lite.faults.support import fault  # noqa: PLC0415
+
+        freeze = fault("f-freeze-vcu", "freeze", "legacy-vcu-instance", at=16, duration=8, recovery="automatic")
+        freeze = _rename(freeze)
+        docs["scenario.json"]["spec"]["faults"] = [freeze]
+        record["faults"] = [freeze]
+    (run_dir / "xdl").mkdir(exist_ok=True)
+    for name, value in docs.items():
+        (run_dir / "xdl" / name).write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
+    result, resources = compile_documents(docs)
+    plan_path.write_text(json.dumps(result.plan, indent=2, sort_keys=True) + "\n")
+    record["planDigest"] = result.plan.get("digest")
+    # the provider pin is the run-authority helper image (the runtime fixture passes it as the launcher)
+    helper_pin = "sha256:" + hashlib.sha256(authority_binary.read_bytes()).hexdigest()
+    prepared = prepare_lifecycle(result, resources, provider_descriptors=(ProviderDescriptor("maestro-process-v1", "process", helper_pin,
+                                                                                            "isolated-fixture"),),
+                                 limits=Limits(horizon_ticks=HORIZON))
+    record["units"] = [u.unit_id for u in prepared.units]
+    now = datetime.now(timezone.utc)
+    bindings, approvals = [], []
+    for index, unit in enumerate(prepared.units):
+        unit_plan = unit.plan
+        legacy = "legacy-vcu" in unit.unit_id
+        permit = ExecutionPermit(
+            permit_id=f"live-permit-{index}", nonce=f"live-nonce-{index}-{time.time_ns()}", plan_digest=unit_plan.digest,
+            catalog_identity=unit_plan.catalog_identity, environment_identity=unit_plan.environment_identity,
+            permitted_actions=tuple(a.action_id for a in unit_plan.actions),
+            approval_evidence_ref="urn:xverse:author:2026-10-22:live-integration-authorization", issuer_label="author-delegated-live-integration",
+            operation_classes=tuple(sorted({a.operation for a in unit_plan.actions})), exclusions=() if legacy else ("legacy-execution",),
+            public_safety_classification="public-safe", not_before=now - timedelta(seconds=30), expires_at=now + timedelta(seconds=150))
+        binding = PermitBinding(unit.unit_id, f"live-execution-{index}", 1, permit)
+        bindings.append(binding)
+        approvals.append(PermitApproval(permit.approval_evidence_ref, permit.issuer_label, RUN_ID, unit.unit_id, binding.execution_id, 1,
+                                        prepared.lifecycle_digest, unit_plan.digest, unit.provider.provider_id, unit.provider.kind, helper_pin,
+                                        unit_plan.environment_identity, unit_plan.artifact_digests, permit_digest(permit),
+                                        now - timedelta(seconds=30), now + timedelta(seconds=150)))
+    # health capacity: period = cadence - n*op - (S+1)*op must exceed n*op; cadence <= 5 s, 4 units, S >= 4 (native controller) -> op < 0.385 s
+    schedule = admit_schedule(prepared, policies=tuple(ProbePolicy(u.unit_id, 5, 5, 1) for u in prepared.units),
+                              ticks=tuple(range(HORIZON + 1)), active_seconds=55, operation_seconds=0.38, service_operation_count=4, per_unit_seconds=2, poll_seconds=POLL,
+                              request_limit=8192, event_limit=8192, use_action_timeouts=True)
+    owned = [u for u in prepared.units if "legacy-vcu" not in u.unit_id]
+    declarations = tuple(ArtifactDeclaration(u.unit_id, 1, u.binding_id + ".marker", "outputs/" + u.binding_id + ".txt") for u in owned)
+    st = work.stat()
+    coverage = admit_coverage(prepared, result, resources, run_id=RUN_ID, host_session="host-session",
+                              contexts=[(b.unit_id, b.generation, b.execution_id) for b in bindings],
+                              health_policies={p.unit_id: (p.cadence_seconds, p.freshness_seconds) for p in schedule.policies},
+                              active_start=time.monotonic(), active_end=time.monotonic() + schedule.active_seconds,
+                              source_digests=(pin(schedule.canonical_bytes),),
+                              artifacts=[*(ArtifactExpectation(d.destination, True, 256, d.unit_id, 1) for d in declarations),
+                                         ArtifactExpectation("collection-result.json", maximum_bytes=16384)])
+    collection = admit_collection(coverage, expected_digest=coverage.digest, source_root=str(work), source_identity=(st.st_dev, st.st_ino),
+                                  declarations=declarations, metadata_path="collection-result.json", operation_seconds=1,
+                                  per_unit_teardown_seconds=2, collection_seconds=3, terminal_seconds=2, drain_seconds=2)
+    config = encode_configuration(prepared, result, resources, run_id=RUN_ID, bindings=bindings, approvals=approvals, session="host-session",
+                                  generation_deadline=manager._admission.teardown_deadline, journal_path=tmp_path / "m3.jsonl",
+                                  evidence_root=tmp_path / "argus-maestro", schedule=schedule, coverage=coverage, collection=collection,
+                                  broker_artifact=admit_broker_artifact(coverage, expected_digest=coverage.digest))
+    images = tuple(seal_helper_image(p, digest=pin(p.read_bytes()), argv0=sys.executable if p == Path(sys.executable).resolve() else str(p))
+                   for p in (binaries["launcher"], binaries["bound-gate"], Path(sys.executable).resolve(), authority_binary))
+    supervisor = seal_helper_image(run_bootstrap_binary, digest=pin(run_bootstrap_binary.read_bytes()), argv0=str(run_bootstrap_binary))
+    boot = encode_bootstrap(BootstrapAdmission(config.run_id, config.prepared.lifecycle_digest, "bootstrap-approval", ENVIRONMENT_DIGEST,
+                                               supervisor.digest, manager._admission.teardown_deadline,
+                                               HostDeadline("host-session", time.monotonic() + 4.8), images[:3], images[3], manager._root_fd))
+    launcher = OriginalBootstrapRegistry(1).reserve(boot, supervisor, manager)
+    by_name = {d.name: d for d in defs}
+    admissions = tuple(UnitAdmission(BoundaryDescriptor(config.run_id, u.unit_id, 1, "work-" + str(i), 0),
+                                     tuple(sorted(by_name[u.binding_id.removesuffix("-binding")].environment.items())), 1)
+                       for i, u in enumerate(config.prepared.units))
+    entry = _OriginalRuntimeRun(config, launcher, admissions, controller_sessions=1)
+    active = HostDeadline(config.session, config.coverage.data(config.coverage.digest)["end"] - .01)
+    reserve = config.schedule.terminal_reserve_seconds + config.collection.collection_seconds + config.collection.terminal_seconds
+    terminal = HostDeadline(config.session, active.monotonic_seconds + reserve + 1 + .01)
+    closure = HostDeadline(config.session, min(terminal.monotonic_seconds + 3, time.monotonic() + 89.5, config.generation_ns / 1e9))
+    scope = RuntimeScope(HostDeadline("host-session", time.monotonic() + 2), active, terminal, closure)
+    record["budgets"] = {"terminalReserveS": config.schedule.terminal_reserve_seconds, "reserveS": reserve,
+                         "closureFromNowS": round(closure.monotonic_seconds - time.monotonic(), 2)}
+    record["scope"] = {"activeS": round(active.monotonic_seconds - time.monotonic(), 2), "terminalReserveS": config.schedule.terminal_reserve_seconds}
+    outcome = None
+    canceller = None
+    if case == "cancel-paused":  # cancel while the simulation clock is paused (driver stopped ticking)
+        def cancel():
+            summary = run_dir / "driver" / "driver-summary.json"
+            limit = time.monotonic() + 40
+            while time.monotonic() < limit:
+                try:
+                    if json.loads(summary.read_text()).get("endReason") == "paused":
+                        break
+                except (OSError, ValueError):
+                    pass
+                time.sleep(0.2)
+            time.sleep(2.0)  # the world stays paused (synchronous, no tick) for 2 s of host time
+            record["cancelRequestedMonotonicNs"] = time.monotonic_ns()
+            record["cancelEpoch"] = entry.stop(RUN_ID, reason="operator-cancel-while-paused")
+            record["cancelReturnedMonotonicNs"] = time.monotonic_ns()
+        canceller = threading.Thread(target=cancel, daemon=True)
+        canceller.start()
+    try:
+        outcome = entry.start(scope)
+    finally:
+        if canceller is not None:
+            canceller.join(timeout=5)
+        record["endedWallNs"] = time.time_ns()
+        record["monotonicEndNs"] = time.monotonic_ns()
+        if outcome is not None:
+            record.update(executionSucceeded=outcome.execution_succeeded, cleanupComplete=outcome.cleanup_complete,
+                          diagnostics=list(outcome.diagnostics), dispatchDiagnostic=outcome.dispatch.diagnostic if outcome.dispatch else None,
+                          steps=[asdict(s) for s in outcome.dispatch.steps] if outcome.dispatch else None,
+                          normalUnitRecordsComplete=outcome.closure.normal_unit_records_complete,
+                          nativeUnits=[asdict(u) for u in outcome.closure.native_units])
+        record["workArtifacts"] = sorted(p.name for p in work.iterdir())
+        (run_dir / "maestro-run.json").write_text(json.dumps(record, indent=2, sort_keys=True, default=str) + "\n")
+        if outcome is not None:
+            entry.dispose()
+        else:
+            launcher.dispose()
+        for image in (*images, supervisor):
+            os.close(image.descriptor)
+    if case == "nominal":
+        assert outcome.execution_succeeded and outcome.cleanup_complete, record.get("dispatchDiagnostic")
