@@ -116,8 +116,9 @@ Contracts: `xverse-compat` `docs/engineering/thesis-lite-phase7-live/carla-items
   this is verified by `cancel-paused`.
 - `experiment-time`: Maestro's schedule ticks. They are not wall-paced: about 0.07–0.7 s per tick were
   measured in Phase 7, depending on host load. After the S1a persistence repair a cycle runs at the 0.05 s poll
-  floor (mean 0.057 s), so the schedule runs 400 ticks (≥ 20 s after tick 0) and the freeze is at ticks 60–100, inside the VCU's 5 s health freshness
-  (S1c findings 16 and 17). `maestro-run.json` records the measured `tickTiming`. `cancel-paused` fails unless the
+  floor (mean 0.057 s), so the schedule runs 400 ticks (≥ 20 s after tick 0) and the freeze is at ticks 60–80,
+  so that the thaw comes within 3.48 s of the VCU's last health success
+  (S1c findings 16 and 18). `maestro-run.json` records the measured `tickTiming`. `cancel-paused` fails unless the
   cancel was issued during the run and the outcome is `ML-SCHEDULE-CANCELLED` (S1c finding 15).
 
 ## Limits
