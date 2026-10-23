@@ -11,7 +11,8 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 . "$HERE/lib-live.sh"
 RUN=${2:-$L10/.x-verse-build/runs/xverse-lite-live-20261022/lite-$(date +%Y%m%dT%H%M%S)-$CASE}
 export XVERSE_PLATFORM_SRC=${XVERSE_PLATFORM_SRC:-$L10/.x-verse-build/cache/xverse-lite-live-20261022/platform-src}
-export XVERSE_COMPAT_SRC=${XVERSE_COMPAT_SRC:-/home/jefferson/xverse-compat-worktrees/phase7-live-20261022}
+require_compat || exit 4
+export XVERSE_COMPAT_SRC
 export XVERSE_LIVE_RUN_DIR=$RUN XVERSE_LIVE_CASE=$CASE
 mkdir -p "$RUN/carla-home"
 exec > >(tee "$RUN/run-live.log") 2>&1
@@ -45,7 +46,7 @@ record_revisions "$RUN" "blueprint=$HERE" "compat=$XVERSE_COMPAT_SRC" || exit 4
   sha256sum /usr/bin/python3.10 /home/jefferson/.pyenv/versions/3.13.13/bin/python3.13 /usr/bin/zenohd \
     "$L10/.x-verse-build/cache/xverse-compat-wheels/carla-0.9.15-cp310-cp310-manylinux_2_27_x86_64.whl" \
     "$L10"/.x-verse-build/cache/xverse-lite-live-20261022/wheels/*.whl
-  echo "legacy-vcu $(git -C /home/jefferson/autoverse/vecu/vcu_zenoh rev-parse HEAD) dirty=$(git -C /home/jefferson/autoverse/vecu/vcu_zenoh status --porcelain | wc -l)"
+  legacy_identity legacy-vcu /home/jefferson/autoverse/vecu/vcu_zenoh
   sha256sum /home/jefferson/autoverse/vecu/vcu_zenoh/src/*.py
   cat /home/jefferson/carla-simulator/VERSION 2>/dev/null | head -1
 } >> "$RUN/identities.txt"

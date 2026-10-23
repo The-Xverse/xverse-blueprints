@@ -17,6 +17,8 @@ python3 automotive/thesis-lite-carla-closed-loop/report.py --out DIR RUN_DIR...
 ```
 
 Preconditions:
+- `XVERSE_COMPAT_SRC` names the `xverse-compat` checkout to use. There is no default path, and both commands
+  refuse to run without it (thesis S1 FR-014);
 - a CARLA 0.9.15 server on `127.0.0.1:2000`, started with the author's recipe `just server-nvidia Epic 2000`
   from `~/autoverse`;
 - a zenoh router on `tcp/127.0.0.1:7447`;
@@ -30,18 +32,24 @@ The baseline command:
 - blocks when the world settings cannot be read;
 - normalizes an ownerless synchronous world to asynchronous as a declared setup step, with a bounded retry,
   and blocks when that normalization does not take effect; it then lists the world again;
-- refuses a pre-existing `ego_vehicle`;
+- refuses a world that already has any vehicle, as the Lite run does (S1 T-5 a);
+- after a normalisation, lists the world again into `world-after-normalisation.json`, so `world-before.json`
+  keeps the state found before the run (S1 T-2);
 - traps EXIT, INT and TERM, and stops its legacy processes with INT, then TERM, then KILL;
 - destroys a legacy ego that appeared during the run, and verifies the cleanup by listing the world again;
-- writes `baseline-status.txt` and exits 3 when any of the following holds:
+- writes `baseline-status.txt`, writes its exit code to `baseline-exit.txt` (S1 T-5 c), and exits 3 when any of
+  the following holds:
   - the stimulus did not complete;
-  - the virtual vehicle or the VCU exited with anything other than 0 or 130;
+  - the virtual vehicle or the VCU exited with anything other than 0 or 130, or 143 after the declared TERM step
+    (S1 T-5 b);
   - the observer exited non-zero;
   - vehicles remain;
   - processes remain.
 
-Open LOW items from review 4 (T-2, T-3, T-5) concern the baseline's records and exit rules and one missing
-guard test; see the compat review log, item 27. M-2 to M-5 from review 3 are repaired (items 25–26).
+The review 4 LOW items T-2, T-3 and T-5 are repaired in successor increment S1c. The record is in the compat
+review log `docs/engineering/thesis-lite-stabilization/review-s1c.md`. Both commands record the legacy
+identities with dirty flags and diff hashes (S1 FR-016). A hung server is reported in one line and fails
+closed (T-5 d).
 
 Run directories are written under
 `/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/runs/xverse-lite-live-20261022/`.
@@ -75,6 +83,8 @@ After each run, it runs the following, also from a trap on EXIT, INT and TERM:
     using the adapter's owned-actor registry;
   - restores the recorded pre-run settings (DLG-11). When the recorded state was synchronous and not advancing,
     it restores asynchronous mode and records the reason (DLG-11a);
+  - holds every owned ego with brake until it is at standstill (< 0.05 m/s), or for 5 s, recorded as a failure.
+    It records the un-pause, standstill and destroy times (S1 FR-022);
   - destroys the `xverse-lite-*` actors by ID;
   - verifies that none remain.
 - **Socket cleanup**, and a copy of Maestro's tmpfs journal and Argus root into the run directory.
