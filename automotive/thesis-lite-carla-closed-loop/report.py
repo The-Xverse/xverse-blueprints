@@ -140,8 +140,11 @@ def run_summary(run: Path) -> dict:
     out["runtime"] = runtime_metrics(run)
     if out["kind"] == "lite":  # DLG-13: success requires every owned completion marker
         markers = set(out["maestro"].get("workArtifacts") or [])
+        contents = json.loads((run / "maestro-run.json").read_text()).get("markerContents")
         out["completion"] = {"ownedMarkers": sorted(markers), "allOwnedMarkers": markers == {"lite-driver-binding.marker",
-                             "carla-adapter-binding.marker", "driver-stimulus-binding.marker"}}
+                             "carla-adapter-binding.marker", "driver-stimulus-binding.marker"}, "markerContents": contents,
+                             "allOwnedUnitsSucceeded": bool(contents) and len(contents) == 3 and all(
+                                 m.get("code") == 0 or m.get("outcome") == "profile-complete" for m in contents.values())}
         applied = [f for f in out["maestro"]["faultEvents"] if f["phase"] in ("apply", "clear")]
         th = out["runtime"].get("commandedThrottle")
         pedal = [x for x in stim if x.get("acc", 0) > 0]
@@ -163,14 +166,20 @@ def main() -> int:
     parser.add_argument("runs", nargs="+")
     args = parser.parse_args()
     summaries = [run_summary(Path(r)) for r in args.runs]
+    import subprocess  # noqa: PLC0415
+    here = Path(__file__).resolve().parent
+    revision = subprocess.run(["git", "-C", str(here), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+    dirty = subprocess.run(["git", "-C", str(here), "status", "--porcelain"], capture_output=True, text=True).stdout.strip() != ""
+    summaries = [dict(s, reportRevision=revision, reportTreeDirty=dirty) for s in summaries]
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     (out / "report.json").write_text(json.dumps(summaries, indent=2, sort_keys=True) + "\n")
     lines = ["# Lite CARLA closed-loop integration: run report", "",
              "Engineering integration evidence; not AEB validation, not a scientific result, not M1.", "",
              *("- " + n for n in NOTES), "",
-             "| Run | Kind/case | Maestro verdict | Peak km/h (obs) | Onset->standstill s (obs) | Min accel m/s^2 (obs) | Distance m | Cleanup |",
-             "| --- | --- | --- | --- | --- | --- | --- | --- |"]
+             f"Report revision {revision} (tree dirty: {dirty}).", "",
+             "| Run | Kind/case | Maestro verdict | Throttle actuated (obs) / commanded | Peak km/h (obs) | Onset->standstill s (obs) | Min accel m/s^2 (obs) | Distance m | Cleanup |",
+             "| --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for s in summaries:
         m, o = s.get("maestro", {}), s["observer"]
         verdict = "n/a (legacy invocation)" if s["kind"] == "baseline" else f"{m.get('executionSucceeded')} {m.get('dispatchDiagnostic') or ''}{m.get('diagnostics') or ''}"
@@ -179,7 +188,9 @@ def main() -> int:
         else:
             world = s.get("world-after", {})
             cleanup = f"world after: synchronous={world.get('synchronousMode')} vehicles={len(world.get('vehicles', []))}"
-        lines.append(f"| {s['run']} | {s['kind']}/{m.get('case', '-')} | {verdict} | {o.get('peakKmh')} | {o.get('standstillAfterOnsetS')} | "
+        act, cmd = o.get("actuatedThrottle") or {}, s["runtime"].get("commandedThrottle") or {}
+        throttle = f"{act.get('max')} for {act.get('simDurationS')} s / " + (f"{cmd.get('max')} for {cmd.get('simDurationS')} s" if cmd else "legacy VCU / 1.2 damping")
+        lines.append(f"| {s['run']} | {s['kind']}/{m.get('case', '-')} | {verdict} | {throttle} | {o.get('peakKmh')} | {o.get('standstillAfterOnsetS')} | "
                      f"{o.get('minAccelForwardMps2')} | {o.get('distanceM')} | residue={len(s.get('residue-processes', []))}; {cleanup} |")
     (out / "report.md").write_text("\n".join(lines) + "\n")
     print("\n".join(lines))

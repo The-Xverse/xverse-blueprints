@@ -25,7 +25,8 @@ record_revisions() {  # $1 = run dir; remaining = name=path pairs
 # detection (moshi-hook), recorded as such (review 1 R-10).
 carla_clients() {  # $1 = output file; returns 4 when an unexpected client is connected
   ss -tnp 2>/dev/null | awk '$1 == "ESTAB" && ($4 ~ /:200[01]$/ || $5 ~ /:200[01]$/)' > "$1"
-  if grep -v 'moshi-hook' "$1" | grep -v 'CarlaUE4' | grep -q 'users:'; then return 4; fi
+  # any client except moshi-hook blocks, including connections without a users: field (other users' processes, review 2 N-7)
+  if grep -v 'moshi-hook' "$1" | grep -qv 'CarlaUE4'; then return 4; fi
 }
 
 # World settings as a fresh client sees them (DLG-11).

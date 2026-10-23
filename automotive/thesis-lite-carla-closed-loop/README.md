@@ -42,20 +42,44 @@ Maestro starts four units in order:
 | `legacy-vcu` | `/usr/bin/python3.10` | the unchanged `autoverse/vecu/vcu_zenoh@125566e` `main.py` |
 | `driver-stimulus` | CPython 3.13.13 | `xverse_compat.live.stimulus`: the declared pedal profile that replaces the human driver |
 
-After each run, the run command does the following:
-- runs the restore guard (asynchronous world, `xverse-lite-*` actors destroyed and verified);
-- checks for residue;
-- copies Maestro's tmpfs journal and Argus root into the run directory.
+Before each run, the run command:
+- refuses dirty candidate trees, and records the revisions with diff hashes;
+- refuses competing simulation processes and any unexpected client connected to CARLA;
+- records the world settings, including whether the frame advances, in `world-before.json`.
 
-A passive observer, which is evaluation-only, measures motion in every run with the same instrument.
+After each run, it runs the following, also from a trap on EXIT, INT and TERM:
+- **Residue check.**
+- **Restore guard.** The guard:
+  - holds the owned ego by ID with throttle 0, brake 1 and the hand brake, while the world is still paused,
+    using the adapter's owned-actor registry;
+  - restores the recorded pre-run settings (DLG-11). When the recorded state was synchronous and not advancing,
+    it restores asynchronous mode and records the reason (DLG-11a);
+  - destroys the `xverse-lite-*` actors by ID;
+  - verifies that none remain.
+- **Socket cleanup**, and a copy of Maestro's tmpfs journal and Argus root into the run directory.
+
+A passive observer, which is evaluation-only, measures motion in every run, including through the guard.
+
+Inputs to the baseline and the Lite run:
+- **Stimulus.** Both receive the same declared stimulus, keyed on host time from the first clock sample
+  (`--time-base wall`, DLG-12).
+- **Throttle.** The legacy vehicle divides the VCU throttle by 1.2, so it applies 0.5 for a 0.6 command. The
+  Lite adapter applies it undamped.
+- **Report.** `report.py` shows the actuated and commanded throttle of each run.
+
+A Lite run succeeds only if Maestro collects every owned completion marker, and every marker records success
+(DLG-13).
+
+Contracts: `xverse-compat` `docs/engineering/thesis-lite-phase7-live/carla-items-2.md` and
+`bridge-identity-reconciliation.md`.
 
 ## Time domains
 
 - `carla-simulation`: item origins and the flow receiver clock.
 - `host-monotonic`: pacing, Maestro deadlines and cancellation. These work while simulation time is paused;
   this is verified by `cancel-paused`.
-- `experiment-time`: Maestro's schedule ticks. They are not wall-paced: about 0.17–0.7 s per tick,
-  depending on host load.
+- `experiment-time`: Maestro's schedule ticks. They are not wall-paced: about 0.07–0.7 s per tick were
+  measured, depending on host load.
 
 ## Limits
 

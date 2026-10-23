@@ -42,7 +42,7 @@ baseline_cleanup() {  # stop every process this baseline started, on any exit (i
   for P in $STIM $VV $VCU; do kill -0 "$P" 2>/dev/null && { echo "killing $P"; kill -KILL "$P"; }; done
   [ -n "$OBS" ] && kill -TERM "$OBS" 2>/dev/null
 }
-trap baseline_cleanup INT TERM
+trap baseline_cleanup EXIT INT TERM
 
 (cd "$COMPAT/src" && exec env -i PATH=/usr/bin HOME="$RUN/carla-home" /usr/bin/python3.10 -s -B -m xverse_compat_carla.observe \
    --role ego_vehicle --duration-s 60 --out "$RUN/observer.jsonl" --carla-site "$SITE") 2> "$RUN/observer.err" & OBS=$!
@@ -61,14 +61,29 @@ for P in $VV $VCU; do kill -0 $P 2>/dev/null && { echo "terminating $P"; kill -T
 for i in $(seq 1 20); do kill -0 $VV 2>/dev/null || kill -0 $VCU 2>/dev/null || break; sleep 0.5; done
 for P in $VV $VCU; do kill -0 $P 2>/dev/null && { echo "killing $P (ignored SIGINT and SIGTERM)"; kill -KILL $P; }; done
 wait $VV; echo "virtual-vehicle exit=$?"; wait $VCU; echo "vcu exit=$?"
-trap - INT TERM
+trap - EXIT INT TERM
 kill -TERM $OBS 2>/dev/null; wait $OBS; echo "observer exit=$?"
 (cd "$COMPAT/src" && env -i PATH=/usr/bin HOME="$RUN/carla-home" /usr/bin/python3.10 -s -B -c "
 import sys,json,site; site.addsitedir('$SITE'); import carla
 w=carla.Client('127.0.0.1',2000); w.set_timeout(10); w=w.get_world(); s=w.get_settings()
 print(json.dumps({'synchronousMode': s.synchronous_mode, 'vehicles': [(a.id, a.type_id, a.attributes.get('role_name')) for a in w.get_actors().filter('vehicle.*')]}))") > "$RUN/world-after.json"
 echo "world after: $(cat "$RUN/world-after.json")"
+# remove a legacy ego left by a killed virtual_vehicle.py: only vehicles that did not exist before this run (review 2 N-6)
+python3 - "$RUN/world-before.json" "$RUN/world-after.json" > "$RUN/leftover-legacy-ids.txt" <<'PY'
+import json, sys
+before = {v[0] for v in json.load(open(sys.argv[1])).get("vehicles", [])}
+print(" ".join(str(v[0]) for v in json.load(open(sys.argv[2])).get("vehicles", []) if v[0] not in before and v[2] == "ego_vehicle"))
+PY
+if [ -s "$RUN/leftover-legacy-ids.txt" ] && [ -n "$(tr -d ' \n' < "$RUN/leftover-legacy-ids.txt")" ]; then
+  (cd /tmp && env -i PATH=/usr/bin HOME="$RUN/carla-home" /usr/bin/python3.10 -s -B -c "
+import site, sys; site.addsitedir('$SITE'); import carla
+c = carla.Client('127.0.0.1', 2000); c.set_timeout(10)
+ids = [int(x) for x in sys.argv[1:]]; r = c.apply_batch_sync([carla.command.DestroyActor(i) for i in ids], False)
+print('destroyed leftover legacy actors', ids, [x.error for x in r])" $(cat "$RUN/leftover-legacy-ids.txt")) | tee "$RUN/leftover-legacy-destroyed.txt"
+fi
 ps -eo pid=,comm=,args= | awk '$2 !~ /^(bash|sh|grep|ps|awk|timeout|tee)$/' | grep -E 'virtual_vehicle.py|vcu_zenoh|-B main.py|xverse_compat' > "$RUN/residue-processes.txt"
 echo "residue processes: $(wc -l < "$RUN/residue-processes.txt")"
 carla_clients "$RUN/carla-clients-after.txt"
 echo "ended=$(date -Is)"
+STIM_OK=$(python3 -c "import json,sys; rows=[json.loads(l) for l in open(sys.argv[1])]; print(int(rows[-1].get('outcome') == 'profile-complete'))" "$RUN/stimulus.jsonl" 2>/dev/null || echo 0)
+[ "$STIM_OK" = 1 ] && [ ! -s "$RUN/residue-processes.txt" ] || { echo "baseline FAILED (stimulus outcome or residue)"; exit 3; }

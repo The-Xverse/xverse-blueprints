@@ -179,7 +179,7 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
     plan_path = run_dir / "experiment-plan.json"
     # a 9.5 s driver episode covers the stimulus start offset (~1.5 s measured) and its 7 s profile
     defs = unit_definitions(compat=compat, run_dir=run_dir, work=work, socket_path=socket_path, plan=plan_path, episode_s=9.5,
-                            pause_after_s=2.0 if case == "cancel-paused" else None)
+                            pause_after_s=4.0 if case == "cancel-paused" else None)  # inside the throttle segment (review 2 N-3)
     artifacts = {"python310": ("/usr/bin/python3.10", _digest("/usr/bin/python3.10")),
                  "python313": (defs[0].executable, _digest(defs[0].executable))}
     docs = build_documents(defs, artifacts)
@@ -295,6 +295,14 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
                           normalUnitRecordsComplete=outcome.closure.normal_unit_records_complete,
                           nativeUnits=[asdict(u) for u in outcome.closure.native_units])
         record["workArtifacts"] = sorted(p.name for p in work.iterdir())
+        markers = {}
+        for p in work.glob("*.marker"):  # review 2 N-4: a marker records its unit's outcome, not only completion
+            try:
+                markers[p.name] = json.loads(p.read_text())
+            except ValueError:
+                markers[p.name] = {"unreadable": True}
+        record["markerContents"] = markers
+        record["markersOk"] = len(markers) == 3 and all(m.get("code") == 0 or m.get("outcome") == "profile-complete" for m in markers.values())
         (run_dir / "maestro-run.json").write_text(json.dumps(record, indent=2, sort_keys=True, default=str) + "\n")
         if outcome is not None:
             entry.dispose()
@@ -303,4 +311,4 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
         for image in (*images, supervisor):
             os.close(image.descriptor)
     if case == "nominal":
-        assert outcome.execution_succeeded and outcome.cleanup_complete, record.get("dispatchDiagnostic")
+        assert outcome.execution_succeeded and outcome.cleanup_complete and record["markersOk"], record.get("dispatchDiagnostic")

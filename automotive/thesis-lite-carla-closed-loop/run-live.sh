@@ -15,14 +15,14 @@ export XVERSE_COMPAT_SRC=${XVERSE_COMPAT_SRC:-/home/jefferson/xverse-compat-work
 export XVERSE_LIVE_RUN_DIR=$RUN XVERSE_LIVE_CASE=$CASE
 mkdir -p "$RUN/carla-home"
 exec > >(tee "$RUN/run-live.log") 2>&1
-echo "case=$CASE run=$RUN started=$(date -Is) monotonic_ns=$(date +%s%N)"
+echo "case=$CASE run=$RUN started=$(date -Is) wall_epoch_ns=$(date +%s%N)"
 OBS=; PYTEST=1; SHM=/dev/shm/xverse-lite-$(basename "$RUN"); SOCK=/run/user/$(id -u)/xverse-lite/lite-carla-closed-loop.sock
 
 cleanup() {  # runs on every exit path, including an interrupt (review 1 R-7)
   trap - EXIT INT TERM
   ps -eo pid=,comm=,args= | awk '$2 !~ /^(bash|sh|grep|ps|awk|timeout|tee)$/' | grep -E 'xverse_compat_carla.main|xverse_compat.live|-B main.py' > "$RUN/residue-processes.txt"
   echo "residue processes: $(wc -l < "$RUN/residue-processes.txt")"
-  if [ "$CASE" != no-carla ]; then  # residue first, then the guard while the observer still watches
+  if [ "$CASE" != no-carla ] && [ -s "$RUN/world-before.json" ]; then  # residue first, then the guard (skipped after a BLOCKED preflight, review 2 N-5)
     (cd "$XVERSE_COMPAT_SRC/src" && env -i PATH=/usr/bin HOME="$RUN/carla-home" /usr/bin/python3.10 -s -B -m xverse_compat_carla.restore \
        --carla-site "$SITE" --settings-from "$RUN/world-before.json" --owned-registry "$RUN/owned-actors.json") > "$RUN/restore-guard.json"
     echo "restore-guard exit=$? $(cat "$RUN/restore-guard.json")"
