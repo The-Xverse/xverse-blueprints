@@ -36,6 +36,9 @@ if python3 -c "import json,sys; w=json.load(open(sys.argv[1])); sys.exit(0 if w[
   python3 -c "import json,sys; sys.exit(0 if json.load(open(sys.argv[1])).get('restored') else 1)" "$RUN/world-normalised.json" \
     || { echo "BLOCKED: the world could not be made asynchronous; the legacy loop is not started"; exit 4; }
 fi
+if python3 -c "import json,sys; sys.exit(0 if any(v[2] == 'ego_vehicle' for v in json.load(open(sys.argv[1])).get('vehicles', [])) else 1)" "$RUN/world-before.json"; then
+  echo "BLOCKED: an ego_vehicle already exists; the observer would be ambiguous (review log 22)"; exit 4
+fi
 OBS=; VCU=; VV=; STIM=
 baseline_cleanup() {  # stop every process this baseline started, on any exit (incl. timeout/interrupt)
   trap - EXIT INT TERM
