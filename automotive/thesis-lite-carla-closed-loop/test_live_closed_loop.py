@@ -19,6 +19,7 @@ import copy
 import hashlib
 import json
 import os
+import subprocess
 from pathlib import Path
 import sys
 import threading
@@ -57,7 +58,24 @@ RUN_ID = "lite-carla-closed-loop"
 # budget after ~270 events). Events are ~1 per tick plus health probes at a fixed wall rate, and slower
 # appends lengthen each tick, so the run is kept short. Cycles measured 0.17 s per tick at load ~7 and
 # 0.3-0.7 s at load 9-10.5: 80 ticks span ~14-55 s, covering the 9.5 s driver episode plus ~2 s startup.
-HORIZON = 80
+# After S1a the cycle runs at the 0.05 s poll floor (steady mean ~0.057 s; the platform caps poll_seconds at
+# 0.05 s), so tick counts are derived from that floor (S1c findings 15, 16 and 19). Tick 0 came 1.5-2.9 s after
+# start and its start cycle took 0.9-2.1 s in the runs measured (S1c findings 22 and 24). 400 ticks last >= 20 s
+# after tick 0; the driver episode ends ~11.5 s and the cancel-paused cancel ~12.3 s after tick 0. The 55 s active window, less the start and the stop/cleanup
+# budget, holds 400 ticks while the mean cycle stays <= ~0.12 s. The S-D1 long-run horizon is S1c-2 scope.
+HORIZON = 400
+# Observe at tick 60 (~7 s after start at the floor): before the cancel-paused cancel (>= 13.2 s after start) up to
+# a ~0.15 s mean cycle, so that case always completes observe before the cancel (S1c finding 19, MEDIUM-3).
+OBSERVE_TICK = 60
+# The thaw must come <= cadence 5 s - health_scan_seconds 1.52 s = 3.48 s after the VCU's last health success
+# (S1c finding 18). Without the observe probe that success can be up to ~1.7 s (measured gap) before the freeze;
+# 10 ticks (0.50-1.00 s measured) keep the worst case inside the bound up to a ~0.15 s mean cycle (S1c findings 19
+# and 24). Tick 40 fell only 0.08-0.89 s after the stimulus throttle start (a ~3.45 s segment), so the freeze is
+# ~1.1-2.0 s into the segment (finding 22). It starts at tick 61, one tick after the observe at tick 60, so that
+# observe really probes the VCU (a frozen unit's probe returns its cached observation; finding 24, MEDIUM-1).
+# The case fails unless the freeze lies inside the throttle segment (finding 24, LOW-1).
+FREEZE_AT, FREEZE_TICKS = 61, 10
+RETAINED_MAX = 4 * 1024 * 1024  # ~2.2 KB per event, ~560 events at 400 ticks; above the 1 MiB default
 POLL = 0.05
 ORDER = ("lite-driver", "carla-adapter", "legacy-vcu", "driver-stimulus")
 # the fixture's flow source starts first: the driver is the source of the actuation-command flow to the adapter
@@ -85,7 +103,7 @@ def _rename(value):
     return json.loads(text)
 
 
-def build_documents(defs, artifacts):
+def build_documents(defs, artifacts, horizon=HORIZON):
     """Derive the blueprint's XDL documents from the platform's validated fixture set."""
 
     docs = _rename(fixture_documents())
@@ -124,8 +142,8 @@ def build_documents(defs, artifacts):
     for index, name in enumerate(ORDER):
         before = [f"start-{ORDER[index - 1]}"] if index else []
         plan += [(f"prepare-{name}", name, "prepare", 0, []), (f"start-{name}", name, "start", 0, [f"prepare-{name}"] + before),
-                 (f"observe-{name}", name, "observe", HORIZON // 2, [f"start-{name}"])]
-    stops = {"driver-stimulus": HORIZON - 3, "legacy-vcu": HORIZON - 2, "carla-adapter": HORIZON - 1, "lite-driver": HORIZON}
+                 (f"observe-{name}", name, "observe", OBSERVE_TICK, [f"start-{name}"])]
+    stops = {"driver-stimulus": horizon - 3, "legacy-vcu": horizon - 2, "carla-adapter": horizon - 1, "lite-driver": horizon}
     for name, tick in stops.items():
         plan += [(f"stop-{name}", name, "stop", tick, [f"observe-{name}"]), (f"cleanup-{name}", name, "cleanup", tick, [f"stop-{name}"])]
     for step_id, unit, phase, tick, deps in plan:
@@ -175,6 +193,54 @@ def _fact(compute):
         return {"error": f"{type(error).__name__}: {error}"}
 
 
+def _tick_timing(events, start_ns):
+    """First host time of each schedule tick, from the Maestro Argus stream (S1c finding 16).
+
+    The tick-0 start cycle is reported apart from the steady cycles (S1c finding 19, LOW-4)."""
+
+    first = {}
+    for line in events.read_text().splitlines():
+        clocks = json.loads(line).get("clocks") or {}
+        if "simulation" in clocks:
+            first.setdefault(clocks["simulation"]["value"], clocks["host"]["value"] - start_ns / 1e9)
+    ticks = sorted(first)
+    if len(ticks) < 2:
+        return {"ticks": len(ticks)}
+    cycles = [first[b] - first[a] for a, b in zip(ticks, ticks[1:])]
+    steady = cycles[1:] or cycles
+    return {"ticks": len(ticks), "lastTick": ticks[-1], "firstTickS": round(first[ticks[0]], 3), "lastTickS": round(first[ticks[-1]], 3),
+            "startCycleS": round(cycles[0], 4), "meanCycleS": round(sum(steady) / len(steady), 4), "maxCycleS": round(max(steady), 4)}
+
+
+def _freeze_overlap(events, stimulus):
+    """Seconds of the freeze (Argus apply..clear) inside the stimulus's own throttle window (host-monotonic)."""
+
+    marks = {}
+    for line in events.read_text().splitlines():
+        event = json.loads(line)
+        text = (event.get("annotation") or {}).get("text") or ""
+        for phase in ("apply", "clear"):
+            if text.startswith("fault ") and f" {phase} " in f"{text} ":
+                marks.setdefault(phase, event["clocks"]["host"]["value"])
+    pedal = [r for r in (json.loads(x) for x in stimulus.read_text().splitlines()[1:]) if r.get("acc", 0) > 0]
+    if len(marks) != 2 or not pedal:
+        return {"marks": marks, "pedalSamples": len(pedal), "overlapS": None}
+    s0, s1 = pedal[0]["monotonicNs"] / 1e9, pedal[-1]["monotonicNs"] / 1e9 + 0.05  # the last sample's 50 ms period
+    return {"appliedS": marks["apply"], "clearedS": marks["clear"], "throttleWindowS": [s0, s1],
+            "overlapS": round(min(marks["clear"], s1) - max(marks["apply"], s0), 3),
+            "startMarginS": round(marks["apply"] - s0, 3), "endMarginS": round(s1 - marks["clear"], 3)}
+
+
+def _argus_verify(root):
+    """``xverse-argus verify`` of one evidence root, next to this interpreter (S1c finding 22, MEDIUM-2)."""
+
+    tool = Path(sys.executable).parent / "xverse-argus"
+    done = subprocess.run([str(tool), "verify", str(root)], capture_output=True, text=True, timeout=60, check=False)
+    data = json.loads(done.stdout)
+    return {"exit": done.returncode, "writerState": data.get("writerState"), "evidenceStatus": data.get("evidenceStatus"),
+            "evidenceReasons": data.get("evidenceReasons"), "diagnostics": [d.get("code") for d in data.get("diagnostics") or []]}
+
+
 def _digest(path):
     return "sha256:" + hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
@@ -186,6 +252,7 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
     for sub in ("home", "carla-home", "driver"):
         (run_dir / sub).mkdir(parents=True, exist_ok=True)
     record = {"runId": RUN_ID, "case": case, "nonM1": True, "startedWallNs": time.time_ns(), "monotonicStartNs": time.monotonic_ns(),
+              "loadAverageStart": list(os.getloadavg()),  # 1/5/15 min (S1c finding 19, MEDIUM-2)
               "harness": "owned trusted-host Maestro harness (_OriginalRuntimeRun); not RuntimeService, not M1 (DLG-7)",
               "syntheticPlaceholders": {"bootstrapApprovalRef": "bootstrap-approval (harness label, not an approval record)",
                                         "environmentDigest": "pin(b'owned-environment') (harness pin, as in the platform fixture)",
@@ -204,12 +271,14 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
                             pause_after_s=4.0 if case == "cancel-paused" else None)  # inside the throttle segment (review 2 N-3)
     artifacts = {"python310": ("/usr/bin/python3.10", _digest("/usr/bin/python3.10")),
                  "python313": (defs[0].executable, _digest(defs[0].executable))}
-    docs = build_documents(defs, artifacts)
+    horizon = HORIZON
+    record["horizonTicks"] = horizon
+    docs = build_documents(defs, artifacts, horizon)
     if case == "freeze-vcu":  # Phase 5 freeze (cgroup.freeze) of the legacy VCU unit; thaw on clear (automatic)
         from tests.thesis_lite.faults.support import fault  # noqa: PLC0415
 
-        # 20 ticks (~3-10 s with load) so that the freeze spans the throttle phase (review: final run 011855 froze in the idle second)
-        freeze = fault("f-freeze-vcu", "freeze", "legacy-vcu-instance", at=16, duration=20, recovery="automatic")
+        # the freeze spans the throttle phase (review: final run 011855 froze in the idle second); ticks per S1c finding 16
+        freeze = fault("f-freeze-vcu", "freeze", "legacy-vcu-instance", at=FREEZE_AT, duration=FREEZE_TICKS, recovery="automatic")
         freeze = _rename(freeze)
         docs["scenario.json"]["spec"]["faults"] = [freeze]
         record["faults"] = [freeze]
@@ -223,7 +292,7 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
     helper_pin = "sha256:" + hashlib.sha256(authority_binary.read_bytes()).hexdigest()
     prepared = prepare_lifecycle(result, resources, provider_descriptors=(ProviderDescriptor("maestro-process-v1", "process", helper_pin,
                                                                                             "isolated-fixture"),),
-                                 limits=Limits(horizon_ticks=HORIZON))
+                                 limits=Limits(horizon_ticks=horizon))
     record["units"] = [u.unit_id for u in prepared.units]
     now = datetime.now(timezone.utc)
     bindings, approvals = [], []
@@ -245,7 +314,7 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
                                         now - timedelta(seconds=30), now + timedelta(seconds=150)))
     # health capacity: period = cadence - n*op - (S+1)*op must exceed n*op; cadence <= 5 s, 4 units, S >= 4 (native controller) -> op < 0.385 s
     schedule = admit_schedule(prepared, policies=tuple(ProbePolicy(u.unit_id, 5, 5, 1) for u in prepared.units),
-                              ticks=tuple(range(HORIZON + 1)), active_seconds=55, operation_seconds=0.38, service_operation_count=4, per_unit_seconds=2, poll_seconds=POLL,
+                              ticks=tuple(range(horizon + 1)), active_seconds=55, operation_seconds=0.38, service_operation_count=4, per_unit_seconds=2, poll_seconds=POLL,
                               request_limit=8192, event_limit=8192, use_action_timeouts=True)
     owned = [u for u in prepared.units if "legacy-vcu" not in u.unit_id]
     declarations = tuple(ArtifactDeclaration(u.unit_id, 1, u.binding_id + ".marker", "outputs/" + u.binding_id + ".txt") for u in owned)
@@ -256,7 +325,8 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
                               active_start=time.monotonic(), active_end=time.monotonic() + schedule.active_seconds,
                               source_digests=(pin(schedule.canonical_bytes),),
                               artifacts=[*(ArtifactExpectation(d.destination, True, 256, d.unit_id, 1) for d in declarations),
-                                         ArtifactExpectation("collection-result.json", maximum_bytes=16384)])
+                                         ArtifactExpectation("collection-result.json", maximum_bytes=16384),
+                                         ArtifactExpectation("retained-inputs.json", maximum_bytes=RETAINED_MAX)])
     collection = admit_collection(coverage, expected_digest=coverage.digest, source_root=str(work), source_identity=(st.st_dev, st.st_ino),
                                   declarations=declarations, metadata_path="collection-result.json", operation_seconds=1,
                                   per_unit_teardown_seconds=2, collection_seconds=3, terminal_seconds=2, drain_seconds=2)
@@ -286,18 +356,23 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
     record["scope"] = {"activeS": round(active.monotonic_seconds - time.monotonic(), 2), "terminalReserveS": config.schedule.terminal_reserve_seconds}
     outcome = None
     canceller = None
+    run_ended = threading.Event()  # set when entry.start returns: a cancel is never issued after the run (S1c finding 15)
     if case == "cancel-paused":  # cancel while the simulation clock is paused (driver stopped ticking)
         def cancel():
             summary = run_dir / "driver" / "driver-summary.json"
             limit = time.monotonic() + 40
-            while time.monotonic() < limit:
+            while time.monotonic() < limit and not run_ended.is_set():
                 try:
                     if json.loads(summary.read_text()).get("endReason") == "paused":
+                        record["pauseSeenMonotonicNs"] = time.monotonic_ns()
                         break
                 except (OSError, ValueError):
                     pass
                 time.sleep(0.2)
-            time.sleep(6.0)  # paused (synchronous, no tick) for 6 s of host time, beyond the 5 s probe freshness (R-6)
+            # paused (synchronous, no tick) for 6 s of host time, beyond the 5 s probe freshness (R-6)
+            if "pauseSeenMonotonicNs" not in record or run_ended.wait(6.0):
+                record["cancelNotIssued"] = "run ended first" if run_ended.is_set() else "pause not seen within 40 s"
+                return
             record["cancelRequestedMonotonicNs"] = time.monotonic_ns()
             record["cancelEpoch"] = entry.stop(RUN_ID, reason="operator-cancel-while-paused")
             record["cancelReturnedMonotonicNs"] = time.monotonic_ns()
@@ -306,8 +381,13 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
     try:
         outcome = entry.start(scope)
     finally:
+        record["startReturnedMonotonicNs"] = time.monotonic_ns()  # before run_ended (S1c finding 19, LOW-3)
+        run_ended.set()
         if canceller is not None:
             canceller.join(timeout=5)
+            if canceller.is_alive():  # still waiting or in entry.stop: recorded, never silently dropped
+                record["cancellerAliveAfterJoin"] = True
+        record["loadAverageEnd"] = list(os.getloadavg())
         record["endedWallNs"] = time.time_ns()
         record["monotonicEndNs"] = time.monotonic_ns()
         if outcome is not None:
@@ -327,6 +407,10 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
                           dispatchTerminal=_fact(lambda: outcome.dispatch.terminal.public_data()
                                                  if outcome.dispatch and outcome.dispatch.terminal is not None else None))
         record["workArtifacts"] = _fact(lambda: sorted(p.name for p in work.iterdir()))
+        record["tickTiming"] = _fact(lambda: _tick_timing(tmp_path / "argus-maestro" / "events.jsonl", record["monotonicStartNs"]))
+        record["argusMaestroVerify"] = _fact(lambda: _argus_verify(tmp_path / "argus-maestro"))
+        if case == "freeze-vcu":
+            record["freezeThrottle"] = _fact(lambda: _freeze_overlap(tmp_path / "argus-maestro" / "events.jsonl", run_dir / "stimulus.jsonl"))
         markers = {}
         for p in work.glob("*.marker"):  # review 2 N-4: a marker records its unit's outcome, not only completion
             try:
@@ -343,5 +427,32 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
             launcher.dispose()
         for image in (*images, supervisor):
             os.close(image.descriptor)
-    if case == "nominal":
+    # every case asserts its expected path (S1c findings 15 and 19, MEDIUM-1) and its Maestro Argus root (finding 22)
+    verified = record.get("argusMaestroVerify") or {}
+    if case in ("nominal", "freeze-vcu"):
         assert outcome.execution_succeeded and outcome.cleanup_complete and record["markersOk"], record.get("dispatchDiagnostic")
+        assert verified.get("writerState") == "closed" and verified.get("evidenceStatus") == "complete", verified
+    else:  # a failed writer whose only reason is its own state (proposed DR-6); P3 also allows closed (DR-2)
+        assert verified.get("writerState") in (("failed", "closed") if case == "cancel-paused" else ("failed",)), verified
+        assert set(verified.get("evidenceReasons") or []) <= {"ARGUS2-REASON-WRITER-STATE"}, verified
+    if case == "freeze-vcu":
+        timing = record.get("freezeThrottle") or {}  # the freeze lies inside the throttle segment (finding 24, LOW-1)
+        margins = (timing.get("startMarginS"), timing.get("endMarginS"))
+        assert all(m is not None and m >= 0 for m in margins), timing
+    if case == "no-carla":
+        assert record.get("dispatchDiagnostic") == "ML-RUN-CHILD-EXIT" and outcome.cleanup_complete, record.get("dispatchDiagnostic")
+    if case == "cancel-paused":  # the case fails unless it exercised the cancel path
+        assert "cancelReturnedMonotonicNs" in record and "cancelNotIssued" not in record, record.get("cancelNotIssued", "no cancel return")
+        assert "cancellerAliveAfterJoin" not in record, "entry.stop still running after the join"  # S1c finding 22, LOW-1
+        assert record["cancelRequestedMonotonicNs"] < record["startReturnedMonotonicNs"], "cancel after the run returned"
+        assert record.get("dispatchDiagnostic") == "ML-SCHEDULE-CANCELLED", record.get("dispatchDiagnostic")
+        observed = [s for s in record["steps"] if s["step_id"].startswith("observe-")]
+        assert observed and all(s["disposition"] == "completed" for s in observed), observed  # one path (MEDIUM-3)
+        # the P3 closure facts, not only the path (S1c finding 20; writer end state per DR-2)
+        assert record.get("persistenceFailure") is None, record.get("persistenceFailure")
+        assert record.get("cleanupComplete") is True, record.get("closureDiagnostics")
+        native = record.get("nativeUnits") or []
+        assert len(native) == len(ORDER) and all(u.get("issued") and u.get("native_retired") and u.get("direct_child_reaped")
+                                                 for u in native), native
+        writers = [r.get("writer") or {} for r in record.get("closureTerminalReports") or []]
+        assert writers and all(w.get("after_state") in ("failed", "closed") for w in writers), writers

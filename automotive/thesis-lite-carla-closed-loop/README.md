@@ -115,7 +115,28 @@ Contracts: `xverse-compat` `docs/engineering/thesis-lite-phase7-live/carla-items
 - `host-monotonic`: pacing, Maestro deadlines and cancellation. These work while simulation time is paused;
   this is verified by `cancel-paused`.
 - `experiment-time`: Maestro's schedule ticks. They are not wall-paced: about 0.07–0.7 s per tick were
-  measured, depending on host load.
+  measured in Phase 7, depending on host load. After the S1a persistence repair a cycle runs at the 0.05 s poll
+  floor (steady mean about 0.057 s), so the tick values are derived from that floor (S1c findings 16, 18 and 19):
+  - The schedule runs 400 ticks, which is at least 20 s after tick 0.
+  - Observe is at tick 60, before the cancel-paused cancel.
+  - The freeze is at ticks 61–71, about 1.1–2.0 s into the stimulus throttle, one tick after the observe at
+    tick 60. freeze-vcu fails unless the freeze lies inside the throttle segment. The platform refuses a thaw that comes more than 3.48 s after the frozen
+    unit's last health success (cadence 5 s minus `health_scan_seconds`). The freeze length keeps the worst
+    case inside that bound up to a mean cycle of about 0.17 s; it is a bound, not a guarantee under any load.
+  - `maestro-run.json` records `tickTiming` and the load average at the start and the end.
+  - `argus-verify.txt` holds `xverse-argus verify` for the Maestro and flow roots.
+
+  Every case asserts its expected path: nominal and freeze-vcu must succeed; no-carla must end with
+  `ML-RUN-CHILD-EXIT`. cancel-paused must complete observe, be cancelled during the run, and end with
+  `ML-SCHEDULE-CANCELLED`. It must also have no persistence failure, cleanup complete, every native unit
+  retired and reaped, and every closure writer `failed` or `closed` (S1c finding 20). Every case checks the
+  Maestro Argus root with `xverse-argus verify`:
+  - nominal and freeze-vcu must be closed and complete;
+  - the failure paths must end `failed`, or `closed` for cancel-paused (DR-2), with no reason other than
+    WRITER-STATE.
+
+  These are the harness assertions only. The guard, the residue, the flow roots and the full P1–P8 audit are
+  checked from the run evidence (S1-T15a), not by the harness.
 
 ## Limits
 

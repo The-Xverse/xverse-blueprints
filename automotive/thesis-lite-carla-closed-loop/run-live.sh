@@ -35,6 +35,9 @@ cleanup() {  # runs on every exit path, including an interrupt (review 1 R-7); a
   if [ -S "$SOCK" ]; then rm -f "$SOCK"; echo "removed the run's leftover socket $SOCK (owner killed by Maestro)" | tee "$RUN/socket-cleanup.txt"; fi
   ls /run/user/$(id -u)/xverse-lite/ > "$RUN/residue-sockets.txt" 2>/dev/null; echo "residue sockets: $(wc -l < "$RUN/residue-sockets.txt")"
   [ -d "$SHM" ] && cp -a "$SHM" "$RUN/maestro-tmp" && rm -rf "$SHM"
+  for root in "$RUN"/maestro-tmp/*/argus-maestro "$RUN/driver/argus-flows"; do  # P1 evidence (S1c finding 19, LOW-5)
+    [ -d "$root" ] && { echo "== $root"; env -u PYTHONPATH "$VENV/bin/xverse-argus" verify "$root" 2>&1; echo "exit=$?"; } >> "$RUN/argus-verify.txt"
+  done
   [ "$CASE" != no-carla ] && carla_clients "$RUN/carla-clients-after.txt"
   ss -tlnp > "$RUN/listeners-after.txt" 2>/dev/null
   echo "ended=$(date -Is) maestro-harness exit=$PYTEST script exit=$rc"
