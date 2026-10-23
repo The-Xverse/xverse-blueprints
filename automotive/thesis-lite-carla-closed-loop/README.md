@@ -27,15 +27,21 @@ assumes an empty world. After a BLOCKED preflight the restore guard is skipped. 
 settings commit up to 3 times (`applyAttempts`).
 
 The baseline command:
-- normalizes an ownerless synchronous world to asynchronous as a declared setup step, and blocks when that
-  normalization does not take effect;
+- blocks when the world settings cannot be read;
+- normalizes an ownerless synchronous world to asynchronous as a declared setup step, with a bounded retry,
+  and blocks when that normalization does not take effect; it then lists the world again;
 - refuses a pre-existing `ego_vehicle`;
 - traps EXIT, INT and TERM, and stops its legacy processes with INT, then TERM, then KILL;
-- destroys a legacy ego that appeared during the run;
-- exits 3 when the stimulus did not complete or processes remain.
+- destroys a legacy ego that appeared during the run, and verifies the cleanup by listing the world again;
+- writes `baseline-status.txt` and exits 3 when any of the following holds:
+  - the stimulus did not complete;
+  - the virtual vehicle or the VCU exited with anything other than 0 or 130;
+  - the observer exited non-zero;
+  - vehicles remain;
+  - processes remain.
 
-Open LOW items from review 3 (M-2 to M-5) concern the baseline script's checks and the guard docstrings; see
-the compat review log, item 24.
+Open LOW items from review 4 (T-2, T-3, T-5) concern the baseline's records and exit rules and one missing
+guard test; see the compat review log, item 27. M-2 to M-5 from review 3 are repaired (items 25–26).
 
 Run directories are written under
 `/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/runs/xverse-lite-live-20261022/`.
