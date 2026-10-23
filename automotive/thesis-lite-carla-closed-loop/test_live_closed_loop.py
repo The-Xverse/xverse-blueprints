@@ -60,19 +60,21 @@ RUN_ID = "lite-carla-closed-loop"
 # 0.3-0.7 s at load 9-10.5: 80 ticks span ~14-55 s, covering the 9.5 s driver episode plus ~2 s startup.
 # After S1a the cycle runs at the 0.05 s poll floor (steady mean ~0.057 s; the platform caps poll_seconds at
 # 0.05 s), so tick counts are derived from that floor (S1c findings 15, 16 and 19). Tick 0 came 1.5-2.8 s after
-# start and its start cycle took 1.0-2.1 s in the runs measured (S1c finding 22, LOW-3). 400 ticks last >= 20 s after tick 0; the driver episode ends ~11.5 s
-# and the cancel-paused cancel ~12.3 s after tick 0. The 55 s active window, less the start and the stop/cleanup
+# start and its start cycle took 0.9-2.1 s in the runs measured (S1c findings 22 and 24). 400 ticks last >= 20 s
+# after tick 0; the driver episode ends ~11.5 s and the cancel-paused cancel ~12.3 s after tick 0. The 55 s active window, less the start and the stop/cleanup
 # budget, holds 400 ticks while the mean cycle stays <= ~0.12 s. The S-D1 long-run horizon is S1c-2 scope.
 HORIZON = 400
 # Observe at tick 60 (~7 s after start at the floor): before the cancel-paused cancel (>= 13.2 s after start) up to
 # a ~0.15 s mean cycle, so that case always completes observe before the cancel (S1c finding 19, MEDIUM-3).
 OBSERVE_TICK = 60
 # The thaw must come <= cadence 5 s - health_scan_seconds 1.52 s = 3.48 s after the VCU's last health success
-# (S1c finding 18), which can be up to ~1.58 s before the freeze. 10 ticks keep the worst case (1.58 s + 11 cycles
-# + a round trip) inside that bound up to a ~0.17 s mean cycle (S1c finding 19). Tick 40 fell only 0.08-0.89 s
-# after the stimulus throttle start (a ~3.45 s segment), so the freeze is at tick 60: ~1.1-1.9 s into the segment
-# at the floor (S1c finding 22, MEDIUM-1). The case records the overlap and fails unless it is positive.
-FREEZE_AT, FREEZE_TICKS = 60, 10
+# (S1c finding 18). Without the observe probe that success can be up to ~1.7 s (measured gap) before the freeze;
+# 10 ticks (0.72-1.00 s measured) keep the worst case inside the bound up to a ~0.15 s mean cycle (S1c findings 19
+# and 24). Tick 40 fell only 0.08-0.89 s after the stimulus throttle start (a ~3.45 s segment), so the freeze is
+# ~1.1-2.0 s into the segment (finding 22). It starts at tick 61, one tick after the observe at tick 60, so that
+# observe really probes the VCU (a frozen unit's probe returns its cached observation; finding 24, MEDIUM-1).
+# The case fails unless the freeze lies inside the throttle segment (finding 24, LOW-1).
+FREEZE_AT, FREEZE_TICKS = 61, 10
 RETAINED_MAX = 4 * 1024 * 1024  # ~2.2 KB per event, ~560 events at 400 ticks; above the 1 MiB default
 POLL = 0.05
 ORDER = ("lite-driver", "carla-adapter", "legacy-vcu", "driver-stimulus")
@@ -223,9 +225,10 @@ def _freeze_overlap(events, stimulus):
     pedal = [r for r in (json.loads(x) for x in stimulus.read_text().splitlines()[1:]) if r.get("acc", 0) > 0]
     if len(marks) != 2 or not pedal:
         return {"marks": marks, "pedalSamples": len(pedal), "overlapS": None}
-    s0, s1 = pedal[0]["monotonicNs"] / 1e9, pedal[-1]["monotonicNs"] / 1e9
+    s0, s1 = pedal[0]["monotonicNs"] / 1e9, pedal[-1]["monotonicNs"] / 1e9 + 0.05  # the last sample's 50 ms period
     return {"appliedS": marks["apply"], "clearedS": marks["clear"], "throttleWindowS": [s0, s1],
-            "overlapS": round(min(marks["clear"], s1) - max(marks["apply"], s0), 3)}
+            "overlapS": round(min(marks["clear"], s1) - max(marks["apply"], s0), 3),
+            "startMarginS": round(marks["apply"] - s0, 3), "endMarginS": round(s1 - marks["clear"], 3)}
 
 
 def _argus_verify(root):
@@ -429,11 +432,13 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
     if case in ("nominal", "freeze-vcu"):
         assert outcome.execution_succeeded and outcome.cleanup_complete and record["markersOk"], record.get("dispatchDiagnostic")
         assert verified.get("writerState") == "closed" and verified.get("evidenceStatus") == "complete", verified
-    else:  # a failed (or closed) writer whose only reason is its own state (proposed DR-6)
-        assert verified.get("writerState") in ("failed", "closed"), verified
+    else:  # a failed writer whose only reason is its own state (proposed DR-6); P3 also allows closed (DR-2)
+        assert verified.get("writerState") in (("failed", "closed") if case == "cancel-paused" else ("failed",)), verified
         assert set(verified.get("evidenceReasons") or []) <= {"ARGUS2-REASON-WRITER-STATE"}, verified
     if case == "freeze-vcu":
-        assert ((record.get("freezeThrottle") or {}).get("overlapS") or 0) > 0, record.get("freezeThrottle")
+        timing = record.get("freezeThrottle") or {}  # the freeze lies inside the throttle segment (finding 24, LOW-1)
+        margins = (timing.get("startMarginS"), timing.get("endMarginS"))
+        assert all(m is not None and m >= 0 for m in margins), timing
     if case == "no-carla":
         assert record.get("dispatchDiagnostic") == "ML-RUN-CHILD-EXIT" and outcome.cleanup_complete, record.get("dispatchDiagnostic")
     if case == "cancel-paused":  # the case fails unless it exercised the cancel path
