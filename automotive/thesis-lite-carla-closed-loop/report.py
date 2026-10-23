@@ -144,10 +144,15 @@ def run_summary(run: Path) -> dict:
                              "carla-adapter-binding.marker", "driver-stimulus-binding.marker"}}
         applied = [f for f in out["maestro"]["faultEvents"] if f["phase"] in ("apply", "clear")]
         th = out["runtime"].get("commandedThrottle")
-        if len(applied) == 2 and th:  # review 1 R-13: where the freeze fell relative to the actuation
+        pedal = [x for x in stim if x.get("acc", 0) > 0]
+        if len(applied) == 2 and th and pedal:  # review 1 R-13: the freeze against the stimulus's own throttle window
             a, c = applied[0]["hostS"], applied[1]["hostS"]
-            out["faultTiming"] = {"appliedHostS": a, "clearedHostS": c, "throttleWindowHostS": [th["firstMonotonicNs"] / 1e9, th["lastMonotonicNs"] / 1e9],
-                                  "overlapsThrottleWindow": a < th["lastMonotonicNs"] / 1e9 and c > th["firstMonotonicNs"] / 1e9}
+            s0, s1 = pedal[0]["monotonicNs"] / 1e9, pedal[-1]["monotonicNs"] / 1e9
+            out["faultTiming"] = {"appliedHostS": a, "clearedHostS": c, "stimulusThrottleWindowHostS": [s0, s1],
+                                  "commandedThrottleWindowHostS": [th["firstMonotonicNs"] / 1e9, th["lastMonotonicNs"] / 1e9],
+                                  "overlapsStimulusThrottle": a < s1 and c > s0,
+                                  "commandedThrottleDelayS": round(th["firstMonotonicNs"] / 1e9 - s0, 3),
+                                  "domain": "host-monotonic seconds (Maestro host clock and the units' monotonic_ns share CLOCK_MONOTONIC)"}
     out["files"] = _hashes(run)
     return out
 
