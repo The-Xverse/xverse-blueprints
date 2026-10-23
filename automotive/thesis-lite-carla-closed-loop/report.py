@@ -113,7 +113,7 @@ def run_summary(run: Path) -> dict:
         if m3:
             for line in m3[0].read_text().splitlines():
                 e = json.loads(line)
-                x = e.get("extensions", {}).get("xverse.maestro", {})
+                x = next((v for v in e.get("extensions", {}).values() if isinstance(v, dict) and v.get("faultId")), {})
                 if x.get("faultId"):
                     faults.append({"phase": x.get("phase"), "outcome": x.get("outcome"), "hostS": e["clocks"]["host"]["value"],
                                    "tick": e["clocks"].get("simulation", {}).get("value")})
