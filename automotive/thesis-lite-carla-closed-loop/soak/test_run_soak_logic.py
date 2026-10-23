@@ -129,3 +129,29 @@ REAL_STOP = run_soak.stop_server
 ])
 def test_classify(kw, status):  # DR-12 (S1c findings 34-36)
     assert run_soak.classify(**kw) == status
+
+
+def test_invalid_then_two_failed_restarts_names_dr11(soak):
+    s, fake = soak(["PASS"] * 3 + ["INVALID"], start_health=[True, False, False])
+    assert s.execute() == 2
+    assert "twice in a row" in json.loads(s.manifest.read_text())["stopReason"]
+
+
+def test_runner_differing_from_the_pinned_copy_is_refused(soak, monkeypatch):
+    s, fake = soak([])
+    s.pinned["runnerMatchesPinned"] = False
+    assert s.execute() == 4 and not fake.runs
+
+
+def test_any_exit_stops_a_running_server(soak, monkeypatch):
+    s, fake = soak(["PASS"] * 3)
+    state = {"pids": []}
+    monkeypatch.setattr(run_soak, "carla_pids", lambda: state["pids"])
+
+    def boom(self, case, carla):
+        state["pids"] = [12345]  # a server is up when the crash happens
+        raise RuntimeError("crash")
+    monkeypatch.setattr(run_soak.Soak, "run_one", boom)
+    with pytest.raises(RuntimeError):
+        s.execute()
+    assert fake.stops >= 1

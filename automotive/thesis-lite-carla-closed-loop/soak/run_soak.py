@@ -130,6 +130,7 @@ def identities(compat: Path, blueprints: Path) -> dict:
     wheels = sorted((PLATFORM_SRC.parent / "wheels").glob("*.whl"))  # the driver venv's installed inputs
     out["driverWheels"] = {w.name: hashlib.sha256(w.read_bytes()).hexdigest() for w in wheels}
     out["platformSourceTree"] = _tree_digest(PLATFORM_SRC / "src")  # what the harness imports (conftest)
+    out["platformTestsTree"] = _tree_digest(PLATFORM_SRC / "tests")  # the fixtures that build the native helpers
     sites = sorted((PLATFORM_SRC.parent / "driver-venv" / "lib").glob("python3*/site-packages/xverse"))
     out["driverVenvXverse"] = _tree_digest(sites[0]) if sites else None
     soak = blueprints / "automotive/thesis-lite-carla-closed-loop/soak"
@@ -233,6 +234,7 @@ class Soak:
         self.manifest = out / "soak-manifest.json"
         self.pinned = identities(compat, blueprints)
         self.runs, self.server_failures, self.server_index = [], 0, 0
+        self.stop_cause = None
         self.home = out / "carla-home"
 
     def _save(self, state="running", stop_reason=None):
@@ -293,6 +295,11 @@ class Soak:
         self._save()
         return entry
 
+    def _stop_running(self):
+        """Stop the current slot's server only if one is running (no rewrite of a stopped slot; finding 38)."""
+        if carla_pids():
+            stop_server(self.out / f"carla-server-{self.server_index}")
+
     def _start(self):
         """Start a server in the next slot and record the event; returns (server_dir, healthy)."""
         self.server_index += 1
@@ -308,7 +315,9 @@ class Soak:
         self.server_failures += 1
         self.runs.append({"serverEvent": reason, "server": self.server_index})
         stop_server(self.out / f"carla-server-{self.server_index}")
-        if self.server_failures > MAX_SERVER_FAILURES or failed_starts >= 2:
+        if failed_starts >= 2 or self.server_failures > MAX_SERVER_FAILURES:  # the exact cause is kept (finding 38)
+            self.stop_cause = ("server failed to start twice in a row (DR-11)" if failed_starts >= 2
+                               else "more than 3 server failures")
             return None
         server_dir, healthy = self._start()
         if not healthy:
@@ -365,7 +374,7 @@ class Soak:
             if not healthy:
                 server_dir = self._restart("start failed health", failed_starts=1)
                 if server_dir is None:
-                    return self._stop("server failed to start twice in a row, or more than 3 server failures")
+                    return self._stop(self.stop_cause)
             block_repeats = []
             for rnd in item["rounds"]:
                 waited = self._wait_load()
@@ -376,7 +385,7 @@ class Soak:
                         stop_server(self.out / f"carla-server-{self.server_index}")
                         return self._stop(f"criterion failure in {entry['run']} (FR-020)")
                     if server_dir is None:
-                        return self._stop("more than 3 server failures")
+                        return self._stop(self.stop_cause)
                     if entry["status"] == "INVALID":
                         block_repeats.append(case)
             for case in block_repeats:  # an INVALID run is repeated once, at the end of its block
@@ -385,7 +394,7 @@ class Soak:
                     stop_server(self.out / f"carla-server-{self.server_index}")
                     return self._stop(f"criterion failure in {entry['run']} (FR-020)")
                 if server_dir is None:
-                    return self._stop("more than 3 server failures")
+                    return self._stop(self.stop_cause)
             stop_server(server_dir)
         if repeats_end:  # observation repeats, once each, at the end of the soak
             if any(c for _, c in repeats_end):
@@ -393,22 +402,22 @@ class Soak:
                 if not healthy:
                     server_dir = self._restart("start failed health", failed_starts=1)
                     if server_dir is None:
-                        return self._stop("server failed to start twice in a row, or more than 3 server failures")
+                        return self._stop(self.stop_cause)
             for case, carla in sorted(repeats_end, key=lambda x: not x[1]):
                 if not carla and carla_pids():
-                    stop_server(self.out / f"carla-server-{self.server_index}")
+                    self._stop_running()
                 self._wait_load()
                 if carla:
                     entry, server_dir = self._carla_run(case, repeats_end, repeat_of="OBSERVATION")
                     if server_dir is None:
-                        return self._stop("more than 3 server failures")
+                        return self._stop(self.stop_cause)
                 else:
                     entry = self.run_one(case, carla=False)
                     entry["repeatOf"] = "OBSERVATION"
                 if entry["status"] == "FAIL":
-                    stop_server(self.out / f"carla-server-{self.server_index}")
+                    self._stop_running()
                     return self._stop(f"criterion failure in {entry['run']} (FR-020)")
-            stop_server(self.out / f"carla-server-{self.server_index}")
+            self._stop_running()
         report = summarize(self.runs)
         report["P2"] = dispersion([self.out / e["run"] for e in self.runs if e.get("status") == "PASS"],
                                   script_dir=self.script_dir)  # an observation (plan.md P2), passing runs only
@@ -464,9 +473,12 @@ def dispersion(run_dirs: list[Path], script_dir: Path | None = None) -> dict:
         if not p2 or not verdict.get("pass"):  # passing runs only (finding 34)
             continue
         obs = p2.get("observer") or {}
-        ticks = [json.loads(line) for line in (run / "driver" / "driver-ticks.jsonl").read_text().splitlines()
-                 if '"kind": "tick"' in line or '"kind":"tick"' in line]
-        throttle_s = round(0.05 * sum(1 for r in ticks if r.get("throttle", 0) > 0), 3)  # summed, not first-to-last
+        try:  # a guard-path run can pass without driver ticks; P2 is an observation and never costs the report
+            ticks = [json.loads(line) for line in (run / "driver" / "driver-ticks.jsonl").read_text().splitlines()
+                     if '"kind": "tick"' in line or '"kind":"tick"' in line]
+            throttle_s = round(0.05 * sum(1 for r in ticks if r.get("throttle", 0) > 0), 3)  # summed, not first-to-last
+        except (OSError, ValueError):
+            throttle_s = None
         row = {"peakKmh": obs.get("peakKmh"), "standstillAfterOnsetS": obs.get("standstillAfterOnsetS"),
                "distanceM": obs.get("distanceM"), "throttleTimeS": throttle_s}
         for key, value in row.items():
