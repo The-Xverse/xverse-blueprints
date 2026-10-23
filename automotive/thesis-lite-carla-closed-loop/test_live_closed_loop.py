@@ -253,15 +253,15 @@ def _persistence_timing(timings):
     """The FR-002 per-event metric over ordinary persistence calls; start-up and terminal calls apart (S1a bench)."""
 
     ordinary = [ns / 1e9 for kind, ns in timings if kind not in TERMINAL_RPC_KINDS]
-    terminal = sorted(((kind, round(ns / 1e9, 4)) for kind, ns in timings if kind in TERMINAL_RPC_KINDS), key=lambda x: -x[1])
+    terminal = [(kind, round(ns / 1e9, 4)) for kind, ns in timings if kind in TERMINAL_RPC_KINDS]  # all, in call order
     if not ordinary:
-        return {"count": 0, "terminalMaxS": terminal[:5]}
+        return {"count": 0, "terminalCallsS": terminal}
     ordered, n = sorted(ordinary), len(ordinary)
     deciles = [ordinary[i * n // 10:(i + 1) * n // 10] for i in range(10)]
     means = [sum(d) / len(d) for d in deciles if d]
     return {"count": n, "p99S": round(ordered[max(0, int(n * .99) - 1)], 4), "maxS": round(ordered[-1], 4),
             "firstDecileMeanS": round(means[0], 4), "lastDecileMeanS": round(means[-1], 4),
-            "lastDecileIncreaseS": round(means[-1] - means[0], 4), "terminalMaxS": terminal[:5]}
+            "lastDecileIncreaseS": round(means[-1] - means[0], 4), "terminalCallsS": terminal}
 
 
 def _digest(path):

@@ -184,16 +184,21 @@ def audit(run: Path) -> dict:
         observations["flowRoot"] = roots["flows"]
     if case == "long-run":
         diagnostics = set(record.get("diagnostics") or []) | {record.get("dispatchDiagnostic")}
-        closure = None
+        after = None
         tick = record.get("tickTiming") or {}
         if record.get("startReturnedMonotonicNs") and tick.get("lastTickS") is not None:
-            closure = (record["startReturnedMonotonicNs"] - record["monotonicStartNs"]) / 1e9 - tick["lastTickS"]
+            after = (record["startReturnedMonotonicNs"] - record["monotonicStartNs"]) / 1e9 - tick["lastTickS"]
+        # P6 "the live closure stays within 2 s" is the terminal budget of each closure call (FR-002; run_closure.py
+        # terminal <= 2 s): every terminal-report, closure and abort persistence call (S1c finding 31)
+        timing = record.get("persistenceTiming") or {}
+        closure_calls = [s for kind, s in timing.get("terminalCallsS") or [] if kind in ("terminal-report", "closure", "abort")]
         checks["P6"] = {"noPersistTimeout": "ML-PERSIST-TIMEOUT" not in diagnostics,
                         "noServiceDeadline": "ML-SCHEDULE-SERVICE-DEADLINE" not in diagnostics,
-                        "persistenceRoundTrip": _persistence_ok(record.get("persistenceTiming")),
-                        "closureWithin2s": closure is not None and closure <= 2.0}
-        observations["P6"] = {"closureAfterLastTickS": round(closure, 3) if closure is not None else None,
-                              "persistenceTiming": record.get("persistenceTiming"), "tickTiming": tick}
+                        "persistenceRoundTrip": _persistence_ok(timing),
+                        "closureCallsWithin2s": bool(closure_calls) and max(closure_calls) <= 2.0}
+        observations["P6"] = {"closureCallsMaxS": max(closure_calls) if closure_calls else None,
+                              "afterLastTickS": round(after, 3) if after is not None else None,
+                              "persistenceTiming": timing, "tickTiming": tick}
     if case is None:
         checks["record"] = {"maestroRunJson": False}
     checks["P7"] = preflight_ok(run)
