@@ -116,10 +116,18 @@ Contracts: `xverse-compat` `docs/engineering/thesis-lite-phase7-live/carla-items
   this is verified by `cancel-paused`.
 - `experiment-time`: Maestro's schedule ticks. They are not wall-paced: about 0.07–0.7 s per tick were
   measured in Phase 7, depending on host load. After the S1a persistence repair a cycle runs at the 0.05 s poll
-  floor (mean 0.057 s), so the schedule runs 400 ticks (≥ 20 s after tick 0) and the freeze is at ticks 60–80,
-  so that the thaw comes within 3.48 s of the VCU's last health success
-  (S1c findings 16 and 18). `maestro-run.json` records the measured `tickTiming`. `cancel-paused` fails unless the
-  cancel was issued during the run and the outcome is `ML-SCHEDULE-CANCELLED` (S1c finding 15).
+  floor (steady mean about 0.057 s), so the tick values are derived from that floor (S1c findings 16, 18 and 19):
+  - The schedule runs 400 ticks, which is at least 20 s after tick 0.
+  - Observe is at tick 60, before the cancel-paused cancel.
+  - The freeze is at ticks 40–50. The platform refuses a thaw that comes more than 3.48 s after the frozen
+    unit's last health success (cadence 5 s minus `health_scan_seconds`). The freeze length keeps the worst
+    case inside that bound up to a mean cycle of about 0.17 s; it is a bound, not a guarantee under any load.
+  - `maestro-run.json` records `tickTiming` and the load average at the start and the end.
+  - `argus-verify.txt` holds `xverse-argus verify` for the Maestro and flow roots.
+
+  Every case asserts its expected path: nominal and freeze-vcu must succeed; no-carla must end with
+  `ML-RUN-CHILD-EXIT`. cancel-paused must complete observe, be cancelled during the run, and end with
+  `ML-SCHEDULE-CANCELLED`.
 
 ## Limits
 

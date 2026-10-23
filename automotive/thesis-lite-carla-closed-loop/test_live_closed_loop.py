@@ -57,16 +57,20 @@ RUN_ID = "lite-carla-closed-loop"
 # budget after ~270 events). Events are ~1 per tick plus health probes at a fixed wall rate, and slower
 # appends lengthen each tick, so the run is kept short. Cycles measured 0.17 s per tick at load ~7 and
 # 0.3-0.7 s at load 9-10.5: 80 ticks span ~14-55 s, covering the 9.5 s driver episode plus ~2 s startup.
-# After S1a the cycle runs at the 0.05 s poll floor (mean 0.057 s measured; the platform caps poll_seconds at
-# 0.05 s), so tick counts are derived from that floor (S1c findings 15 and 16). 400 ticks last >= 20 s after
-# tick 0; the driver episode ends ~11.5 s and the cancel-paused cancel ~12.3 s after tick 0. The 55 s active
-# window holds 400 ticks while the mean cycle stays <= 0.13 s. The S-D1 long-run horizon is S1c-2 scope.
+# After S1a the cycle runs at the 0.05 s poll floor (steady mean ~0.057 s; the platform caps poll_seconds at
+# 0.05 s), so tick counts are derived from that floor (S1c findings 15, 16 and 19). Tick 0 comes 1.5-2.7 s after
+# start and its start cycle takes 1.3-1.7 s. 400 ticks last >= 20 s after tick 0; the driver episode ends ~11.5 s
+# and the cancel-paused cancel ~12.3 s after tick 0. The 55 s active window, less the start and the stop/cleanup
+# budget, holds 400 ticks while the mean cycle stays <= ~0.12 s. The S-D1 long-run horizon is S1c-2 scope.
 HORIZON = 400
-OBSERVE_TICK = HORIZON // 2
-# The freeze starts ~3.6 s after tick 0. The thaw must come <= cadence 5 s - health_scan_seconds 1.52 s = 3.48 s
-# after the VCU's last health success, which can be ~1.6 s (the scan interval) before the freeze, so 20 ticks as in
-# Phase 7 (~1.2 s; ~1.6 s at a 0.08 s cycle) (S1c finding 18).
-FREEZE_AT, FREEZE_TICKS = 60, 20
+# Observe at tick 60 (~7 s after start at the floor): before the cancel-paused cancel (>= 13.2 s after start) up to
+# a ~0.15 s mean cycle, so that case always completes observe before the cancel (S1c finding 19, MEDIUM-3).
+OBSERVE_TICK = 60
+# The thaw must come <= cadence 5 s - health_scan_seconds 1.52 s = 3.48 s after the VCU's last health success
+# (S1c finding 18), which can be up to ~1.58 s before the freeze. 10 ticks keep the worst case (1.58 s + 11 cycles
+# + a round trip) inside that bound up to a ~0.17 s mean cycle. Tick 40 (~5.5-6.3 s after start at the floor)
+# starts the freeze inside the throttle segment (~5.3-8.7 s) up to a ~0.1 s mean cycle (S1c finding 19, MEDIUM-2).
+FREEZE_AT, FREEZE_TICKS = 40, 10
 RETAINED_MAX = 4 * 1024 * 1024  # ~2.2 KB per event, ~560 events at 400 ticks; above the 1 MiB default
 POLL = 0.05
 ORDER = ("lite-driver", "carla-adapter", "legacy-vcu", "driver-stimulus")
@@ -186,7 +190,9 @@ def _fact(compute):
 
 
 def _tick_timing(events, start_ns):
-    """First host time of each schedule tick, from the Maestro Argus stream (S1c finding 16)."""
+    """First host time of each schedule tick, from the Maestro Argus stream (S1c finding 16).
+
+    The tick-0 start cycle is reported apart from the steady cycles (S1c finding 19, LOW-4)."""
 
     first = {}
     for line in events.read_text().splitlines():
@@ -197,8 +203,9 @@ def _tick_timing(events, start_ns):
     if len(ticks) < 2:
         return {"ticks": len(ticks)}
     cycles = [first[b] - first[a] for a, b in zip(ticks, ticks[1:])]
+    steady = cycles[1:] or cycles
     return {"ticks": len(ticks), "lastTick": ticks[-1], "firstTickS": round(first[ticks[0]], 3), "lastTickS": round(first[ticks[-1]], 3),
-            "meanCycleS": round(sum(cycles) / len(cycles), 4), "maxCycleS": round(max(cycles), 4)}
+            "startCycleS": round(cycles[0], 4), "meanCycleS": round(sum(steady) / len(steady), 4), "maxCycleS": round(max(steady), 4)}
 
 
 def _digest(path):
@@ -212,6 +219,7 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
     for sub in ("home", "carla-home", "driver"):
         (run_dir / sub).mkdir(parents=True, exist_ok=True)
     record = {"runId": RUN_ID, "case": case, "nonM1": True, "startedWallNs": time.time_ns(), "monotonicStartNs": time.monotonic_ns(),
+              "loadAverageStart": list(os.getloadavg()),  # 1/5/15 min (S1c finding 19, MEDIUM-2)
               "harness": "owned trusted-host Maestro harness (_OriginalRuntimeRun); not RuntimeService, not M1 (DLG-7)",
               "syntheticPlaceholders": {"bootstrapApprovalRef": "bootstrap-approval (harness label, not an approval record)",
                                         "environmentDigest": "pin(b'owned-environment') (harness pin, as in the platform fixture)",
@@ -340,11 +348,13 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
     try:
         outcome = entry.start(scope)
     finally:
+        record["startReturnedMonotonicNs"] = time.monotonic_ns()  # before run_ended (S1c finding 19, LOW-3)
         run_ended.set()
         if canceller is not None:
             canceller.join(timeout=5)
-            if canceller.is_alive():  # entry.stop has not returned: recorded, never silently dropped
-                record["cancelNotIssued"] = record.get("cancelNotIssued", "entry.stop still running after 5 s")
+            if canceller.is_alive():  # still waiting or in entry.stop: recorded, never silently dropped
+                record["cancellerAliveAfterJoin"] = True
+        record["loadAverageEnd"] = list(os.getloadavg())
         record["endedWallNs"] = time.time_ns()
         record["monotonicEndNs"] = time.monotonic_ns()
         if outcome is not None:
@@ -381,9 +391,14 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
             launcher.dispose()
         for image in (*images, supervisor):
             os.close(image.descriptor)
-    if case == "nominal":
+    # every case asserts its expected path (S1c findings 15 and 19, MEDIUM-1)
+    if case in ("nominal", "freeze-vcu"):
         assert outcome.execution_succeeded and outcome.cleanup_complete and record["markersOk"], record.get("dispatchDiagnostic")
-    if case == "cancel-paused":  # the case fails unless it exercised the cancel path (S1c finding 15)
-        assert "cancelReturnedMonotonicNs" in record and "cancelNotIssued" not in record, record.get("cancelNotIssued")
-        assert record["cancelRequestedMonotonicNs"] < record["monotonicEndNs"], "cancel after the run ended"
+    if case == "no-carla":
+        assert record.get("dispatchDiagnostic") == "ML-RUN-CHILD-EXIT" and outcome.cleanup_complete, record.get("dispatchDiagnostic")
+    if case == "cancel-paused":  # the case fails unless it exercised the cancel path
+        assert "cancelReturnedMonotonicNs" in record and "cancelNotIssued" not in record, record.get("cancelNotIssued", "no cancel return")
+        assert record["cancelRequestedMonotonicNs"] < record["startReturnedMonotonicNs"], "cancel after the run returned"
         assert record.get("dispatchDiagnostic") == "ML-SCHEDULE-CANCELLED", record.get("dispatchDiagnostic")
+        observed = [s for s in record["steps"] if s["step_id"].startswith("observe-")]
+        assert observed and all(s["disposition"] == "completed" for s in observed), observed  # one path (MEDIUM-3)
