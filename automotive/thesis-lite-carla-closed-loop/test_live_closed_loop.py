@@ -330,8 +330,9 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
         markers = {}
         for p in work.glob("*.marker"):  # review 2 N-4: a marker records its unit's outcome, not only completion
             try:
-                markers[p.name] = json.loads(p.read_text())
-            except ValueError:
+                value = json.loads(p.read_text())
+                markers[p.name] = value if isinstance(value, dict) else {"unreadable": True, "type": type(value).__name__}
+            except (OSError, ValueError):  # a marker can never cost the run record (S1c finding 9, R3-4)
                 markers[p.name] = {"unreadable": True}
         record["markerContents"] = markers
         record["markersOk"] = len(markers) == 3 and all(m.get("code") == 0 or m.get("outcome") == "profile-complete" for m in markers.values())

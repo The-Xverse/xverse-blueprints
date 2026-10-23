@@ -19,7 +19,8 @@ exec > >(trap '' INT TERM; exec tee "$RUN/run-live.log") 2>&1  # the log survive
 echo "case=$CASE run=$RUN started=$(date -Is) wall_epoch_ns=$(date +%s%N)"
 OBS=; PYTEST=1; SHM=/dev/shm/xverse-lite-$(basename "$RUN"); SOCK=/run/user/$(id -u)/xverse-lite/lite-carla-closed-loop.sock
 
-cleanup() {  # runs on every exit path, including an interrupt (review 1 R-7)
+cleanup() {  # runs on every exit path, including an interrupt (review 1 R-7); always ends the script (S1c finding 9)
+  local rc=$?
   trap - EXIT; trap '' INT TERM PIPE  # a second signal or a closed log must not cut the guard short (S1c finding 7)
   ps -eo pid=,comm=,args= | awk '$2 !~ /^(bash|sh|grep|ps|awk|timeout|tee)$/' | grep -E 'xverse_compat_carla.main|xverse_compat.live|-B main.py' > "$RUN/residue-processes.txt"
   echo "residue processes: $(wc -l < "$RUN/residue-processes.txt")"
@@ -35,9 +36,11 @@ cleanup() {  # runs on every exit path, including an interrupt (review 1 R-7)
   [ -d "$SHM" ] && cp -a "$SHM" "$RUN/maestro-tmp" && rm -rf "$SHM"
   [ "$CASE" != no-carla ] && carla_clients "$RUN/carla-clients-after.txt"
   ss -tlnp > "$RUN/listeners-after.txt" 2>/dev/null
-  echo "ended=$(date -Is) maestro-harness exit=$PYTEST"
+  echo "ended=$(date -Is) maestro-harness exit=$PYTEST script exit=$rc"
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 130' INT   # a signal ends the script through the EXIT trap; it never resumes the run (S1c finding 9)
+trap 'exit 143' TERM
 
 # 1. Identities and revisions (hashes only; nothing is fetched).
 record_revisions "$RUN" "blueprint=$HERE" "compat=$XVERSE_COMPAT_SRC" || exit 4

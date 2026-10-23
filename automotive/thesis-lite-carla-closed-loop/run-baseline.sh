@@ -15,22 +15,22 @@ RUN=${1:-$L10/.x-verse-build/runs/xverse-lite-live-20261022/baseline-$(date +%Y%
 require_compat || exit 4
 COMPAT=$XVERSE_COMPAT_SRC
 EX=/home/jefferson/carla-api/PythonAPI/examples
-mkdir -p "$RUN/carla-home"
-exec > >(trap '' INT TERM; exec tee "$RUN/run-baseline.log") 2>&1  # survives a Ctrl-C of the group (S1c finding 7)
-echo "baseline run=$RUN started=$(date -Is)"
 finish() {  # explicit status (S1 FR-015, T-5 c); the EXIT trap below writes it for every other exit too
   echo "$1" > "$RUN/baseline-exit.txt"; exit "$1"
 }
 ACTIVE=0; OBS=; VCU=; VV=; STIM=
 on_exit() {  # every exit, including a signal or a set -u abort, writes baseline-exit.txt (S1c review 1 R1-3)
   local rc=$?
-  [ -f "$RUN/baseline-exit.txt" ] || echo "$rc" > "$RUN/baseline-exit.txt"  # first, before any output (finding 7)
+  [ -d "$RUN" ] && { [ -f "$RUN/baseline-exit.txt" ] || echo "$rc" > "$RUN/baseline-exit.txt"; }  # first, before any output (finding 7)
   trap - EXIT; trap '' INT TERM PIPE  # a second signal or a closed log must not cut the cleanup short
   [ "$ACTIVE" = 1 ] && baseline_cleanup
 }
 trap on_exit EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
+mkdir -p "$RUN/carla-home"  # after the traps: every exit once the run directory exists writes the exit file (S1c finding 9)
+exec > >(trap '' INT TERM; exec tee "$RUN/run-baseline.log") 2>&1  # survives a Ctrl-C of the group (S1c finding 7)
+echo "baseline run=$RUN started=$(date -Is)"
 {
   echo "compat-src $COMPAT"  # the checkout actually used (S1 FR-014)
   legacy_identity bridge-repo /home/jefferson/autoverse/bridges/carla
