@@ -119,7 +119,8 @@ Contracts: `xverse-compat` `docs/engineering/thesis-lite-phase7-live/carla-items
   floor (steady mean about 0.057 s), so the tick values are derived from that floor (S1c findings 16, 18 and 19):
   - The schedule runs 400 ticks, which is at least 20 s after tick 0.
   - Observe is at tick 60, before the cancel-paused cancel.
-  - The freeze is at ticks 40–50. The platform refuses a thaw that comes more than 3.48 s after the frozen
+  - The freeze is at ticks 60–70, about 1.1–1.9 s into the stimulus throttle at the floor. freeze-vcu fails
+    unless the freeze overlaps the throttle. The platform refuses a thaw that comes more than 3.48 s after the frozen
     unit's last health success (cadence 5 s minus `health_scan_seconds`). The freeze length keeps the worst
     case inside that bound up to a mean cycle of about 0.17 s; it is a bound, not a guarantee under any load.
   - `maestro-run.json` records `tickTiming` and the load average at the start and the end.
@@ -127,8 +128,14 @@ Contracts: `xverse-compat` `docs/engineering/thesis-lite-phase7-live/carla-items
 
   Every case asserts its expected path: nominal and freeze-vcu must succeed; no-carla must end with
   `ML-RUN-CHILD-EXIT`. cancel-paused must complete observe, be cancelled during the run, and end with
-  `ML-SCHEDULE-CANCELLED`. It must also close as P3 requires: no persistence failure, cleanup complete,
-  every native unit retired and reaped, and every closure writer `failed` or `closed` (S1c finding 20).
+  `ML-SCHEDULE-CANCELLED`. It must also have no persistence failure, cleanup complete, every native unit
+  retired and reaped, and every closure writer `failed` or `closed` (S1c finding 20). Every case checks the
+  Maestro Argus root with `xverse-argus verify`:
+  - nominal and freeze-vcu must be closed and complete;
+  - the failure paths must end `failed` (or `closed`) with no reason other than WRITER-STATE.
+
+  These are the harness assertions only. The guard, the residue, the flow roots and the full P1–P8 audit are
+  checked from the run evidence (S1-T15a), not by the harness.
 
 ## Limits
 

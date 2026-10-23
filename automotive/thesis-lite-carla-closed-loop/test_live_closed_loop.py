@@ -19,6 +19,7 @@ import copy
 import hashlib
 import json
 import os
+import subprocess
 from pathlib import Path
 import sys
 import threading
@@ -58,8 +59,8 @@ RUN_ID = "lite-carla-closed-loop"
 # appends lengthen each tick, so the run is kept short. Cycles measured 0.17 s per tick at load ~7 and
 # 0.3-0.7 s at load 9-10.5: 80 ticks span ~14-55 s, covering the 9.5 s driver episode plus ~2 s startup.
 # After S1a the cycle runs at the 0.05 s poll floor (steady mean ~0.057 s; the platform caps poll_seconds at
-# 0.05 s), so tick counts are derived from that floor (S1c findings 15, 16 and 19). Tick 0 comes 1.5-2.7 s after
-# start and its start cycle takes 1.3-1.7 s. 400 ticks last >= 20 s after tick 0; the driver episode ends ~11.5 s
+# 0.05 s), so tick counts are derived from that floor (S1c findings 15, 16 and 19). Tick 0 came 1.5-2.8 s after
+# start and its start cycle took 1.0-2.1 s in the runs measured (S1c finding 22, LOW-3). 400 ticks last >= 20 s after tick 0; the driver episode ends ~11.5 s
 # and the cancel-paused cancel ~12.3 s after tick 0. The 55 s active window, less the start and the stop/cleanup
 # budget, holds 400 ticks while the mean cycle stays <= ~0.12 s. The S-D1 long-run horizon is S1c-2 scope.
 HORIZON = 400
@@ -68,9 +69,10 @@ HORIZON = 400
 OBSERVE_TICK = 60
 # The thaw must come <= cadence 5 s - health_scan_seconds 1.52 s = 3.48 s after the VCU's last health success
 # (S1c finding 18), which can be up to ~1.58 s before the freeze. 10 ticks keep the worst case (1.58 s + 11 cycles
-# + a round trip) inside that bound up to a ~0.17 s mean cycle. Tick 40 (~5.5-6.3 s after start at the floor)
-# starts the freeze inside the throttle segment (~5.3-8.7 s) up to a ~0.1 s mean cycle (S1c finding 19, MEDIUM-2).
-FREEZE_AT, FREEZE_TICKS = 40, 10
+# + a round trip) inside that bound up to a ~0.17 s mean cycle (S1c finding 19). Tick 40 fell only 0.08-0.89 s
+# after the stimulus throttle start (a ~3.45 s segment), so the freeze is at tick 60: ~1.1-1.9 s into the segment
+# at the floor (S1c finding 22, MEDIUM-1). The case records the overlap and fails unless it is positive.
+FREEZE_AT, FREEZE_TICKS = 60, 10
 RETAINED_MAX = 4 * 1024 * 1024  # ~2.2 KB per event, ~560 events at 400 ticks; above the 1 MiB default
 POLL = 0.05
 ORDER = ("lite-driver", "carla-adapter", "legacy-vcu", "driver-stimulus")
@@ -206,6 +208,34 @@ def _tick_timing(events, start_ns):
     steady = cycles[1:] or cycles
     return {"ticks": len(ticks), "lastTick": ticks[-1], "firstTickS": round(first[ticks[0]], 3), "lastTickS": round(first[ticks[-1]], 3),
             "startCycleS": round(cycles[0], 4), "meanCycleS": round(sum(steady) / len(steady), 4), "maxCycleS": round(max(steady), 4)}
+
+
+def _freeze_overlap(events, stimulus):
+    """Seconds of the freeze (Argus apply..clear) inside the stimulus's own throttle window (host-monotonic)."""
+
+    marks = {}
+    for line in events.read_text().splitlines():
+        event = json.loads(line)
+        text = (event.get("annotation") or {}).get("text") or ""
+        for phase in ("apply", "clear"):
+            if text.startswith("fault ") and f" {phase} " in f"{text} ":
+                marks.setdefault(phase, event["clocks"]["host"]["value"])
+    pedal = [r for r in (json.loads(x) for x in stimulus.read_text().splitlines()[1:]) if r.get("acc", 0) > 0]
+    if len(marks) != 2 or not pedal:
+        return {"marks": marks, "pedalSamples": len(pedal), "overlapS": None}
+    s0, s1 = pedal[0]["monotonicNs"] / 1e9, pedal[-1]["monotonicNs"] / 1e9
+    return {"appliedS": marks["apply"], "clearedS": marks["clear"], "throttleWindowS": [s0, s1],
+            "overlapS": round(min(marks["clear"], s1) - max(marks["apply"], s0), 3)}
+
+
+def _argus_verify(root):
+    """``xverse-argus verify`` of one evidence root, next to this interpreter (S1c finding 22, MEDIUM-2)."""
+
+    tool = Path(sys.executable).parent / "xverse-argus"
+    done = subprocess.run([str(tool), "verify", str(root)], capture_output=True, text=True, timeout=60, check=False)
+    data = json.loads(done.stdout)
+    return {"exit": done.returncode, "writerState": data.get("writerState"), "evidenceStatus": data.get("evidenceStatus"),
+            "evidenceReasons": data.get("evidenceReasons"), "diagnostics": [d.get("code") for d in data.get("diagnostics") or []]}
 
 
 def _digest(path):
@@ -375,6 +405,9 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
                                                  if outcome.dispatch and outcome.dispatch.terminal is not None else None))
         record["workArtifacts"] = _fact(lambda: sorted(p.name for p in work.iterdir()))
         record["tickTiming"] = _fact(lambda: _tick_timing(tmp_path / "argus-maestro" / "events.jsonl", record["monotonicStartNs"]))
+        record["argusMaestroVerify"] = _fact(lambda: _argus_verify(tmp_path / "argus-maestro"))
+        if case == "freeze-vcu":
+            record["freezeThrottle"] = _fact(lambda: _freeze_overlap(tmp_path / "argus-maestro" / "events.jsonl", run_dir / "stimulus.jsonl"))
         markers = {}
         for p in work.glob("*.marker"):  # review 2 N-4: a marker records its unit's outcome, not only completion
             try:
@@ -391,13 +424,21 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
             launcher.dispose()
         for image in (*images, supervisor):
             os.close(image.descriptor)
-    # every case asserts its expected path (S1c findings 15 and 19, MEDIUM-1)
+    # every case asserts its expected path (S1c findings 15 and 19, MEDIUM-1) and its Maestro Argus root (finding 22)
+    verified = record.get("argusMaestroVerify") or {}
     if case in ("nominal", "freeze-vcu"):
         assert outcome.execution_succeeded and outcome.cleanup_complete and record["markersOk"], record.get("dispatchDiagnostic")
+        assert verified.get("writerState") == "closed" and verified.get("evidenceStatus") == "complete", verified
+    else:  # a failed (or closed) writer whose only reason is its own state (proposed DR-6)
+        assert verified.get("writerState") in ("failed", "closed"), verified
+        assert set(verified.get("evidenceReasons") or []) <= {"ARGUS2-REASON-WRITER-STATE"}, verified
+    if case == "freeze-vcu":
+        assert ((record.get("freezeThrottle") or {}).get("overlapS") or 0) > 0, record.get("freezeThrottle")
     if case == "no-carla":
         assert record.get("dispatchDiagnostic") == "ML-RUN-CHILD-EXIT" and outcome.cleanup_complete, record.get("dispatchDiagnostic")
     if case == "cancel-paused":  # the case fails unless it exercised the cancel path
         assert "cancelReturnedMonotonicNs" in record and "cancelNotIssued" not in record, record.get("cancelNotIssued", "no cancel return")
+        assert "cancellerAliveAfterJoin" not in record, "entry.stop still running after the join"  # S1c finding 22, LOW-1
         assert record["cancelRequestedMonotonicNs"] < record["startReturnedMonotonicNs"], "cancel after the run returned"
         assert record.get("dispatchDiagnostic") == "ML-SCHEDULE-CANCELLED", record.get("dispatchDiagnostic")
         observed = [s for s in record["steps"] if s["step_id"].startswith("observe-")]
