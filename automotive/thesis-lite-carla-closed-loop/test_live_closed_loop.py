@@ -97,8 +97,10 @@ MARKER_PROBE = "nonce-marker"
 # last at W - 0.25 s (platform S1b finding 10). With the fixture's 1 s timeout the last attempt would come 0.75 s after
 # release. The adapter is ready only once CARLA, its owned scenario and its link are set up: its owned-actor registry
 # was written 0.24-1.26 s after its release in the S1c-2 part 1 runs (load 6.3-8.5). The owned units' timeout is
-# therefore the declared observe budget, 2 s (attempts at 0, 0.875 and 1.75 s); the VCU keeps the fixture's 1 s.
-OWNED_READINESS_TIMEOUT_S = 2.0
+# therefore the declared observe budget. 2 s (attempts at 0, 0.875 and 1.75 s) left the adapter on its last attempt
+# once (S1c finding 44, M3), so the owned window is 3.5 s (attempts at 0, 1.625 and 3.25 s) inside a 4 s observe budget
+# and the 5 s platform cap; every owned unit's ready latency is recorded (readyLatencyS). The VCU keeps the fixture's 1 s.
+OWNED_READINESS_TIMEOUT_S = 3.5
 ORDER = ("lite-driver", "carla-adapter", "legacy-vcu", "driver-stimulus")
 # the fixture's flow source starts first: the driver is the source of the actuation-command flow to the adapter
 RENAME = {"source-instance": "lite-driver-instance", "sink-instance": "carla-adapter-instance",
@@ -160,7 +162,7 @@ def build_documents(defs, artifacts, horizon=HORIZON):
         # declared action budgets (the schedule uses them: use_action_timeouts); 5 s is the platform cap.
         # A killed legacy VCU (many zenoh threads) needs more than the fixture's 1 s to be reaped.
         for action in payload["actions"]:
-            action["timeoutSeconds"] = {"prepare": 2, "start": 5, "observe": 2, "stop": 5, "cleanup": 5}[action["phase"]]
+            action["timeoutSeconds"] = {"prepare": 2, "start": 5, "observe": 4, "stop": 5, "cleanup": 5}[action["phase"]]
         payload["process"] = {"executable": unit.executable, "arguments": list(unit.arguments), "workingDirectory": unit.working_directory,
                               "environmentNames": sorted(unit.environment), "inheritedHandles": "closed", "implicitShell": False,
                               "stop": {"graceSeconds": STOP_GRACE_S}, "stderr": dict(STDERR_CAPTURE)}  # S1b, every unit
@@ -322,6 +324,21 @@ def _readiness_probes(events):
             row[x["action"]].append([x.get("outcome"), x.get("probeId")])
         elif x.get("probeId") not in row["healthProbeIds"]:
             row["healthProbeIds"].append(x.get("probeId"))
+    return out
+
+
+def _ready_latency(work, names):
+    """Seconds from the platform's challenge to the unit's ready file, per owned unit (mtimes; S1c finding 44, M3)."""
+
+    out = {}
+    for name in names:
+        try:
+            base = Path(work) / name / ".xverse-ready"
+            challenge = os.stat(base / "challenge", follow_symlinks=False).st_mtime_ns
+            ready = os.stat(base / "ready", follow_symlinks=False).st_mtime_ns
+            out[name] = round((ready - challenge) / 1e9, 3)
+        except OSError:
+            out[name] = None
     return out
 
 
@@ -540,6 +557,7 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
         # S1c-2 part 2: TERM outcome per unit, private stderr sizes, readiness probe identities (S1c finding 40)
         record["stopModes"] = _fact(lambda: _stop_modes(record["nativeUnits"])) if isinstance(record.get("nativeUnits"), list) else None
         record["stderrPrivateBytes"] = _fact(lambda: _stderr_sizes(stderr_dirs))
+        record["readyLatencyS"] = _fact(lambda: _ready_latency(work, [n for n in ORDER if n != "legacy-vcu"]))
         record["readinessProbes"] = _fact(lambda: _readiness_probes(tmp_path / "argus-maestro" / "events.jsonl"))
         if case == "freeze-vcu":
             record["freezeThrottle"] = _fact(lambda: _freeze_overlap(tmp_path / "argus-maestro" / "events.jsonl", run_dir / "stimulus.jsonl"))
@@ -573,6 +591,9 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
     if case in ("nominal", "freeze-vcu", "long-run"):  # the owned units exit on TERM at their scheduled stops (FR-009)
         modes = record.get("stopModes") or {}
         assert all(modes.get(name) == "exited-on-term" for name in ORDER if name != "legacy-vcu"), modes  # the VCU: recorded only
+    if case in ("nominal", "freeze-vcu", "long-run", "cancel-paused"):  # every unit started: its private stderr exists (L4)
+        sizes = record.get("stderrPrivateBytes") or {}
+        assert all(0 <= (sizes.get(name) or {}).get("stderr-g1", -1) <= STDERR_CAPTURE["maximumBytes"] for name in ORDER), sizes
     if case in ("nominal", "freeze-vcu", "long-run", "cancel-paused"):  # every unit started before any cancel
         probes = record.get("readinessProbes") or {}
         for name in ORDER:

@@ -55,7 +55,7 @@ record_revisions "$RUN" "blueprint=$HERE" "compat=$XVERSE_COMPAT_SRC" || exit 4
   echo "driver-venv $VENV"
   sha256sum /usr/bin/python3.10 /home/jefferson/.pyenv/versions/3.13.13/bin/python3.13 /usr/bin/zenohd \
     "$L10/.x-verse-build/cache/xverse-compat-wheels/carla-0.9.15-cp310-cp310-manylinux_2_27_x86_64.whl" \
-    "$L10"/.x-verse-build/cache/xverse-lite-live-20261022/wheels/*.whl
+    "$(dirname "$VENV")"/wheels/*.whl  # the wheels of the venv actually used (S1c finding 44, M1)
   legacy_identity legacy-vcu /home/jefferson/autoverse/vecu/vcu_zenoh
   sha256sum /home/jefferson/autoverse/vecu/vcu_zenoh/src/*.py
   cat /home/jefferson/carla-simulator/VERSION 2>/dev/null | head -1
