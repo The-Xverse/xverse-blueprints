@@ -18,10 +18,21 @@ EX=/home/jefferson/carla-api/PythonAPI/examples
 mkdir -p "$RUN/carla-home"
 exec > >(tee "$RUN/run-baseline.log") 2>&1
 echo "baseline run=$RUN started=$(date -Is)"
-finish() {  # every exit writes its status code to a file (S1 FR-015, T-5 c)
+finish() {  # explicit status (S1 FR-015, T-5 c); the EXIT trap below writes it for every other exit too
   echo "$1" > "$RUN/baseline-exit.txt"; exit "$1"
 }
+ACTIVE=0; OBS=; VCU=; VV=; STIM=
+on_exit() {  # every exit, including a signal or a set -u abort, writes baseline-exit.txt (S1c review 1 R1-3)
+  local rc=$?
+  trap - EXIT INT TERM
+  [ "$ACTIVE" = 1 ] && baseline_cleanup
+  [ -f "$RUN/baseline-exit.txt" ] || echo "$rc" > "$RUN/baseline-exit.txt"
+}
+trap on_exit EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 {
+  echo "compat-src $COMPAT"  # the checkout actually used (S1 FR-014)
   legacy_identity bridge-repo /home/jefferson/autoverse/bridges/carla
   sha256sum /home/jefferson/autoverse/bridges/carla/examples/virtual_vehicle.py $EX/virtual_vehicle.py \
     /home/jefferson/autoverse/bridges/carla/examples/signals_config.json $EX/signals_config.json
@@ -35,6 +46,10 @@ carla_clients "$RUN/carla-clients-before.txt" || { echo "BLOCKED: unexpected cli
 world_settings "$RUN/world-before.json" "$RUN/carla-home" && [ -s "$RUN/world-before.json" ] \
   || { echo "BLOCKED: cannot read the world settings (review 3 M-3)"; finish 4; }
 START_WORLD="$RUN/world-before.json"  # the world the legacy loop starts in (after a normalisation, its re-list)
+# as the Lite preflight, refuse vehicles before changing anything (S1 FR-015, T-5 a; S1c review 1 R1-9)
+if python3 -c "import json,sys; sys.exit(0 if json.load(open(sys.argv[1])).get('vehicles') else 1)" "$START_WORLD"; then
+  echo "BLOCKED: the world already has vehicles; the baseline needs an empty world (S1 FR-015, T-5 a)"; finish 4
+fi
 echo "world before: $(cat "$RUN/world-before.json")"
 if python3 -c "import json,sys; w=json.load(open(sys.argv[1])); sys.exit(0 if w['synchronousMode'] and not w['frameAdvancing'] else 1)" "$RUN/world-before.json"; then
   # declared setup step: an ownerless synchronous world (live finding 05) cannot host the asynchronous legacy loop
@@ -48,19 +63,17 @@ if python3 -c "import json,sys; w=json.load(open(sys.argv[1])); sys.exit(0 if w[
   world_settings "$START_WORLD" "$RUN/carla-home" && [ -s "$START_WORLD" ] || { echo "BLOCKED: cannot re-read the world"; finish 4; }
   echo "world after normalisation: $(cat "$START_WORLD")"
 fi
-# as the Lite preflight: the baseline fails on any vehicle left after it, so it refuses any vehicle before it (T-5 a)
+# a queued spawn may appear on the normalisation tick: check the starting world again (review 3 M-4)
 if python3 -c "import json,sys; sys.exit(0 if json.load(open(sys.argv[1])).get('vehicles') else 1)" "$START_WORLD"; then
-  echo "BLOCKED: the world already has vehicles; the baseline needs an empty world (S1 FR-015, T-5 a)"; finish 4
+  echo "BLOCKED: vehicles appeared during the normalisation; the baseline needs an empty world"; finish 4
 fi
-OBS=; VCU=; VV=; STIM=
 baseline_cleanup() {  # stop every process this baseline started, on any exit (incl. timeout/interrupt)
-  trap - EXIT INT TERM
   for P in $STIM $VV $VCU; do kill -0 "$P" 2>/dev/null && kill -INT "$P"; done
   sleep 3
   for P in $STIM $VV $VCU; do kill -0 "$P" 2>/dev/null && { echo "killing $P"; kill -KILL "$P"; }; done
   [ -n "$OBS" ] && kill -TERM "$OBS" 2>/dev/null
 }
-trap baseline_cleanup EXIT INT TERM
+ACTIVE=1  # from here on, on_exit also stops the processes this baseline started
 
 (cd "$COMPAT/src" && exec env -i PATH=/usr/bin HOME="$RUN/carla-home" /usr/bin/python3.10 -s -B -m xverse_compat_carla.observe \
    --role ego_vehicle --duration-s 60 --out "$RUN/observer.jsonl" --carla-site "$SITE") 2> "$RUN/observer.err" & OBS=$!
@@ -80,27 +93,36 @@ for P in $VV $VCU; do kill -0 $P 2>/dev/null && { echo "terminating $P"; kill -T
 for i in $(seq 1 20); do kill -0 $VV 2>/dev/null || kill -0 $VCU 2>/dev/null || break; sleep 0.5; done
 for P in $VV $VCU; do kill -0 $P 2>/dev/null && { echo "killing $P (ignored SIGINT and SIGTERM)"; kill -KILL $P; }; done
 wait $VV; VV_RC=$?; echo "virtual-vehicle exit=$VV_RC"; wait $VCU; VCU_RC=$?; echo "vcu exit=$VCU_RC"
-trap - EXIT INT TERM
+ACTIVE=0
 kill -TERM $OBS 2>/dev/null; wait $OBS; OBS_RC=$?; echo "observer exit=$OBS_RC"
 (cd "$COMPAT/src" && env -i PATH=/usr/bin HOME="$RUN/carla-home" /usr/bin/python3.10 -s -B -c "
 import sys,json,site; site.addsitedir('$SITE'); import carla
 try:
     w=carla.Client('127.0.0.1',2000); w.set_timeout(10); w=w.get_world(); s=w.get_settings()
+    vehicles=[(a.id, a.type_id, a.attributes.get('role_name')) for a in w.get_actors().filter('vehicle.*')]
 except RuntimeError as error:  # a hung server: one line, fail closed (T-5 d)
     print('world unavailable after the run: %s' % error, file=sys.stderr); sys.exit(1)
-print(json.dumps({'synchronousMode': s.synchronous_mode, 'vehicles': [(a.id, a.type_id, a.attributes.get('role_name')) for a in w.get_actors().filter('vehicle.*')]}))") > "$RUN/world-after.json"
+print(json.dumps({'synchronousMode': s.synchronous_mode, 'vehicles': vehicles}))") > "$RUN/world-after.json"
 echo "world after: $(cat "$RUN/world-after.json")"
 # remove a legacy ego left by a killed virtual_vehicle.py: only vehicles that did not exist before this run (review 2 N-6)
 python3 - "$START_WORLD" "$RUN/world-after.json" > "$RUN/leftover-legacy-ids.txt" <<'PY'
 import json, sys
-before = {v[0] for v in json.load(open(sys.argv[1])).get("vehicles", [])}
-print(" ".join(str(v[0]) for v in json.load(open(sys.argv[2])).get("vehicles", []) if v[0] not in before and v[2] == "ego_vehicle"))
+try:
+    before = {v[0] for v in json.load(open(sys.argv[1])).get("vehicles", [])}
+    after = json.load(open(sys.argv[2])).get("vehicles", [])
+except (OSError, ValueError) as error:  # no world record (hung server): nothing to clean, fails closed below (T-5 d)
+    print("no world record after the run: %s" % error, file=sys.stderr); sys.exit(0)
+print(" ".join(str(v[0]) for v in after if v[0] not in before and v[2] == "ego_vehicle"))
 PY
 if [ -s "$RUN/leftover-legacy-ids.txt" ] && [ -n "$(tr -d ' \n' < "$RUN/leftover-legacy-ids.txt")" ]; then
   (cd /tmp && env -i PATH=/usr/bin HOME="$RUN/carla-home" /usr/bin/python3.10 -s -B -c "
 import site, sys; site.addsitedir('$SITE'); import carla
 c = carla.Client('127.0.0.1', 2000); c.set_timeout(10)
-ids = [int(x) for x in sys.argv[1:]]; r = c.apply_batch_sync([carla.command.DestroyActor(i) for i in ids], False)
+ids = [int(x) for x in sys.argv[1:]]
+try:
+    r = c.apply_batch_sync([carla.command.DestroyActor(i) for i in ids], False)
+except RuntimeError as error:  # a hung server: one line; the leftover check below fails closed (T-5 d)
+    print('leftover legacy actors not destroyed:', ids, error); sys.exit(1)
 print('destroyed leftover legacy actors', ids, [x.error for x in r])" $(cat "$RUN/leftover-legacy-ids.txt")) | tee "$RUN/leftover-legacy-destroyed.txt"
   sleep 1; world_settings "$RUN/world-after-cleanup.json" "$RUN/carla-home"  # verify (review 3 M-5)
   echo "world after leftover cleanup: $(cat "$RUN/world-after-cleanup.json")"

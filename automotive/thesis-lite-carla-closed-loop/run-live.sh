@@ -42,6 +42,7 @@ trap cleanup EXIT INT TERM
 # 1. Identities and revisions (hashes only; nothing is fetched).
 record_revisions "$RUN" "blueprint=$HERE" "compat=$XVERSE_COMPAT_SRC" || exit 4
 {
+  echo "compat-src $XVERSE_COMPAT_SRC"  # the checkout actually used (S1 FR-014)
   echo "platform-src $(cat "$XVERSE_PLATFORM_SRC/.export-revision" 2>/dev/null || echo unknown)"
   sha256sum /usr/bin/python3.10 /home/jefferson/.pyenv/versions/3.13.13/bin/python3.13 /usr/bin/zenohd \
     "$L10/.x-verse-build/cache/xverse-compat-wheels/carla-0.9.15-cp310-cp310-manylinux_2_27_x86_64.whl" \
