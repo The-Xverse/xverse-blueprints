@@ -24,7 +24,7 @@ cleanup() {  # runs on every exit path, including an interrupt (review 1 R-7)
   echo "residue processes: $(wc -l < "$RUN/residue-processes.txt")"
   if [ "$CASE" != no-carla ]; then  # residue first, then the guard while the observer still watches
     (cd "$XVERSE_COMPAT_SRC/src" && env -i PATH=/usr/bin HOME="$RUN/carla-home" /usr/bin/python3.10 -s -B -m xverse_compat_carla.restore \
-       --carla-site "$SITE" --settings-from "$RUN/world-before.json") > "$RUN/restore-guard.json"
+       --carla-site "$SITE" --settings-from "$RUN/world-before.json" --owned-registry "$RUN/owned-actors.json") > "$RUN/restore-guard.json"
     echo "restore-guard exit=$? $(cat "$RUN/restore-guard.json")"
     sleep 1
   fi
