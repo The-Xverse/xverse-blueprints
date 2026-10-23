@@ -127,7 +127,8 @@ Contracts: `xverse-compat` `docs/engineering/thesis-lite-phase7-live/carla-items
 
   Every case asserts its expected path: nominal and freeze-vcu must succeed; no-carla must end with
   `ML-RUN-CHILD-EXIT`. cancel-paused must complete observe, be cancelled during the run, and end with
-  `ML-SCHEDULE-CANCELLED`.
+  `ML-SCHEDULE-CANCELLED`. It must also close as P3 requires: no persistence failure, cleanup complete,
+  every native unit retired and reaped, and every closure writer `failed` or `closed` (S1c finding 20).
 
 ## Limits
 

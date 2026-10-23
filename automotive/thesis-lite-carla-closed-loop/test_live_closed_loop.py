@@ -402,3 +402,11 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
         assert record.get("dispatchDiagnostic") == "ML-SCHEDULE-CANCELLED", record.get("dispatchDiagnostic")
         observed = [s for s in record["steps"] if s["step_id"].startswith("observe-")]
         assert observed and all(s["disposition"] == "completed" for s in observed), observed  # one path (MEDIUM-3)
+        # the P3 closure facts, not only the path (S1c finding 20; writer end state per DR-2)
+        assert record.get("persistenceFailure") is None, record.get("persistenceFailure")
+        assert record.get("cleanupComplete") is True, record.get("closureDiagnostics")
+        native = record.get("nativeUnits") or []
+        assert len(native) == len(ORDER) and all(u.get("issued") and u.get("native_retired") and u.get("direct_child_reaped")
+                                                 for u in native), native
+        writers = [r.get("writer") or {} for r in record.get("closureTerminalReports") or []]
+        assert writers and all(w.get("after_state") in ("failed", "closed") for w in writers), writers
