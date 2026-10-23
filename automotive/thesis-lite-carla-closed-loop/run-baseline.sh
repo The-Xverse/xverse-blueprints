@@ -33,6 +33,8 @@ if python3 -c "import json,sys; w=json.load(open(sys.argv[1])); sys.exit(0 if w[
   # declared setup step: an ownerless synchronous world (live finding 05) cannot host the asynchronous legacy loop
   (cd "$COMPAT/src" && env -i PATH=/usr/bin HOME="$RUN/carla-home" /usr/bin/python3.10 -s -B -m xverse_compat_carla.restore --carla-site "$SITE") > "$RUN/world-normalised.json"
   echo "world normalised to asynchronous before the baseline: $(cat "$RUN/world-normalised.json")"
+  python3 -c "import json,sys; sys.exit(0 if json.load(open(sys.argv[1])).get('restored') else 1)" "$RUN/world-normalised.json" \
+    || { echo "BLOCKED: the world could not be made asynchronous; the legacy loop is not started"; exit 4; }
 fi
 OBS=; VCU=; VV=; STIM=
 baseline_cleanup() {  # stop every process this baseline started, on any exit (incl. timeout/interrupt)
