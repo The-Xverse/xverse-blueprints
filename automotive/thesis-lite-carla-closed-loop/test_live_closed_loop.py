@@ -3,7 +3,7 @@ validation). One test = one run. Configuration comes from environment variables 
 
 - ``XVERSE_LIVE_RUN_DIR``: evidence directory (loop10);
 - ``XVERSE_COMPAT_SRC``: the xverse-compat checkout (adapters and descriptors);
-- ``XVERSE_LIVE_CASE``: ``nominal`` | ``no-carla`` | ``cancel-paused`` | ``freeze-vcu``.
+- ``XVERSE_LIVE_CASE``: ``nominal`` | ``no-carla`` | ``cancel-paused`` | ``freeze-vcu`` | ``long-run`` (S1 FR-018).
 
 The run: XDL documents -> validation and experiment plan -> ``prepare_lifecycle`` -> owned permits and
 approvals (DLG-7: non-M1) -> schedule, coverage and collection admissions -> sealed helper images and
@@ -33,7 +33,7 @@ from xverse.maestro.bootstrap import BootstrapAdmission, encode_bootstrap, seal_
 from xverse.maestro.bootstrap_launcher import OriginalBootstrapRegistry
 from xverse.maestro.collection_plan import admit_collection
 from xverse.maestro.coverage import ArtifactExpectation, admit_coverage
-from xverse.maestro.persistence import encode_configuration
+from xverse.maestro.persistence import PersistenceClient, encode_configuration
 from xverse.maestro.prbc import BoundaryDescriptor
 from xverse.maestro.projection import Limits, ProviderDescriptor, prepare_lifecycle
 from xverse.maestro.providers import ProbePolicy
@@ -64,6 +64,11 @@ RUN_ID = "lite-carla-closed-loop"
 # after tick 0; the driver episode ends ~11.5 s and the cancel-paused cancel ~12.3 s after tick 0. The 55 s active window, less the start and the stop/cleanup
 # budget, holds 400 ticks while the mean cycle stays <= ~0.12 s. The S-D1 long-run horizon is S1c-2 scope.
 HORIZON = 400
+# S1 FR-018 / S-D1 (revised 600 Maestro ticks, 4 units): >= 30 s after tick 0 at the floor and inside the 55 s active
+# window while the mean cycle stays <= ~0.085 s (measured 0.055-0.068 s). The driver episode (25 s) covers the
+# long-run stimulus profile (three standard cycles, 21 s, from ~1.5 s after the episode starts); events ~800 < 8192
+# and retained inputs ~1.8 MB < RETAINED_MAX.
+LONG_RUN_HORIZON, LONG_RUN_EPISODE_S = 600, 25.0
 # Observe at tick 60 (~7 s after start at the floor): before the cancel-paused cancel (>= 13.2 s after start) up to
 # a ~0.15 s mean cycle, so that case always completes observe before the cancel (S1c finding 19, MEDIUM-3).
 OBSERVE_TICK = 60
@@ -241,11 +246,29 @@ def _argus_verify(root):
             "evidenceReasons": data.get("evidenceReasons"), "diagnostics": [d.get("code") for d in data.get("diagnostics") or []]}
 
 
+TERMINAL_RPC_KINDS = {"init", "terminal-report", "closure", "abort", "collect", "public-export", "public-blob"}
+
+
+def _persistence_timing(timings):
+    """The FR-002 per-event metric over ordinary persistence calls; start-up and terminal calls apart (S1a bench)."""
+
+    ordinary = [ns / 1e9 for kind, ns in timings if kind not in TERMINAL_RPC_KINDS]
+    terminal = sorted(((kind, round(ns / 1e9, 4)) for kind, ns in timings if kind in TERMINAL_RPC_KINDS), key=lambda x: -x[1])
+    if not ordinary:
+        return {"count": 0, "terminalMaxS": terminal[:5]}
+    ordered, n = sorted(ordinary), len(ordinary)
+    deciles = [ordinary[i * n // 10:(i + 1) * n // 10] for i in range(10)]
+    means = [sum(d) / len(d) for d in deciles if d]
+    return {"count": n, "p99S": round(ordered[max(0, int(n * .99) - 1)], 4), "maxS": round(ordered[-1], 4),
+            "firstDecileMeanS": round(means[0], 4), "lastDecileMeanS": round(means[-1], 4),
+            "lastDecileIncreaseS": round(means[-1] - means[0], 4), "terminalMaxS": terminal[:5]}
+
+
 def _digest(path):
     return "sha256:" + hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap_binary, tmp_path):
+def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap_binary, tmp_path, monkeypatch):
     run_dir = Path(os.environ["XVERSE_LIVE_RUN_DIR"])
     compat = Path(os.environ["XVERSE_COMPAT_SRC"])
     case = os.environ.get("XVERSE_LIVE_CASE", "nominal")
@@ -267,11 +290,14 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
     Path(socket_path).parent.mkdir(parents=True, exist_ok=True)
     plan_path = run_dir / "experiment-plan.json"
     # a 9.5 s driver episode covers the stimulus start offset (~1.5 s measured) and its 7 s profile
-    defs = unit_definitions(compat=compat, run_dir=run_dir, work=work, socket_path=socket_path, plan=plan_path, episode_s=9.5,
-                            pause_after_s=4.0 if case == "cancel-paused" else None)  # inside the throttle segment (review 2 N-3)
+    long_run = case == "long-run"
+    defs = unit_definitions(compat=compat, run_dir=run_dir, work=work, socket_path=socket_path, plan=plan_path,
+                            episode_s=LONG_RUN_EPISODE_S if long_run else 9.5,
+                            pause_after_s=4.0 if case == "cancel-paused" else None,  # inside the throttle segment (review 2 N-3)
+                            stimulus_profile="long-run" if long_run else "standard")
     artifacts = {"python310": ("/usr/bin/python3.10", _digest("/usr/bin/python3.10")),
                  "python313": (defs[0].executable, _digest(defs[0].executable))}
-    horizon = HORIZON
+    horizon = LONG_RUN_HORIZON if long_run else HORIZON
     record["horizonTicks"] = horizon
     docs = build_documents(defs, artifacts, horizon)
     if case == "freeze-vcu":  # Phase 5 freeze (cgroup.freeze) of the legacy VCU unit; thaw on clear (automatic)
@@ -337,9 +363,10 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
     images = tuple(seal_helper_image(p, digest=pin(p.read_bytes()), argv0=sys.executable if p == Path(sys.executable).resolve() else str(p))
                    for p in (binaries["launcher"], binaries["bound-gate"], Path(sys.executable).resolve(), authority_binary))
     supervisor = seal_helper_image(run_bootstrap_binary, digest=pin(run_bootstrap_binary.read_bytes()), argv0=str(run_bootstrap_binary))
+    lease = HostDeadline("host-session", time.monotonic() + 4.8)
     boot = encode_bootstrap(BootstrapAdmission(config.run_id, config.prepared.lifecycle_digest, "bootstrap-approval", ENVIRONMENT_DIGEST,
                                                supervisor.digest, manager._admission.teardown_deadline,
-                                               HostDeadline("host-session", time.monotonic() + 4.8), images[:3], images[3], manager._root_fd))
+                                               lease, images[:3], images[3], manager._root_fd))
     launcher = OriginalBootstrapRegistry(1).reserve(boot, supervisor, manager)
     by_name = {d.name: d for d in defs}
     admissions = tuple(UnitAdmission(BoundaryDescriptor(config.run_id, u.unit_id, 1, "work-" + str(i), 0),
@@ -350,7 +377,21 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
     reserve = config.schedule.terminal_reserve_seconds + config.collection.collection_seconds + config.collection.terminal_seconds
     terminal = HostDeadline(config.session, active.monotonic_seconds + reserve + 1 + .01)
     closure = HostDeadline(config.session, min(terminal.monotonic_seconds + 3, time.monotonic() + 89.5, config.generation_ns / 1e9))
-    scope = RuntimeScope(HostDeadline("host-session", time.monotonic() + 2), active, terminal, closure)
+    # start-up ends just inside the bootstrap lease (the platform's upper bound), not 2 s from now: the controller worker
+    # missed a 2 s start-up once at load 9-10 (platform S1b finding 2, GA-10; S1c finding 28)
+    scope = RuntimeScope(HostDeadline("host-session", lease.monotonic_seconds - 0.05), active, terminal, closure)
+    record["startupScopeS"] = round(lease.monotonic_seconds - 0.05 - time.monotonic(), 3)
+    rpc_timings = []  # client-side persistence round trips, as in the S1a bench (measurement only; S1 P6, FR-002)
+    original_rpc = PersistenceClient._rpc
+
+    def timed_rpc(self, kind, body, deadline, **kwargs):
+        began = time.monotonic_ns()
+        try:
+            return original_rpc(self, kind, body, deadline, **kwargs)
+        finally:
+            rpc_timings.append((kind, time.monotonic_ns() - began))
+
+    monkeypatch.setattr(PersistenceClient, "_rpc", timed_rpc)
     record["budgets"] = {"terminalReserveS": config.schedule.terminal_reserve_seconds, "reserveS": reserve,
                          "closureFromNowS": round(closure.monotonic_seconds - time.monotonic(), 2)}
     record["scope"] = {"activeS": round(active.monotonic_seconds - time.monotonic(), 2), "terminalReserveS": config.schedule.terminal_reserve_seconds}
@@ -409,6 +450,8 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
         record["workArtifacts"] = _fact(lambda: sorted(p.name for p in work.iterdir()))
         record["tickTiming"] = _fact(lambda: _tick_timing(tmp_path / "argus-maestro" / "events.jsonl", record["monotonicStartNs"]))
         record["argusMaestroVerify"] = _fact(lambda: _argus_verify(tmp_path / "argus-maestro"))
+        record["persistenceTiming"] = _fact(lambda: _persistence_timing(rpc_timings))
+        record["brokerCancelResult"] = _fact(lambda: entry._broker._cancel_result)  # confirmed or revoked (S1a-2 finding 24)
         if case == "freeze-vcu":
             record["freezeThrottle"] = _fact(lambda: _freeze_overlap(tmp_path / "argus-maestro" / "events.jsonl", run_dir / "stimulus.jsonl"))
         markers = {}
@@ -429,7 +472,7 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
             os.close(image.descriptor)
     # every case asserts its expected path (S1c findings 15 and 19, MEDIUM-1) and its Maestro Argus root (finding 22)
     verified = record.get("argusMaestroVerify") or {}
-    if case in ("nominal", "freeze-vcu"):
+    if case in ("nominal", "freeze-vcu", "long-run"):
         assert outcome.execution_succeeded and outcome.cleanup_complete and record["markersOk"], record.get("dispatchDiagnostic")
         assert verified.get("writerState") == "closed" and verified.get("evidenceStatus") == "complete", verified
     else:  # a failed writer whose only reason is its own state (proposed DR-6); P3 also allows closed (DR-2)

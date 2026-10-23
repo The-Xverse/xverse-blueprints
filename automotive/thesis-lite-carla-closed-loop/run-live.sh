@@ -1,7 +1,7 @@
 #!/bin/bash
 # Lite CARLA closed-loop integration run (Phase 7; engineering integration, NOT AEB validation, NOT M1).
 #
-#   run-live.sh <case> [run-dir]      case: nominal | no-carla | cancel-paused | freeze-vcu
+#   run-live.sh <case> [run-dir]      case: nominal | no-carla | cancel-paused | freeze-vcu | long-run
 #
 # Preconditions: CARLA 0.9.15 on 127.0.0.1:2000 (except no-carla), a zenoh router on tcp/127.0.0.1:7447, no other
 # tick owner or actuator writer (checked: process names and established CARLA connections), clean candidate trees.

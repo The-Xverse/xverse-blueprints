@@ -37,7 +37,7 @@ class Unit:
 
 
 def units(*, compat: Path, run_dir: Path, work: Path, socket_path: str, plan: Path | None, episode_s: float = 14.0,
-          pause_after_s: float | None = None) -> list[Unit]:
+          pause_after_s: float | None = None, stimulus_profile: str = "standard") -> list[Unit]:
     """Return the four units for one run (paths are absolute)."""
 
     src = str(compat / "src")
@@ -59,6 +59,7 @@ def units(*, compat: Path, run_dir: Path, work: Path, socket_path: str, plan: Pa
         Unit("legacy-vcu", PY310, ("-B", "main.py"), LEGACY_VCU, {"PATH": "/usr/bin", "HOME": "/home/jefferson"}, owned=False),
         Unit("driver-stimulus", PY313,
              ("-B", "-m", "xverse_compat.live.stimulus", "--router", ROUTER, "--out", str(run_dir / "stimulus.jsonl"),
-              "--marker", str(work / "driver-stimulus-binding.marker"), "--linger", "--stderr", str(run_dir / "driver-stimulus.err")),
+              "--marker", str(work / "driver-stimulus-binding.marker"), "--linger", "--stderr", str(run_dir / "driver-stimulus.err"))
+             + (("--profile", stimulus_profile) if stimulus_profile != "standard" else ()),  # S1 FR-018 long-run
              src, {"PATH": "/usr/bin", "HOME": str(run_dir / "home"), "PYTHONPATH": driver_path}),
     ]
