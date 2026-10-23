@@ -153,6 +153,28 @@ def compile_documents(docs):
     return result, validation.resources
 
 
+def _fact(compute):
+    """One closure fact as JSON data (dataclasses as dicts, None as null), or ``{"error": ...}`` if it fails."""
+
+    from dataclasses import is_dataclass  # noqa: PLC0415
+
+    def plain(value):
+        if is_dataclass(value) and not isinstance(value, type):
+            return {k: plain(v) for k, v in asdict(value).items()}
+        if isinstance(value, (list, tuple)):
+            return [plain(v) for v in value]
+        if isinstance(value, dict):
+            return {str(k): plain(v) for k, v in value.items()}
+        if value is None or isinstance(value, (bool, int, float, str)):
+            return value
+        return repr(value)
+
+    try:
+        return plain(compute())
+    except Exception as error:  # noqa: BLE001 - a fact must never cost the run record
+        return {"error": f"{type(error).__name__}: {error}"}
+
+
 def _digest(path):
     return "sha256:" + hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
@@ -289,17 +311,28 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
         record["endedWallNs"] = time.time_ns()
         record["monotonicEndNs"] = time.monotonic_ns()
         if outcome is not None:
-            record.update(executionSucceeded=outcome.execution_succeeded, cleanupComplete=outcome.cleanup_complete,
-                          diagnostics=list(outcome.diagnostics), dispatchDiagnostic=outcome.dispatch.diagnostic if outcome.dispatch else None,
-                          steps=[asdict(s) for s in outcome.dispatch.steps] if outcome.dispatch else None,
-                          normalUnitRecordsComplete=outcome.closure.normal_unit_records_complete,
-                          nativeUnits=[asdict(u) for u in outcome.closure.native_units])
-        record["workArtifacts"] = sorted(p.name for p in work.iterdir())
+            record.update(executionSucceeded=_fact(lambda: outcome.execution_succeeded),
+                          cleanupComplete=_fact(lambda: outcome.cleanup_complete),
+                          diagnostics=_fact(lambda: list(outcome.diagnostics)),
+                          dispatchDiagnostic=_fact(lambda: outcome.dispatch.diagnostic if outcome.dispatch else None),
+                          steps=_fact(lambda: list(outcome.dispatch.steps) if outcome.dispatch else None),
+                          normalUnitRecordsComplete=_fact(lambda: outcome.closure.normal_unit_records_complete),
+                          nativeUnits=_fact(lambda: list(outcome.closure.native_units)),
+                          # S1 FR-017: the facts that attribute a closure outcome (research R-2); each is computed
+                          # by a guard so that a failing fact never loses this record or skips dispose()
+                          persistenceFailure=_fact(lambda: outcome.persistence_failure),
+                          closureDiagnostics=_fact(lambda: list(outcome.closure.diagnostics)),
+                          closureWriters=_fact(lambda: list(outcome.closure.writers)),
+                          closureTerminalReports=_fact(lambda: [_fact(r.public_data) for r in outcome.closure.terminal_reports]),
+                          dispatchTerminal=_fact(lambda: outcome.dispatch.terminal.public_data()
+                                                 if outcome.dispatch and outcome.dispatch.terminal is not None else None))
+        record["workArtifacts"] = _fact(lambda: sorted(p.name for p in work.iterdir()))
         markers = {}
         for p in work.glob("*.marker"):  # review 2 N-4: a marker records its unit's outcome, not only completion
             try:
-                markers[p.name] = json.loads(p.read_text())
-            except ValueError:
+                value = json.loads(p.read_text())
+                markers[p.name] = value if isinstance(value, dict) else {"unreadable": True, "type": type(value).__name__}
+            except (OSError, ValueError):  # a marker can never cost the run record (S1c finding 9, R3-4)
                 markers[p.name] = {"unreadable": True}
         record["markerContents"] = markers
         record["markersOk"] = len(markers) == 3 and all(m.get("code") == 0 or m.get("outcome") == "profile-complete" for m in markers.values())

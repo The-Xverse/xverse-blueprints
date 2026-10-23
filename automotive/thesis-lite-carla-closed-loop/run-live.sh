@@ -11,15 +11,18 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 . "$HERE/lib-live.sh"
 RUN=${2:-$L10/.x-verse-build/runs/xverse-lite-live-20261022/lite-$(date +%Y%m%dT%H%M%S)-$CASE}
 export XVERSE_PLATFORM_SRC=${XVERSE_PLATFORM_SRC:-$L10/.x-verse-build/cache/xverse-lite-live-20261022/platform-src}
-export XVERSE_COMPAT_SRC=${XVERSE_COMPAT_SRC:-/home/jefferson/xverse-compat-worktrees/phase7-live-20261022}
+require_compat || exit 4
+export XVERSE_COMPAT_SRC
 export XVERSE_LIVE_RUN_DIR=$RUN XVERSE_LIVE_CASE=$CASE
 mkdir -p "$RUN/carla-home"
-exec > >(tee "$RUN/run-live.log") 2>&1
+exec > >(trap '' INT TERM; exec tee "$RUN/run-live.log") 2>&1  # the log survives a Ctrl-C of the group (S1c finding 7)
 echo "case=$CASE run=$RUN started=$(date -Is) wall_epoch_ns=$(date +%s%N)"
-OBS=; PYTEST=1; SHM=/dev/shm/xverse-lite-$(basename "$RUN"); SOCK=/run/user/$(id -u)/xverse-lite/lite-carla-closed-loop.sock
+OBS=; PYTEST=not-run;  # S1c finding 11 R4-1: an interrupted run never shows a harness exit it did not have
+ SHM=/dev/shm/xverse-lite-$(basename "$RUN"); SOCK=/run/user/$(id -u)/xverse-lite/lite-carla-closed-loop.sock
 
-cleanup() {  # runs on every exit path, including an interrupt (review 1 R-7)
-  trap - EXIT INT TERM
+cleanup() {  # runs on every exit path, including an interrupt (review 1 R-7); always ends the script (S1c finding 9)
+  local rc=$?
+  trap - EXIT; trap '' INT TERM PIPE  # a second signal or a closed log must not cut the guard short (S1c finding 7)
   ps -eo pid=,comm=,args= | awk '$2 !~ /^(bash|sh|grep|ps|awk|timeout|tee)$/' | grep -E 'xverse_compat_carla.main|xverse_compat.live|-B main.py' > "$RUN/residue-processes.txt"
   echo "residue processes: $(wc -l < "$RUN/residue-processes.txt")"
   if [ "$CASE" != no-carla ] && [ -s "$RUN/world-before.json" ]; then  # residue first, then the guard (skipped after a BLOCKED preflight, review 2 N-5)
@@ -34,18 +37,21 @@ cleanup() {  # runs on every exit path, including an interrupt (review 1 R-7)
   [ -d "$SHM" ] && cp -a "$SHM" "$RUN/maestro-tmp" && rm -rf "$SHM"
   [ "$CASE" != no-carla ] && carla_clients "$RUN/carla-clients-after.txt"
   ss -tlnp > "$RUN/listeners-after.txt" 2>/dev/null
-  echo "ended=$(date -Is) maestro-harness exit=$PYTEST"
+  echo "ended=$(date -Is) maestro-harness exit=$PYTEST script exit=$rc"
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 130' INT   # a signal ends the script through the EXIT trap; it never resumes the run (S1c finding 9)
+trap 'exit 143' TERM
 
 # 1. Identities and revisions (hashes only; nothing is fetched).
 record_revisions "$RUN" "blueprint=$HERE" "compat=$XVERSE_COMPAT_SRC" || exit 4
 {
+  echo "compat-src $XVERSE_COMPAT_SRC"  # the checkout actually used (S1 FR-014)
   echo "platform-src $(cat "$XVERSE_PLATFORM_SRC/.export-revision" 2>/dev/null || echo unknown)"
   sha256sum /usr/bin/python3.10 /home/jefferson/.pyenv/versions/3.13.13/bin/python3.13 /usr/bin/zenohd \
     "$L10/.x-verse-build/cache/xverse-compat-wheels/carla-0.9.15-cp310-cp310-manylinux_2_27_x86_64.whl" \
     "$L10"/.x-verse-build/cache/xverse-lite-live-20261022/wheels/*.whl
-  echo "legacy-vcu $(git -C /home/jefferson/autoverse/vecu/vcu_zenoh rev-parse HEAD) dirty=$(git -C /home/jefferson/autoverse/vecu/vcu_zenoh status --porcelain | wc -l)"
+  legacy_identity legacy-vcu /home/jefferson/autoverse/vecu/vcu_zenoh
   sha256sum /home/jefferson/autoverse/vecu/vcu_zenoh/src/*.py
   cat /home/jefferson/carla-simulator/VERSION 2>/dev/null | head -1
 } >> "$RUN/identities.txt"
@@ -73,7 +79,8 @@ ss -tlnp > "$RUN/listeners-before.txt" 2>/dev/null
 
 # 3. Passive evaluation observer (never feeds runtime); it keeps running through the restore guard.
 if [ "$CASE" != no-carla ]; then
-  (cd "$XVERSE_COMPAT_SRC/src" && exec env -i PATH=/usr/bin HOME="$RUN/carla-home" /usr/bin/python3.10 -s -B -m xverse_compat_carla.observe \
+  # own session: a Ctrl-C of the run's process group does not stop the observer before the guard (S1c finding 11 R4-3)
+  (cd "$XVERSE_COMPAT_SRC/src" && exec /usr/bin/setsid env -i PATH=/usr/bin HOME="$RUN/carla-home" /usr/bin/python3.10 -s -B -m xverse_compat_carla.observe \
      --role xverse-lite-ego --duration-s 120 --out "$RUN/observer.jsonl" --carla-site "$SITE") 2> "$RUN/observer.err" &
   OBS=$!
 fi
