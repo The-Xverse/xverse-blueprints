@@ -9,11 +9,10 @@
 # run. Declared differences: no S-CORE, SOME/IP bridge or Android (not on the vehicle actuation path); the
 # legacy vehicle chooses a random spawn point (recorded by the observer); the world stays asynchronous.
 set -u
-L10=/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0
+HERE=$(cd "$(dirname "$0")" && pwd)
+. "$HERE/lib-live.sh"
 RUN=${1:-$L10/.x-verse-build/runs/xverse-lite-live-20261022/baseline-$(date +%Y%m%dT%H%M%S)}
 COMPAT=${XVERSE_COMPAT_SRC:-/home/jefferson/xverse-compat-worktrees/phase7-live-20261022}
-VENV=$L10/.x-verse-build/cache/xverse-lite-live-20261022/driver-venv
-SITE=$L10/.x-verse-build/cache/xverse-compat-carla-0.9.15-cp310/lib/python3.10/site-packages
 EX=/home/jefferson/carla-api/PythonAPI/examples
 mkdir -p "$RUN/carla-home"
 exec > >(tee "$RUN/run-baseline.log") 2>&1
@@ -23,11 +22,13 @@ echo "baseline run=$RUN started=$(date -Is)"
   sha256sum /home/jefferson/autoverse/bridges/carla/examples/virtual_vehicle.py $EX/virtual_vehicle.py \
     /home/jefferson/autoverse/bridges/carla/examples/signals_config.json $EX/signals_config.json
   echo "legacy-vcu $(git -C /home/jefferson/autoverse/vecu/vcu_zenoh rev-parse HEAD)"; sha256sum /home/jefferson/autoverse/vecu/vcu_zenoh/src/*.py
-  echo "compat $(git -C "$COMPAT" rev-parse HEAD) dirty=$(git -C "$COMPAT" status --porcelain | wc -l)"
 } > "$RUN/identities.txt"
+record_revisions "$RUN" "blueprint=$HERE" "compat=$COMPAT" || exit 4
 ps -eo pid=,comm=,args= | awk '$2 !~ /^(bash|sh|grep|ps|awk|timeout|tee)$/' | grep -E 'virtual_vehicle.py|automate.py|vehicle_manual_control.py|xverse_compat_carla.main|xverse_compat.live|vcu_zenoh/src/main.py| main.py$' > "$RUN/host-competing-processes.txt"
 if [ -s "$RUN/host-competing-processes.txt" ]; then echo "BLOCKED: competing clients"; cat "$RUN/host-competing-processes.txt"; exit 4; fi
 ss -tln | grep -q ':7447 ' && ss -tln | grep -q ':2000 ' || { echo "BLOCKED: router or CARLA missing"; exit 4; }
+carla_clients "$RUN/carla-clients-before.txt" || { echo "BLOCKED: unexpected client connected to CARLA"; cat "$RUN/carla-clients-before.txt"; exit 4; }
+world_settings "$RUN/world-before.json" "$RUN/carla-home"; echo "world before: $(cat "$RUN/world-before.json")"
 
 (cd "$COMPAT/src" && exec env -i PATH=/usr/bin HOME="$RUN/carla-home" /usr/bin/python3.10 -s -B -m xverse_compat_carla.observe \
    --role ego_vehicle --duration-s 60 --out "$RUN/observer.jsonl" --carla-site "$SITE") 2> "$RUN/observer.err" & OBS=$!
@@ -36,7 +37,8 @@ sleep 1
 (cd /home/jefferson/autoverse/bridges/carla/examples && exec /usr/bin/python3 -B $EX/virtual_vehicle.py --host 127.0.0.1 --port 2000 \
    --router 127.0.0.1 --res 1280x960 --filter vehicle.audi.etron --rolename ego_vehicle --signals-config $EX/signals_config.json) \
    > "$RUN/virtual-vehicle.out" 2> "$RUN/virtual-vehicle.err" & VV=$!
-env -u PYTHONPATH PYTHONPATH="$COMPAT/src" "$VENV/bin/python" -B -m xverse_compat.live.stimulus --out "$RUN/stimulus.jsonl" 2> "$RUN/stimulus.err" & STIM=$!
+# same declared stimulus and time base (host-monotonic from the first clock sample, DLG-12) as the Lite run
+env -u PYTHONPATH PYTHONPATH="$COMPAT/src" "$VENV/bin/python" -B -m xverse_compat.live.stimulus --time-base wall --out "$RUN/stimulus.jsonl" 2> "$RUN/stimulus.err" & STIM=$!
 wait $STIM; echo "stimulus exit=$?"
 sleep 2
 for P in $VV $VCU; do kill -INT $P 2>/dev/null; done   # as the author's supervisor: SIGINT first
@@ -51,4 +53,5 @@ print(json.dumps({'synchronousMode': s.synchronous_mode, 'vehicles': [(a.id, a.t
 echo "world after: $(cat "$RUN/world-after.json")"
 ps -eo pid=,comm=,args= | awk '$2 !~ /^(bash|sh|grep|ps|awk|timeout|tee)$/' | grep -E 'virtual_vehicle.py|vcu_zenoh|-B main.py|xverse_compat' > "$RUN/residue-processes.txt"
 echo "residue processes: $(wc -l < "$RUN/residue-processes.txt")"
+carla_clients "$RUN/carla-clients-after.txt"
 echo "ended=$(date -Is)"

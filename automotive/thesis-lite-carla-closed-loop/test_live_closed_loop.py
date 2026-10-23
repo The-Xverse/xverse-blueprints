@@ -64,12 +64,22 @@ ORDER = ("lite-driver", "carla-adapter", "legacy-vcu", "driver-stimulus")
 RENAME = {"source-instance": "lite-driver-instance", "sink-instance": "carla-adapter-instance",
           "source-binding": "lite-driver-binding", "sink-binding": "carla-adapter-binding",
           "sample-loop": "lite-carla-closed-loop", "local-simulated-loop": "lite-carla-closed-loop-local",
-          "sample-observation-run": "lite-carla-closed-loop-run"}
+          "sample-observation-run": "lite-carla-closed-loop-run",
+          # review 1 R-5: meaningful names for the fixture-derived elements (the structure stays the fixture's)
+          "sample-flow": "actuation-command-flow", "sample-observer": "lite-run-observer", "sample-count": "completion-markers",
+          "sample-source": "lite-runtime-unit"}
+FIXTURE_TEXT = {  # declared text replaced so that the plan does not describe an offline sample
+    "Demonstrate offline declared intent compilation only.":
+        "Engineering integration: Maestro lifecycle of the Lite CARLA closed loop; collection of every owned completion marker.",
+    "Declared intent only; no runtime result is claimed.": "Engineering integration only; not AEB validation, not M1.",
+}
 ENVIRONMENT_DIGEST = pin(b"owned-environment")
 
 
 def _rename(value):
     text = json.dumps(value)
+    for old, new in FIXTURE_TEXT.items():
+        text = text.replace(json.dumps(old), json.dumps(new))
     for old, new in RENAME.items():
         text = text.replace(f'"{old}"', f'"{new}"').replace(f'/{old}"', f'/{new}"').replace(f'/{old}#', f'/{new}#')
     return json.loads(text)
@@ -153,7 +163,13 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
     case = os.environ.get("XVERSE_LIVE_CASE", "nominal")
     for sub in ("home", "carla-home", "driver"):
         (run_dir / sub).mkdir(parents=True, exist_ok=True)
-    record = {"runId": RUN_ID, "case": case, "nonM1": True, "startedWallNs": time.time_ns(), "monotonicStartNs": time.monotonic_ns()}
+    record = {"runId": RUN_ID, "case": case, "nonM1": True, "startedWallNs": time.time_ns(), "monotonicStartNs": time.monotonic_ns(),
+              "harness": "owned trusted-host Maestro harness (_OriginalRuntimeRun); not RuntimeService, not M1 (DLG-7)",
+              "syntheticPlaceholders": {"bootstrapApprovalRef": "bootstrap-approval (harness label, not an approval record)",
+                                        "environmentDigest": "pin(b'owned-environment') (harness pin, as in the platform fixture)",
+                                        "permitIssuer": "author-delegated-live-integration (integration-built trusted-host permit)"},
+              "xdlLimits": "derived from the platform Maestro fixture structure: one schedule domain experiment-time; the runtime flows "
+                           "(vehicle-motion, radar-adas) and the carla-simulation domain are bound in xverse_compat.live.loop, not planned (R-5)"}
     factory, _, _ = environment
     manager, _ = factory(seconds=95, run_id=RUN_ID, operation=2)
     work = tmp_path / "work"
@@ -163,7 +179,7 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
     plan_path = run_dir / "experiment-plan.json"
     # a 9.5 s driver episode covers the stimulus start offset (~1.5 s measured) and its 7 s profile
     defs = unit_definitions(compat=compat, run_dir=run_dir, work=work, socket_path=socket_path, plan=plan_path, episode_s=9.5,
-                            pause_after_s=4.0 if case == "cancel-paused" else None)
+                            pause_after_s=2.0 if case == "cancel-paused" else None)
     artifacts = {"python310": ("/usr/bin/python3.10", _digest("/usr/bin/python3.10")),
                  "python313": (defs[0].executable, _digest(defs[0].executable))}
     docs = build_documents(defs, artifacts)
@@ -258,7 +274,7 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
                 except (OSError, ValueError):
                     pass
                 time.sleep(0.2)
-            time.sleep(2.0)  # the world stays paused (synchronous, no tick) for 2 s of host time
+            time.sleep(6.0)  # paused (synchronous, no tick) for 6 s of host time, beyond the 5 s probe freshness (R-6)
             record["cancelRequestedMonotonicNs"] = time.monotonic_ns()
             record["cancelEpoch"] = entry.stop(RUN_ID, reason="operator-cancel-while-paused")
             record["cancelReturnedMonotonicNs"] = time.monotonic_ns()
