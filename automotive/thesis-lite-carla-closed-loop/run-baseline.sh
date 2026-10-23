@@ -28,7 +28,7 @@ on_exit() {  # every exit, including a signal or a set -u abort, writes baseline
 trap on_exit EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
-mkdir -p "$RUN/carla-home"  # after the traps: every exit once the run directory exists writes the exit file (S1c finding 9)
+mkdir -p "$RUN/carla-home" && rm -f "$RUN/baseline-exit.txt"  # after the traps; no stale exit file (S1c R4-5): every exit once the run directory exists writes the exit file (S1c finding 9)
 exec > >(trap '' INT TERM; exec tee "$RUN/run-baseline.log") 2>&1  # survives a Ctrl-C of the group (S1c finding 7)
 echo "baseline run=$RUN started=$(date -Is)"
 {
@@ -75,7 +75,7 @@ baseline_cleanup() {  # stop every process this baseline started, on any exit (i
 }
 ACTIVE=1  # from here on, on_exit also stops the processes this baseline started
 
-(cd "$COMPAT/src" && exec env -i PATH=/usr/bin HOME="$RUN/carla-home" /usr/bin/python3.10 -s -B -m xverse_compat_carla.observe \
+(cd "$COMPAT/src" && exec /usr/bin/setsid env -i PATH=/usr/bin HOME="$RUN/carla-home" /usr/bin/python3.10 -s -B -m xverse_compat_carla.observe \
    --role ego_vehicle --duration-s 60 --out "$RUN/observer.jsonl" --carla-site "$SITE") 2> "$RUN/observer.err" & OBS=$!
 (cd /home/jefferson/autoverse/vecu/vcu_zenoh/src && exec /usr/bin/python3 -B main.py) > "$RUN/vcu.out" 2> "$RUN/vcu.err" & VCU=$!
 sleep 1

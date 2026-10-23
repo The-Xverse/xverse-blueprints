@@ -17,7 +17,8 @@ export XVERSE_LIVE_RUN_DIR=$RUN XVERSE_LIVE_CASE=$CASE
 mkdir -p "$RUN/carla-home"
 exec > >(trap '' INT TERM; exec tee "$RUN/run-live.log") 2>&1  # the log survives a Ctrl-C of the group (S1c finding 7)
 echo "case=$CASE run=$RUN started=$(date -Is) wall_epoch_ns=$(date +%s%N)"
-OBS=; PYTEST=1; SHM=/dev/shm/xverse-lite-$(basename "$RUN"); SOCK=/run/user/$(id -u)/xverse-lite/lite-carla-closed-loop.sock
+OBS=; PYTEST=not-run;  # S1c finding 11 R4-1: an interrupted run never shows a harness exit it did not have
+ SHM=/dev/shm/xverse-lite-$(basename "$RUN"); SOCK=/run/user/$(id -u)/xverse-lite/lite-carla-closed-loop.sock
 
 cleanup() {  # runs on every exit path, including an interrupt (review 1 R-7); always ends the script (S1c finding 9)
   local rc=$?
@@ -78,7 +79,8 @@ ss -tlnp > "$RUN/listeners-before.txt" 2>/dev/null
 
 # 3. Passive evaluation observer (never feeds runtime); it keeps running through the restore guard.
 if [ "$CASE" != no-carla ]; then
-  (cd "$XVERSE_COMPAT_SRC/src" && exec env -i PATH=/usr/bin HOME="$RUN/carla-home" /usr/bin/python3.10 -s -B -m xverse_compat_carla.observe \
+  # own session: a Ctrl-C of the run's process group does not stop the observer before the guard (S1c finding 11 R4-3)
+  (cd "$XVERSE_COMPAT_SRC/src" && exec /usr/bin/setsid env -i PATH=/usr/bin HOME="$RUN/carla-home" /usr/bin/python3.10 -s -B -m xverse_compat_carla.observe \
      --role xverse-lite-ego --duration-s 120 --out "$RUN/observer.jsonl" --carla-site "$SITE") 2> "$RUN/observer.err" &
   OBS=$!
 fi
