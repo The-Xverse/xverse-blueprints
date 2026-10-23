@@ -3,3 +3,4 @@
 .codex/
 .m0-private/
 __pycache__/
+*.pyc
