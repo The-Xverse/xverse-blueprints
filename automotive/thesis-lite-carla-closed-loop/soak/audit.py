@@ -135,12 +135,15 @@ def actuator_safe_stop(run: Path, guard) -> dict:
         first = after[0]["frame"] if after else None
         ego_frames = [r["frame"] for r in after if r.get("ego")]
         last = max(ego_frames) if ego_frames else None
-        window = [r for r in samples if r.get("ego") and first is not None and destroy and first <= r["frame"] <= last]
+        window = [r for r in samples if r.get("ego") and first is not None and last is not None and destroy
+                  and first <= r["frame"] <= last]
         before = [r for r in samples if r.get("ego") and first is not None and r["frame"] < first]
+        # the last ego frame must be received within one frame period (+ slack) of the guard's destroy (finding 36)
+        bounded = bool(window) and destroy is not None and window[-1]["monotonicNs"] <= destroy + 100_000_000
         base = before[-1]["ego"]["speedMps"] if before else (window[0]["ego"]["speedMps"] if window else None)
         out.update(windowSamples=len(window), unpauseSpeedMps=base,
                    neverDriven=bool(window) and base is not None and all(r["ego"]["speedMps"] <= base + 0.1 for r in window),
-                   standstillBeforeDestroy=bool(window) and window[-1]["ego"]["speedMps"] < 0.05)
+                   standstillBeforeDestroy=bounded and window[-1]["ego"]["speedMps"] < 0.05)
     return out
 
 
@@ -200,13 +203,13 @@ def audit(run: Path) -> dict:
         # terminal <= 2 s): every terminal-report, closure and abort persistence call (S1c finding 31)
         timing = record.get("persistenceTiming") or {}
         closure_calls = [s for kind, s in timing.get("terminalCallsS") or [] if kind in ("terminal-report", "closure", "abort")]
-        # a terminal call is cut off at its own deadline (<= 2 s), so "within 2 s" also requires that none reached it
-        # (>= 0.98 of the 2 s budget) and that no persistence failure was recorded (S1c finding 34, H2)
+        # a terminal call is cut off at its own deadline (<= 2 s): a timed-out call is caught by the recorded persistence
+        # failure (S1c finding 34, H2); the duration check is the plan's "within 2 s" (finding 36)
         checks["P6"] = {"noPersistTimeout": "ML-PERSIST-TIMEOUT" not in diagnostics,
                         "noServiceDeadline": "ML-SCHEDULE-SERVICE-DEADLINE" not in diagnostics,
                         "noPersistenceFailure": not failure,
                         "persistenceRoundTrip": _persistence_ok(timing),
-                        "closureCallsWithin2s": bool(closure_calls) and max(closure_calls) < 0.98 * 2.0}
+                        "closureCallsWithin2s": bool(closure_calls) and max(closure_calls) <= 2.0}
         observations["P6"] = {"closureCallsMaxS": max(closure_calls) if closure_calls else None,
                               "afterLastTickS": round(after, 3) if after is not None else None,
                               "persistenceTiming": timing, "tickTiming": tick}

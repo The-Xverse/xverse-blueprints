@@ -89,3 +89,43 @@ def test_a_failed_restart_counts_as_a_server_failure(soak):
     assert s.server_failures == 2
     events = [r["serverEvent"] for r in s.runs if "serverEvent" in r]
     assert "restart failed health" in events
+
+
+def test_two_failed_starts_in_a_row_stop_the_soak(soak):
+    s, fake = soak([], start_health=[False, False])  # the first block's start and its restart both fail (DR-11)
+    assert s.execute() == 2
+    assert "twice in a row" in json.loads(s.manifest.read_text())["stopReason"]
+    assert s.server_failures == 2
+
+
+def test_a_failure_in_an_invalid_repeat_stops_the_soak(soak):
+    # first CARLA run INVALID; the repeat at the end of block 1 (after 10 rounds = 41 runs) FAILs
+    statuses = ["PASS"] * 3 + ["INVALID"] + ["PASS"] * 42 + ["FAIL"]
+    s, fake = soak(statuses)
+    assert s.execute() == 2
+    assert [e for e in s.runs if e.get("repeatOf") == "INVALID"][0]["status"] == "FAIL"
+
+
+def test_no_carla_only_observation_repeats_do_not_crash(soak, monkeypatch):
+    statuses = ["OBSERVATION"] + ["PASS"] * 200
+    s, fake = soak(statuses)
+    monkeypatch.setattr(run_soak, "stop_server", REAL_STOP)  # the real one: it must create the empty slot directory
+    assert s.execute() == 0
+    assert [e for e in s.runs if e.get("repeatOf") == "OBSERVATION"][0]["case"] == "no-carla"
+    assert (s.out / "soak-report.json").exists()
+
+
+REAL_STOP = run_soak.stop_server
+
+
+@pytest.mark.parametrize("kw, status", [
+    (dict(carla=True, healthy_before=True, after={"healthy": False, "synchronousMode": True}, audit_pass=True, script_exit=0, load_max=1), "FAIL"),
+    (dict(carla=True, healthy_before=True, after={"healthy": False}, audit_pass=True, script_exit=0, load_max=1), "INVALID"),
+    (dict(carla=True, healthy_before=False, after={"healthy": True}, audit_pass=False, script_exit=1, load_max=1), "INVALID"),
+    (dict(carla=True, healthy_before=True, after={"healthy": True}, audit_pass=True, script_exit=1, load_max=1), "FAIL"),
+    (dict(carla=True, healthy_before=True, after={"healthy": True}, audit_pass=False, script_exit=0, load_max=1), "FAIL"),
+    (dict(carla=True, healthy_before=True, after={"healthy": True}, audit_pass=True, script_exit=0, load_max=11), "OBSERVATION"),
+    (dict(carla=False, healthy_before=False, after=None, audit_pass=True, script_exit=0, load_max=1), "PASS"),
+])
+def test_classify(kw, status):  # DR-12 (S1c findings 34-36)
+    assert run_soak.classify(**kw) == status

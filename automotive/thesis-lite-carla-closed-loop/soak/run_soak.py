@@ -60,12 +60,40 @@ MAX_SERVER_FAILURES, INVALID_SHARE = 3, 0.10
 
 def _audit(script_dir: Path, run_dir: Path) -> dict:
     """audit.py from the pinned blueprints checkout, never this runner's directory (S1c finding 34)."""
-    done = subprocess.run(["python3", "-B", str(script_dir / "soak" / "audit.py"), str(run_dir)],
-                          capture_output=True, text=True, timeout=300)
+    try:
+        done = subprocess.run(["python3", "-B", str(script_dir / "soak" / "audit.py"), str(run_dir)],
+                              capture_output=True, text=True, timeout=300)
+    except subprocess.TimeoutExpired:
+        return {"pass": False, "failedChecks": ["audit exceeded 300 s"]}
     try:
         return json.loads(done.stdout.strip().splitlines()[-1])
     except (ValueError, IndexError):
         return {"pass": False, "failedChecks": ["audit produced no verdict"], "stderr": done.stderr[-500:]}
+
+
+def classify(*, carla: bool, healthy_before: bool, after: dict | None, audit_pass: bool, script_exit: int,
+             load_max: float) -> str:
+    """A run's soak status (DR-12): a restore failure and any failed verdict are FAIL; a server-side health failure is
+    INVALID; a passing run above the load limit is an OBSERVATION."""
+    after = after or {}
+    restore_failure = carla and not after.get("healthy") and after.get("synchronousMode") is True
+    if restore_failure:
+        return "FAIL"
+    if carla and not (healthy_before and after.get("healthy")):
+        return "INVALID"
+    if not (audit_pass and script_exit == 0):
+        return "FAIL"
+    return "OBSERVATION" if load_max > LOAD_RUN_MAX else "PASS"
+
+
+def _tree_digest(root: Path) -> str | None:
+    """sha256 over relative path and content of every regular file under root (sorted), or None if absent."""
+    if not root.is_dir():
+        return None
+    h = hashlib.sha256()
+    for path in sorted(p for p in root.rglob("*") if p.is_file() and "__pycache__" not in p.parts):
+        h.update(str(path.relative_to(root)).encode() + b"\0" + path.read_bytes() + b"\0")
+    return h.hexdigest()
 
 
 def schedule() -> list[dict]:
@@ -101,9 +129,12 @@ def identities(compat: Path, blueprints: Path) -> dict:
         out["platformSrc"] = None
     wheels = sorted((PLATFORM_SRC.parent / "wheels").glob("*.whl"))  # the driver venv's installed inputs
     out["driverWheels"] = {w.name: hashlib.sha256(w.read_bytes()).hexdigest() for w in wheels}
-    runner = Path(__file__).resolve()
-    pinned = blueprints / "automotive/thesis-lite-carla-closed-loop/soak" / runner.name
-    out["runnerMatchesPinned"] = pinned.exists() and pinned.read_bytes() == runner.read_bytes()
+    out["platformSourceTree"] = _tree_digest(PLATFORM_SRC / "src")  # what the harness imports (conftest)
+    sites = sorted((PLATFORM_SRC.parent / "driver-venv" / "lib").glob("python3*/site-packages/xverse"))
+    out["driverVenvXverse"] = _tree_digest(sites[0]) if sites else None
+    soak = blueprints / "automotive/thesis-lite-carla-closed-loop/soak"
+    out["runnerMatchesPinned"] = all((soak / name).exists() and (soak / name).read_bytes() == (HERE / name).read_bytes()
+                                     for name in ("run_soak.py", "health_check.py", "audit.py"))
     return out
 
 
@@ -180,6 +211,7 @@ def start_server(out: Path, home: Path) -> dict:
 
 
 def stop_server(out: Path) -> None:
+    out.mkdir(parents=True, exist_ok=True)  # also when no server was started in this slot (S1c finding 36)
     for pid in carla_pids():
         try:
             os.kill(pid, 15)
@@ -254,29 +286,33 @@ class Soak:
         entry["flowRoot"] = (verdict.get("observations") or {}).get("flowRoot")
         if run_dir.exists():
             (run_dir / "soak-audit.json").write_text(json.dumps(verdict, indent=1, sort_keys=True, default=str) + "\n")
-        restore_failure = carla and not entry["healthAfter"]["healthy"] and entry["healthAfter"].get("synchronousMode") is True
-        invalid = carla and not restore_failure and not (entry["healthBefore"]["healthy"] and entry["healthAfter"]["healthy"])
-        passed = verdict["pass"] and done.returncode == 0  # the harness's own assertions are part of the verdict (M4)
-        entry["status"] = ("FAIL" if restore_failure else "INVALID" if invalid else "FAIL" if not passed
-                           else "OBSERVATION" if entry["loadMax"] > LOAD_RUN_MAX else "PASS")
+        entry["status"] = classify(carla=carla, healthy_before=bool(carla and entry["healthBefore"]["healthy"]),
+                                   after=entry.get("healthAfter"), audit_pass=bool(verdict["pass"]),
+                                   script_exit=done.returncode, load_max=entry["loadMax"])
         self.runs.append(entry)
         self._save()
         return entry
 
-    def _restart(self, reason: str):
-        """Stop the current server and start a fresh one; every failure counts toward the limit (M1, M2)."""
-        self.server_failures += 1
-        self.runs.append({"serverEvent": reason, "server": self.server_index})
-        stop_server(self.out / f"carla-server-{self.server_index}")
-        if self.server_failures > MAX_SERVER_FAILURES:
-            return None
+    def _start(self):
+        """Start a server in the next slot and record the event; returns (server_dir, healthy)."""
         self.server_index += 1
         server_dir = self.out / f"carla-server-{self.server_index}"
         check = start_server(server_dir, self.home)
         self.runs.append({"serverEvent": "started", "server": self.server_index, "healthy": check["healthy"]})
         self._save()
-        if not check["healthy"]:
-            return self._restart("restart failed health") if self.server_failures < MAX_SERVER_FAILURES + 1 else None
+        return server_dir, check["healthy"]
+
+    def _restart(self, reason: str, failed_starts: int = 0):
+        """Count a server failure, stop the server and start a fresh one (M1, M2; S1c finding 36). Returns None when
+        the soak must stop: more than 3 server failures, or a server that failed to start twice in a row (DR-11)."""
+        self.server_failures += 1
+        self.runs.append({"serverEvent": reason, "server": self.server_index})
+        stop_server(self.out / f"carla-server-{self.server_index}")
+        if self.server_failures > MAX_SERVER_FAILURES or failed_starts >= 2:
+            return None
+        server_dir, healthy = self._start()
+        if not healthy:
+            return self._restart("restart failed health", failed_starts + 1)
         return server_dir
 
     def _carla_run(self, case: str, repeats_end: list, *, repeat_of=None):
@@ -303,6 +339,16 @@ class Soak:
         if carla_pids() or port_listening(2000):
             print("refused: a CARLA server is already running; the soak owns the server lifecycle", file=sys.stderr)
             return 4
+        if not self.pinned["runnerMatchesPinned"]:
+            print("refused: run_soak.py, health_check.py and audit.py must equal the pinned blueprints copies", file=sys.stderr)
+            return 4
+        try:
+            return self._execute()
+        finally:  # any exit, including a pin change (SystemExit) or a crash, leaves no server running (finding 36)
+            if carla_pids():
+                stop_server(self.out / f"carla-server-{self.server_index}")
+
+    def _execute(self) -> int:
         self._save()
         repeats_end = []
         for item in schedule():
@@ -315,14 +361,11 @@ class Soak:
                     if entry["status"] == "OBSERVATION":
                         repeats_end.append(("no-carla", False))
                 continue
-            self.server_index += 1
-            server_dir = self.out / f"carla-server-{self.server_index}"
-            check = start_server(server_dir, self.home)
-            self.runs.append({"serverEvent": "started", "server": self.server_index, "healthy": check["healthy"]})
-            if not check["healthy"]:
-                server_dir = self._restart("start failed health")
+            server_dir, healthy = self._start()
+            if not healthy:
+                server_dir = self._restart("start failed health", failed_starts=1)
                 if server_dir is None:
-                    return self._stop("server failed to start twice, or more than 3 server failures")
+                    return self._stop("server failed to start twice in a row, or more than 3 server failures")
             block_repeats = []
             for rnd in item["rounds"]:
                 waited = self._wait_load()
@@ -345,12 +388,12 @@ class Soak:
                     return self._stop("more than 3 server failures")
             stop_server(server_dir)
         if repeats_end:  # observation repeats, once each, at the end of the soak
-            self.server_index += 1
-            server_dir = self.out / f"carla-server-{self.server_index}"
-            if any(c for _, c in repeats_end) and not start_server(server_dir, self.home)["healthy"]:
-                server_dir = self._restart("start failed health")
-                if server_dir is None:
-                    return self._stop("server failed to start twice, or more than 3 server failures")
+            if any(c for _, c in repeats_end):
+                server_dir, healthy = self._start()
+                if not healthy:
+                    server_dir = self._restart("start failed health", failed_starts=1)
+                    if server_dir is None:
+                        return self._stop("server failed to start twice in a row, or more than 3 server failures")
             for case, carla in sorted(repeats_end, key=lambda x: not x[1]):
                 if not carla and carla_pids():
                     stop_server(self.out / f"carla-server-{self.server_index}")
@@ -367,6 +410,8 @@ class Soak:
                     return self._stop(f"criterion failure in {entry['run']} (FR-020)")
             stop_server(self.out / f"carla-server-{self.server_index}")
         report = summarize(self.runs)
+        report["P2"] = dispersion([self.out / e["run"] for e in self.runs if e.get("status") == "PASS"],
+                                  script_dir=self.script_dir)  # an observation (plan.md P2), passing runs only
         (self.out / "soak-report.json").write_text(json.dumps(report, indent=1, sort_keys=True) + "\n")
         self._save("complete")
         return 0 if report["valid"] else 3
@@ -396,9 +441,9 @@ def summarize(runs: list[dict]) -> dict:
     for case, items in by_case.items():  # P8 path counts and the DR-6 (c) flow roots, reported (finding 34)
         paths = {}
         for e in items:
-            if e.get("p8Path"):
+            if e.get("p8Path") and e["status"] == "PASS":
                 paths[e["p8Path"]] = paths.get(e["p8Path"], 0) + 1
-        out["cases"][case]["p8Paths"] = paths
+        out["cases"][case]["p8PathsOfPassingRuns"] = paths
         out["cases"][case]["flowRootStates"] = sorted({(e.get("flowRoot") or {}).get("writerState") or "n/a" for e in items})
     out["serverEvents"] = [r for r in runs if "serverEvent" in r]
     pooled = sum(out["cases"].get(c, {}).get("valid", 0) for c in RATE_CASES)
@@ -409,11 +454,12 @@ def summarize(runs: list[dict]) -> dict:
     return out
 
 
-def dispersion(run_dirs: list[Path]) -> dict:
-    """P2 (an observation): min, max and standard deviation per case of the predeclared quantities."""
+def dispersion(run_dirs: list[Path], script_dir: Path | None = None) -> dict:
+    """P2 (an observation): min, max and standard deviation per case of the predeclared quantities. In the soak
+    report the run list is the PASS runs (audit and harness exit); standalone it filters on the audit only."""
     values = {}
     for run in run_dirs:
-        verdict = _audit(HERE.parent, run)
+        verdict = _audit(script_dir or HERE.parent, run)
         p2 = (verdict.get("observations") or {}).get("P2")
         if not p2 or not verdict.get("pass"):  # passing runs only (finding 34)
             continue
