@@ -2,7 +2,8 @@
 L10=/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0
 CARLA_ENV=$L10/.x-verse-build/cache/xverse-compat-carla-0.9.15-cp310
 SITE=$CARLA_ENV/lib/python3.10/site-packages
-VENV=$L10/.x-verse-build/cache/xverse-lite-live-20261022/driver-venv
+# The driver venv (harness interpreter and owned units); a development stack venv may be named (S1c finding 40).
+VENV=${XVERSE_LIVE_DRIVER_VENV:-$L10/.x-verse-build/cache/xverse-lite-live-20261022/driver-venv}
 
 # Revisions with diff hashes; refuses dirty trees unless XVERSE_LIVE_ALLOW_DIRTY=1 (review 1 R-1).
 record_revisions() {  # $1 = run dir; remaining = name=path pairs

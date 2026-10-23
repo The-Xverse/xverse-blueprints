@@ -11,6 +11,7 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 . "$HERE/lib-live.sh"
 RUN=${2:-$L10/.x-verse-build/runs/xverse-lite-live-20261022/lite-$(date +%Y%m%dT%H%M%S)-$CASE}
 export XVERSE_PLATFORM_SRC=${XVERSE_PLATFORM_SRC:-$L10/.x-verse-build/cache/xverse-lite-live-20261022/platform-src}
+export XVERSE_LIVE_DRIVER_VENV=$VENV  # units.py builds the owned units' PYTHONPATH from the same venv
 require_compat || exit 4
 export XVERSE_COMPAT_SRC
 export XVERSE_LIVE_RUN_DIR=$RUN XVERSE_LIVE_CASE=$CASE
@@ -51,6 +52,7 @@ record_revisions "$RUN" "blueprint=$HERE" "compat=$XVERSE_COMPAT_SRC" || exit 4
 {
   echo "compat-src $XVERSE_COMPAT_SRC"  # the checkout actually used (S1 FR-014)
   echo "platform-src $(cat "$XVERSE_PLATFORM_SRC/.export-revision" 2>/dev/null || echo unknown)"
+  echo "driver-venv $VENV"
   sha256sum /usr/bin/python3.10 /home/jefferson/.pyenv/versions/3.13.13/bin/python3.13 /usr/bin/zenohd \
     "$L10/.x-verse-build/cache/xverse-compat-wheels/carla-0.9.15-cp310-cp310-manylinux_2_27_x86_64.whl" \
     "$L10"/.x-verse-build/cache/xverse-lite-live-20261022/wheels/*.whl

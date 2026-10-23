@@ -11,11 +11,19 @@ Four Maestro units, started in this order (each depends on the previous one):
 Executables are real ELF interpreters (Maestro seals them; a symlinked venv interpreter cannot be
 sealed): ``/usr/bin/python3.10`` and the pyenv CPython 3.13.13 binary. The pinned carla environment is
 added with ``--carla-site``; the driver environment with ``PYTHONPATH``.
+
+S1c-2 part 2 (S1c finding 40, platform S1b): each owned unit runs in its own working directory
+``work/<unit>/``, inside the collection source root, where it answers the native nonce-marker readiness
+challenge (``xverse_compat.live.readiness``). The adapter therefore gets ``PYTHONPATH`` to the compat ``src``.
+Unit stderr is captured by the platform into private run-scoped files, so the units get no ``--stderr``.
+The legacy VCU is unchanged: not owned, its own checkout as working directory, liveness-only readiness.
+``XVERSE_LIVE_DRIVER_VENV`` (exported by ``run-live.sh``) selects the driver venv; the default is unchanged.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import os
 from pathlib import Path
 
 PY310 = "/usr/bin/python3.10"
@@ -24,6 +32,13 @@ CARLA_ENV = "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-buil
 DRIVER_VENV = "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/cache/xverse-lite-live-20261022/driver-venv"
 LEGACY_VCU = "/home/jefferson/autoverse/vecu/vcu_zenoh/src"
 ROUTER = "tcp/127.0.0.1:7447"
+OWNED = ("lite-driver", "carla-adapter", "driver-stimulus")
+
+
+def driver_venv() -> str:
+    """The driver venv of this run: ``XVERSE_LIVE_DRIVER_VENV`` (run-live.sh), else the pinned default."""
+
+    return os.environ.get("XVERSE_LIVE_DRIVER_VENV") or DRIVER_VENV
 
 
 @dataclass(frozen=True)
@@ -38,28 +53,31 @@ class Unit:
 
 def units(*, compat: Path, run_dir: Path, work: Path, socket_path: str, plan: Path | None, episode_s: float = 14.0,
           pause_after_s: float | None = None, stimulus_profile: str = "standard") -> list[Unit]:
-    """Return the four units for one run (paths are absolute)."""
+    """Return the four units for one run (paths are absolute); creates each owned unit's ``work/<unit>/``."""
 
     src = str(compat / "src")
     descriptors = str(compat / "xdl/descriptors/aeb-sim/carla-sensors.json")
     scenario = str(compat / "xdl/descriptors/aeb-sim/live-scenario.json")
     site = CARLA_ENV + "/lib/python3.10/site-packages"
-    driver_path = DRIVER_VENV + "/lib/python3.13/site-packages:" + src
+    driver_path = driver_venv() + "/lib/python3.13/site-packages:" + src
+    cwd = {name: work / name for name in OWNED}
+    for path in cwd.values():
+        path.mkdir()  # fresh and empty: a stale .xverse-ready fails the probe admission (ML-RUN-PROBE-STALE)
     driver = ("-B", "-m", "xverse_compat.live.driver", "--socket", socket_path, "--descriptors", descriptors, "--router", ROUTER,
               "--run-dir", str(run_dir / "driver"), "--episode-s", str(episode_s), "--accept-timeout-s", "12", "--wall-bound-s", "60",
-              "--marker", str(work / "lite-driver-binding.marker"), "--linger", "--stderr", str(run_dir / "lite-driver.err")) + (("--plan", str(plan)) if plan else ())         + (("--pause-after-s", str(pause_after_s)) if pause_after_s is not None else ())
+              "--marker", str(work / "lite-driver-binding.marker"), "--linger") + (("--plan", str(plan)) if plan else ())         + (("--pause-after-s", str(pause_after_s)) if pause_after_s is not None else ())
     return [
-        Unit("lite-driver", PY313, driver, src, {"PATH": "/usr/bin", "HOME": str(run_dir / "home"), "PYTHONPATH": driver_path}),
+        Unit("lite-driver", PY313, driver, str(cwd["lite-driver"]), {"PATH": "/usr/bin", "HOME": str(run_dir / "home"), "PYTHONPATH": driver_path}),
         Unit("carla-adapter", PY310,
              ("-s", "-B", "-m", "xverse_compat_carla.main", "--protocol", "2", "--connect", "unix:" + socket_path,
               "--connect-timeout-s", "20", "--source", "live:127.0.0.1:2000:scenario", "--scenario", scenario,
               "--descriptors", descriptors, "--carla-site", site, "--owned-registry", str(run_dir / "owned-actors.json"),
-              "--marker", str(work / "carla-adapter-binding.marker"), "--linger", "--stderr", str(run_dir / "carla-adapter.err")),
-             src, {"PATH": "/usr/bin", "HOME": str(run_dir / "carla-home")}),
+              "--marker", str(work / "carla-adapter-binding.marker"), "--linger"),
+             str(cwd["carla-adapter"]), {"PATH": "/usr/bin", "HOME": str(run_dir / "carla-home"), "PYTHONPATH": src}),
         Unit("legacy-vcu", PY310, ("-B", "main.py"), LEGACY_VCU, {"PATH": "/usr/bin", "HOME": "/home/jefferson"}, owned=False),
         Unit("driver-stimulus", PY313,
              ("-B", "-m", "xverse_compat.live.stimulus", "--router", ROUTER, "--out", str(run_dir / "stimulus.jsonl"),
-              "--marker", str(work / "driver-stimulus-binding.marker"), "--linger", "--stderr", str(run_dir / "driver-stimulus.err"))
+              "--marker", str(work / "driver-stimulus-binding.marker"), "--linger")
              + (("--profile", stimulus_profile) if stimulus_profile != "standard" else ()),  # S1 FR-018 long-run
-             src, {"PATH": "/usr/bin", "HOME": str(run_dir / "home"), "PYTHONPATH": driver_path}),
+             str(cwd["driver-stimulus"]), {"PATH": "/usr/bin", "HOME": str(run_dir / "home"), "PYTHONPATH": driver_path}),
     ]

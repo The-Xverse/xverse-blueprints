@@ -155,3 +155,28 @@ def test_any_exit_stops_a_running_server(soak, monkeypatch):
     with pytest.raises(RuntimeError):
         s.execute()
     assert fake.stops >= 1
+
+
+def test_the_child_run_keeps_the_pinned_platform_export_and_driver_venv(tmp_path, monkeypatch):
+    """S1c finding 40: development overrides never reach a soak run (run-live.sh then uses its pinned defaults)."""
+    from types import SimpleNamespace
+
+    monkeypatch.setenv("XVERSE_PLATFORM_SRC", "/nonexistent/platform-src")
+    monkeypatch.setenv("XVERSE_LIVE_DRIVER_VENV", "/nonexistent/driver-venv")
+    monkeypatch.setattr(run_soak, "identities", lambda c, b: {"compat": {"clean": True, "detached": True},
+                                                              "blueprints": {"clean": True, "detached": True},
+                                                              "runnerMatchesPinned": True})
+    monkeypatch.setattr(run_soak, "load1", lambda: 1.0)
+    seen = []
+
+    def run(command, env=None, **kwargs):
+        seen.append((command, env))
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(run_soak.subprocess, "run", run)
+    (tmp_path / "out").mkdir()
+    s = run_soak.Soak(tmp_path / "c", tmp_path / "b", tmp_path / "out")
+    entry = s.run_one("no-carla", carla=False)
+    (command, env), = seen
+    assert command[0] == "timeout" and command[2].endswith("run-live.sh") and entry["status"] == "FAIL"  # no run directory
+    assert "XVERSE_PLATFORM_SRC" not in env and "XVERSE_LIVE_DRIVER_VENV" not in env and env["XVERSE_COMPAT_SRC"] == str(tmp_path / "c")

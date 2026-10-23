@@ -88,6 +88,10 @@ def _native_attested(record) -> bool:
     return len(units) == 4 and all(u.get("issued") and u.get("native_retired") and u.get("direct_child_reaped") for u in units)
 
 
+def _unit_name(unit_id) -> str:
+    return str(unit_id).rsplit("/", 1)[-1].removesuffix("-instance")
+
+
 def preflight_ok(run: Path) -> dict:
     """P7: the single-owner preflight was never violated (no BLOCKED preflight, no competing client)."""
     try:
@@ -174,6 +178,10 @@ def audit(run: Path) -> dict:
                         "flowRootClosedComplete": _closed_complete(roots["flows"]),
                         "noResidue": _residue(run), "worldRestoredNoVehicles": _world_restored(guard)}
         observations["P2"] = {"observer": report.observer_metrics(run), "runtime": report.runtime_metrics(run)}
+        # S1b stop modes (exited-on-term or forced) per unit, from the native closure facts: an observation here; the
+        # harness asserts exited-on-term for the owned units, so a violation fails the run through its exit (S1c finding 40)
+        observations["P1"] = {"stopModes": {_unit_name(u.get("unit_id")): u.get("stop_mode") for u in record.get("nativeUnits") or []
+                                            if isinstance(u, dict)} or None}
     if case == "cancel-paused":
         checks["P3"] = {"cancelled": record.get("dispatchDiagnostic") == "ML-SCHEDULE-CANCELLED",
                         "cancelIssuedDuringRun": "cancelReturnedMonotonicNs" in record and "cancelNotIssued" not in record,

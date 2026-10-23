@@ -270,6 +270,7 @@ class Soak:
             entry["healthBefore"] = health(self.home)
         env = dict(os.environ, XVERSE_COMPAT_SRC=str(self.compat))
         env.pop("XVERSE_PLATFORM_SRC", None)  # the pinned export only (finding 34)
+        env.pop("XVERSE_LIVE_DRIVER_VENV", None)  # the pinned driver venv only (S1c finding 40)
         command = ([str(self.script_dir / "run-baseline.sh"), str(run_dir)] if case == "baseline"
                    else [str(self.script_dir / "run-live.sh"), case, str(run_dir)])
         with LoadSampler() as sampler:
