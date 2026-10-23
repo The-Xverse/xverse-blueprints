@@ -22,6 +22,11 @@ Protocol, fixed before the first run (FR-019):
 - Criteria: audit.py per run (P1, P3-P8; P2 an observation). The first failure stops the soak; a finding is
   recorded before any repair and a repaired soak restarts from zero (FR-020).
 - Validity: if observation plus INVALID runs exceed 10% of a case's scheduled runs, the soak is INVALID.
+- Declared realizations (S1c finding 34; thesis DR-11, DR-12): no-carla in the server-stopped gaps (above); a
+  run whose after-cleanup health check fails while the world reports synchronous mode is a restore failure (FAIL,
+  P1), not a server failure; a run counts as PASS only if its harness also exited 0 (its own assertions); a server
+  that fails to start twice in a row stops the soak; every server failure, including those during repeats and
+  failed restarts, counts toward the limit of 3 and is recorded in the manifest.
 Writes ``soak-manifest.json`` (append-only run list) and, at the end, ``soak-report.json``.
 """
 
@@ -40,7 +45,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-import audit  # noqa: E402
+import hashlib  # noqa: E402
 
 L10 = Path("/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0")
 CARLA_SITE = L10 / ".x-verse-build/cache/xverse-compat-carla-0.9.15-cp310/lib/python3.10/site-packages"
@@ -51,6 +56,16 @@ ROUNDS, BLOCK, BASELINE_EVERY = 30, 10, 3
 NO_CARLA_GAPS = (3, 3, 2, 2)
 LOAD_START_MAX, LOAD_RUN_MAX, LOAD_PERIOD_S = 5.0, 10.0, 5.0
 MAX_SERVER_FAILURES, INVALID_SHARE = 3, 0.10
+
+
+def _audit(script_dir: Path, run_dir: Path) -> dict:
+    """audit.py from the pinned blueprints checkout, never this runner's directory (S1c finding 34)."""
+    done = subprocess.run(["python3", "-B", str(script_dir / "soak" / "audit.py"), str(run_dir)],
+                          capture_output=True, text=True, timeout=300)
+    try:
+        return json.loads(done.stdout.strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        return {"pass": False, "failedChecks": ["audit produced no verdict"], "stderr": done.stderr[-500:]}
 
 
 def schedule() -> list[dict]:
@@ -84,6 +99,11 @@ def identities(compat: Path, blueprints: Path) -> dict:
         out["platformSrc"] = (PLATFORM_SRC / ".export-revision").read_text().strip()
     except OSError:
         out["platformSrc"] = None
+    wheels = sorted((PLATFORM_SRC.parent / "wheels").glob("*.whl"))  # the driver venv's installed inputs
+    out["driverWheels"] = {w.name: hashlib.sha256(w.read_bytes()).hexdigest() for w in wheels}
+    runner = Path(__file__).resolve()
+    pinned = blueprints / "automotive/thesis-lite-carla-closed-loop/soak" / runner.name
+    out["runnerMatchesPinned"] = pinned.exists() and pinned.read_bytes() == runner.read_bytes()
     return out
 
 
@@ -113,9 +133,12 @@ class LoadSampler:
 
 def health(home: Path) -> dict:
     home.mkdir(parents=True, exist_ok=True)
-    done = subprocess.run(["env", "-i", "PATH=/usr/bin", f"HOME={home}", "/usr/bin/python3.10", "-s", "-B",
-                           str(HERE / "health_check.py"), "--carla-site", str(CARLA_SITE)],
-                          capture_output=True, text=True, timeout=60, cwd="/tmp")
+    try:
+        done = subprocess.run(["env", "-i", "PATH=/usr/bin", f"HOME={home}", "/usr/bin/python3.10", "-s", "-B",
+                               str(HERE / "health_check.py"), "--carla-site", str(CARLA_SITE)],
+                              capture_output=True, text=True, timeout=90, cwd="/tmp")
+    except subprocess.TimeoutExpired:  # a hung check is an unhealthy server, never a crashed soak (finding 34)
+        return {"healthy": False, "error": "health check exceeded 90 s", "exit": None}
     try:
         result = json.loads(done.stdout.strip().splitlines()[-1])
     except (ValueError, IndexError):
@@ -188,7 +211,8 @@ class Soak:
 
     def _check_pins(self):
         now = identities(self.compat, self.blueprints)
-        if now != self.pinned or not all(now[k]["clean"] and now[k]["detached"] for k in ("compat", "blueprints")):
+        if now != self.pinned or not all(now[k]["clean"] and now[k]["detached"] for k in ("compat", "blueprints")) \
+                or not now["runnerMatchesPinned"]:
             raise SystemExit(self._stop("revision or tree changed, or not clean and detached (FR-020)", now))
 
     def _stop(self, reason, detail=None):
@@ -211,6 +235,7 @@ class Soak:
         if carla:
             entry["healthBefore"] = health(self.home)
         env = dict(os.environ, XVERSE_COMPAT_SRC=str(self.compat))
+        env.pop("XVERSE_PLATFORM_SRC", None)  # the pinned export only (finding 34)
         command = ([str(self.script_dir / "run-baseline.sh"), str(run_dir)] if case == "baseline"
                    else [str(self.script_dir / "run-live.sh"), case, str(run_dir)])
         with LoadSampler() as sampler:
@@ -223,15 +248,49 @@ class Soak:
         entry["loadMax"] = max(s["load1"] for s in sampler.samples)
         if carla:
             entry["healthAfter"] = health(self.home)
-        verdict = audit.audit(run_dir) if run_dir.exists() else {"pass": False, "failedChecks": ["run directory missing"]}
+        verdict = _audit(self.script_dir, run_dir) if run_dir.exists() else {"pass": False, "failedChecks": ["run directory missing"]}
         entry["audit"] = {"pass": verdict["pass"], "failedChecks": verdict["failedChecks"]}
-        (run_dir / "soak-audit.json").write_text(json.dumps(verdict, indent=1, sort_keys=True, default=str) + "\n") if run_dir.exists() else None
-        invalid = carla and not (entry["healthBefore"]["healthy"] and entry["healthAfter"]["healthy"])
-        entry["status"] = ("INVALID" if invalid else "FAIL" if not verdict["pass"]
+        entry["p8Path"] = ((verdict.get("observations") or {}).get("P8") or {}).get("path")
+        entry["flowRoot"] = (verdict.get("observations") or {}).get("flowRoot")
+        if run_dir.exists():
+            (run_dir / "soak-audit.json").write_text(json.dumps(verdict, indent=1, sort_keys=True, default=str) + "\n")
+        restore_failure = carla and not entry["healthAfter"]["healthy"] and entry["healthAfter"].get("synchronousMode") is True
+        invalid = carla and not restore_failure and not (entry["healthBefore"]["healthy"] and entry["healthAfter"]["healthy"])
+        passed = verdict["pass"] and done.returncode == 0  # the harness's own assertions are part of the verdict (M4)
+        entry["status"] = ("FAIL" if restore_failure else "INVALID" if invalid else "FAIL" if not passed
                            else "OBSERVATION" if entry["loadMax"] > LOAD_RUN_MAX else "PASS")
         self.runs.append(entry)
         self._save()
         return entry
+
+    def _restart(self, reason: str):
+        """Stop the current server and start a fresh one; every failure counts toward the limit (M1, M2)."""
+        self.server_failures += 1
+        self.runs.append({"serverEvent": reason, "server": self.server_index})
+        stop_server(self.out / f"carla-server-{self.server_index}")
+        if self.server_failures > MAX_SERVER_FAILURES:
+            return None
+        self.server_index += 1
+        server_dir = self.out / f"carla-server-{self.server_index}"
+        check = start_server(server_dir, self.home)
+        self.runs.append({"serverEvent": "started", "server": self.server_index, "healthy": check["healthy"]})
+        self._save()
+        if not check["healthy"]:
+            return self._restart("restart failed health") if self.server_failures < MAX_SERVER_FAILURES + 1 else None
+        return server_dir
+
+    def _carla_run(self, case: str, repeats_end: list, *, repeat_of=None):
+        """One CARLA run: returns (entry, server_dir or None when the soak must stop)."""
+        entry = self.run_one(case, carla=True)
+        if repeat_of:
+            entry["repeatOf"] = repeat_of
+        server_dir = self.out / f"carla-server-{self.server_index}"
+        if entry["status"] == "INVALID":
+            server_dir = self._restart(f"INVALID run {entry['run']}")
+        elif entry["status"] == "OBSERVATION" and repeat_of != "OBSERVATION":
+            repeats_end.append((case, True))
+        self._save()
+        return entry, server_dir
 
     def execute(self, dry_run=False) -> int:
         self.out.mkdir(parents=True, exist_ok=True)
@@ -258,58 +317,55 @@ class Soak:
                 continue
             self.server_index += 1
             server_dir = self.out / f"carla-server-{self.server_index}"
-            if not start_server(server_dir, self.home)["healthy"]:
-                self.server_failures += 1
-                stop_server(server_dir)
-                if self.server_failures > MAX_SERVER_FAILURES:
-                    return self._stop("more than 3 server failures")
-                self.server_index += 1
-                server_dir = self.out / f"carla-server-{self.server_index}"
-                if not start_server(server_dir, self.home)["healthy"]:
-                    return self._stop("server failed to start twice")
+            check = start_server(server_dir, self.home)
+            self.runs.append({"serverEvent": "started", "server": self.server_index, "healthy": check["healthy"]})
+            if not check["healthy"]:
+                server_dir = self._restart("start failed health")
+                if server_dir is None:
+                    return self._stop("server failed to start twice, or more than 3 server failures")
             block_repeats = []
             for rnd in item["rounds"]:
                 waited = self._wait_load()
                 self.runs.append({"round": rnd["round"], "loadWaitS": waited, "cases": rnd["cases"]})
                 for case in rnd["cases"]:
-                    entry = self.run_one(case, carla=True)
+                    entry, server_dir = self._carla_run(case, repeats_end)
                     if entry["status"] == "FAIL":
-                        stop_server(server_dir)
+                        stop_server(self.out / f"carla-server-{self.server_index}")
                         return self._stop(f"criterion failure in {entry['run']} (FR-020)")
+                    if server_dir is None:
+                        return self._stop("more than 3 server failures")
                     if entry["status"] == "INVALID":
-                        self.server_failures += 1
-                        stop_server(server_dir)
-                        if self.server_failures > MAX_SERVER_FAILURES:
-                            return self._stop("more than 3 server failures")
-                        self.server_index += 1
-                        server_dir = self.out / f"carla-server-{self.server_index}"
-                        start_server(server_dir, self.home)
                         block_repeats.append(case)
-                    elif entry["status"] == "OBSERVATION":
-                        repeats_end.append((case, True))
             for case in block_repeats:  # an INVALID run is repeated once, at the end of its block
-                entry = self.run_one(case, carla=True)
-                entry["repeatOf"] = "INVALID"
+                entry, server_dir = self._carla_run(case, repeats_end, repeat_of="INVALID")
                 if entry["status"] == "FAIL":
-                    stop_server(server_dir)
+                    stop_server(self.out / f"carla-server-{self.server_index}")
                     return self._stop(f"criterion failure in {entry['run']} (FR-020)")
+                if server_dir is None:
+                    return self._stop("more than 3 server failures")
             stop_server(server_dir)
         if repeats_end:  # observation repeats, once each, at the end of the soak
             self.server_index += 1
             server_dir = self.out / f"carla-server-{self.server_index}"
-            carla_needed = any(c for _, c in repeats_end)
-            if carla_needed:
-                start_server(server_dir, self.home)
+            if any(c for _, c in repeats_end) and not start_server(server_dir, self.home)["healthy"]:
+                server_dir = self._restart("start failed health")
+                if server_dir is None:
+                    return self._stop("server failed to start twice, or more than 3 server failures")
             for case, carla in sorted(repeats_end, key=lambda x: not x[1]):
                 if not carla and carla_pids():
-                    stop_server(server_dir)
+                    stop_server(self.out / f"carla-server-{self.server_index}")
                 self._wait_load()
-                entry = self.run_one(case, carla=carla)
-                entry["repeatOf"] = "OBSERVATION"
+                if carla:
+                    entry, server_dir = self._carla_run(case, repeats_end, repeat_of="OBSERVATION")
+                    if server_dir is None:
+                        return self._stop("more than 3 server failures")
+                else:
+                    entry = self.run_one(case, carla=False)
+                    entry["repeatOf"] = "OBSERVATION"
                 if entry["status"] == "FAIL":
-                    stop_server(server_dir)
+                    stop_server(self.out / f"carla-server-{self.server_index}")
                     return self._stop(f"criterion failure in {entry['run']} (FR-020)")
-            stop_server(server_dir)
+            stop_server(self.out / f"carla-server-{self.server_index}")
         report = summarize(self.runs)
         (self.out / "soak-report.json").write_text(json.dumps(report, indent=1, sort_keys=True) + "\n")
         self._save("complete")
@@ -337,6 +393,14 @@ def summarize(runs: list[dict]) -> dict:
                               "observations": sum(e["status"] == "OBSERVATION" for e in items),
                               "failures": sum(e["status"] == "FAIL" for e in items), "excludedShare": round(share, 3),
                               "upperBound95": upper_bound(len(passed)) if case in RATE_CASES else None}
+    for case, items in by_case.items():  # P8 path counts and the DR-6 (c) flow roots, reported (finding 34)
+        paths = {}
+        for e in items:
+            if e.get("p8Path"):
+                paths[e["p8Path"]] = paths.get(e["p8Path"], 0) + 1
+        out["cases"][case]["p8Paths"] = paths
+        out["cases"][case]["flowRootStates"] = sorted({(e.get("flowRoot") or {}).get("writerState") or "n/a" for e in items})
+    out["serverEvents"] = [r for r in runs if "serverEvent" in r]
     pooled = sum(out["cases"].get(c, {}).get("valid", 0) for c in RATE_CASES)
     out["pooledRateCases"] = {"valid": pooled, "upperBound95": upper_bound(pooled)}
     out["valid"] = valid
@@ -349,13 +413,16 @@ def dispersion(run_dirs: list[Path]) -> dict:
     """P2 (an observation): min, max and standard deviation per case of the predeclared quantities."""
     values = {}
     for run in run_dirs:
-        verdict = audit.audit(run)
-        p2 = (verdict["observations"] or {}).get("P2")
-        if not p2:
+        verdict = _audit(HERE.parent, run)
+        p2 = (verdict.get("observations") or {}).get("P2")
+        if not p2 or not verdict.get("pass"):  # passing runs only (finding 34)
             continue
-        obs, rt = p2.get("observer") or {}, p2.get("runtime") or {}
+        obs = p2.get("observer") or {}
+        ticks = [json.loads(line) for line in (run / "driver" / "driver-ticks.jsonl").read_text().splitlines()
+                 if '"kind": "tick"' in line or '"kind":"tick"' in line]
+        throttle_s = round(0.05 * sum(1 for r in ticks if r.get("throttle", 0) > 0), 3)  # summed, not first-to-last
         row = {"peakKmh": obs.get("peakKmh"), "standstillAfterOnsetS": obs.get("standstillAfterOnsetS"),
-               "distanceM": obs.get("distanceM"), "throttleSimS": (rt.get("commandedThrottle") or {}).get("simDurationS")}
+               "distanceM": obs.get("distanceM"), "throttleTimeS": throttle_s}
         for key, value in row.items():
             if isinstance(value, (int, float)) and not math.isnan(value):
                 values.setdefault(verdict["case"], {}).setdefault(key, []).append(value)

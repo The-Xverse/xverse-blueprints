@@ -128,9 +128,15 @@ def actuator_safe_stop(run: Path, guard) -> dict:
         out["lastEgoSpeedMps"] = moving[-1]["ego"]["speedMps"] if moving else None
     else:  # guard path: un-pause .. destroy, the ego never driven and reaching standstill before the destroy
         out["path"] = "guard"
+        # windowed by frame (S1c finding 34, H1): from the first frame received after the un-pause to the last frame
+        # that still shows the ego; the observer receives that last frame just after the guard's destroy time
         unpause, destroy = guard.get("unpauseMonotonicNs"), guard.get("destroyMonotonicNs")
-        window = [r for r in samples if r.get("ego") and unpause and destroy and unpause <= r["monotonicNs"] <= destroy]
-        before = [r for r in samples if r.get("ego") and unpause and r["monotonicNs"] <= unpause]
+        after = [r for r in samples if unpause and r["monotonicNs"] >= unpause]
+        first = after[0]["frame"] if after else None
+        ego_frames = [r["frame"] for r in after if r.get("ego")]
+        last = max(ego_frames) if ego_frames else None
+        window = [r for r in samples if r.get("ego") and first is not None and destroy and first <= r["frame"] <= last]
+        before = [r for r in samples if r.get("ego") and first is not None and r["frame"] < first]
         base = before[-1]["ego"]["speedMps"] if before else (window[0]["ego"]["speedMps"] if window else None)
         out.update(windowSamples=len(window), unpauseSpeedMps=base,
                    neverDriven=bool(window) and base is not None and all(r["ego"]["speedMps"] <= base + 0.1 for r in window),
@@ -183,7 +189,9 @@ def audit(run: Path) -> dict:
                         "noResidue": _residue(run)}
         observations["flowRoot"] = roots["flows"]
     if case == "long-run":
-        diagnostics = set(record.get("diagnostics") or []) | {record.get("dispatchDiagnostic")}
+        failure = record.get("persistenceFailure") or {}
+        diagnostics = set(record.get("diagnostics") or []) | {record.get("dispatchDiagnostic")} | \
+            set(record.get("closureDiagnostics") or []) | {failure.get("diagnostic")}  # S1c finding 34, H2
         after = None
         tick = record.get("tickTiming") or {}
         if record.get("startReturnedMonotonicNs") and tick.get("lastTickS") is not None:
@@ -192,10 +200,13 @@ def audit(run: Path) -> dict:
         # terminal <= 2 s): every terminal-report, closure and abort persistence call (S1c finding 31)
         timing = record.get("persistenceTiming") or {}
         closure_calls = [s for kind, s in timing.get("terminalCallsS") or [] if kind in ("terminal-report", "closure", "abort")]
+        # a terminal call is cut off at its own deadline (<= 2 s), so "within 2 s" also requires that none reached it
+        # (>= 0.98 of the 2 s budget) and that no persistence failure was recorded (S1c finding 34, H2)
         checks["P6"] = {"noPersistTimeout": "ML-PERSIST-TIMEOUT" not in diagnostics,
                         "noServiceDeadline": "ML-SCHEDULE-SERVICE-DEADLINE" not in diagnostics,
+                        "noPersistenceFailure": not failure,
                         "persistenceRoundTrip": _persistence_ok(timing),
-                        "closureCallsWithin2s": bool(closure_calls) and max(closure_calls) <= 2.0}
+                        "closureCallsWithin2s": bool(closure_calls) and max(closure_calls) < 0.98 * 2.0}
         observations["P6"] = {"closureCallsMaxS": max(closure_calls) if closure_calls else None,
                               "afterLastTickS": round(after, 3) if after is not None else None,
                               "persistenceTiming": timing, "tickTiming": tick}

@@ -67,7 +67,7 @@ HORIZON = 400
 # S1 FR-018 / S-D1 (revised 600 Maestro ticks, 4 units): >= 30 s after tick 0 at the floor and inside the 55 s active
 # window while the mean cycle stays <= ~0.085 s (measured 0.055-0.068 s). The driver episode (25 s) covers the
 # long-run stimulus profile (three standard cycles, 21 s, from ~1.5 s after the episode starts); events ~800 < 8192
-# and retained inputs ~1.8 MB < RETAINED_MAX.
+# and retained inputs ~1.3 MB (measured) < RETAINED_MAX.
 LONG_RUN_HORIZON, LONG_RUN_EPISODE_S = 600, 25.0
 # Observe at tick 60 (~7 s after start at the floor): before the cancel-paused cancel (>= 13.2 s after start) up to
 # a ~0.15 s mean cycle, so that case always completes observe before the cancel (S1c finding 19, MEDIUM-3).
