@@ -57,12 +57,14 @@ RUN_ID = "lite-carla-closed-loop"
 # budget after ~270 events). Events are ~1 per tick plus health probes at a fixed wall rate, and slower
 # appends lengthen each tick, so the run is kept short. Cycles measured 0.17 s per tick at load ~7 and
 # 0.3-0.7 s at load 9-10.5: 80 ticks span ~14-55 s, covering the 9.5 s driver episode plus ~2 s startup.
-HORIZON = 80
-# cancel-paused: the cancel comes ~13 s after start (pause at 4 s of the episode, then 6 s paused). With the S1a
-# persistence repair a cycle measured 0.165 s, so 80 ticks ended 13.2 s after start, before the cancel (S1c
-# finding 15). 160 ticks last >= ~26 s at that rate; the cancel still ends the schedule at ~13 s.
-CANCEL_HORIZON = 160
-OBSERVE_TICK = HORIZON // 2  # unchanged for every case
+# After S1a the cycle runs at the 0.05 s poll floor (mean 0.057 s measured; the platform caps poll_seconds at
+# 0.05 s), so tick counts are derived from that floor (S1c findings 15 and 16). 400 ticks last >= 20 s after
+# tick 0; the driver episode ends ~11.5 s and the cancel-paused cancel ~12.3 s after tick 0. The 55 s active
+# window holds 400 ticks while the mean cycle stays <= 0.13 s. The S-D1 long-run horizon is S1c-2 scope.
+HORIZON = 400
+OBSERVE_TICK = HORIZON // 2
+FREEZE_AT, FREEZE_TICKS = 60, 80  # ~3.4 s after tick 0 for ~4.6 s: inside the throttle phase
+RETAINED_MAX = 4 * 1024 * 1024  # ~2.2 KB per event, ~560 events at 400 ticks; above the 1 MiB default
 POLL = 0.05
 ORDER = ("lite-driver", "carla-adapter", "legacy-vcu", "driver-stimulus")
 # the fixture's flow source starts first: the driver is the source of the actuation-command flow to the adapter
@@ -180,6 +182,22 @@ def _fact(compute):
         return {"error": f"{type(error).__name__}: {error}"}
 
 
+def _tick_timing(events, start_ns):
+    """First host time of each schedule tick, from the Maestro Argus stream (S1c finding 16)."""
+
+    first = {}
+    for line in events.read_text().splitlines():
+        clocks = json.loads(line).get("clocks") or {}
+        if "simulation" in clocks:
+            first.setdefault(clocks["simulation"]["value"], clocks["host"]["value"] - start_ns / 1e9)
+    ticks = sorted(first)
+    if len(ticks) < 2:
+        return {"ticks": len(ticks)}
+    cycles = [first[b] - first[a] for a, b in zip(ticks, ticks[1:])]
+    return {"ticks": len(ticks), "lastTick": ticks[-1], "firstTickS": round(first[ticks[0]], 3), "lastTickS": round(first[ticks[-1]], 3),
+            "meanCycleS": round(sum(cycles) / len(cycles), 4), "maxCycleS": round(max(cycles), 4)}
+
+
 def _digest(path):
     return "sha256:" + hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
@@ -209,14 +227,14 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
                             pause_after_s=4.0 if case == "cancel-paused" else None)  # inside the throttle segment (review 2 N-3)
     artifacts = {"python310": ("/usr/bin/python3.10", _digest("/usr/bin/python3.10")),
                  "python313": (defs[0].executable, _digest(defs[0].executable))}
-    horizon = CANCEL_HORIZON if case == "cancel-paused" else HORIZON
+    horizon = HORIZON
     record["horizonTicks"] = horizon
     docs = build_documents(defs, artifacts, horizon)
     if case == "freeze-vcu":  # Phase 5 freeze (cgroup.freeze) of the legacy VCU unit; thaw on clear (automatic)
         from tests.thesis_lite.faults.support import fault  # noqa: PLC0415
 
-        # 20 ticks (~3-10 s with load) so that the freeze spans the throttle phase (review: final run 011855 froze in the idle second)
-        freeze = fault("f-freeze-vcu", "freeze", "legacy-vcu-instance", at=16, duration=20, recovery="automatic")
+        # the freeze spans the throttle phase (review: final run 011855 froze in the idle second); ticks per S1c finding 16
+        freeze = fault("f-freeze-vcu", "freeze", "legacy-vcu-instance", at=FREEZE_AT, duration=FREEZE_TICKS, recovery="automatic")
         freeze = _rename(freeze)
         docs["scenario.json"]["spec"]["faults"] = [freeze]
         record["faults"] = [freeze]
@@ -263,7 +281,8 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
                               active_start=time.monotonic(), active_end=time.monotonic() + schedule.active_seconds,
                               source_digests=(pin(schedule.canonical_bytes),),
                               artifacts=[*(ArtifactExpectation(d.destination, True, 256, d.unit_id, 1) for d in declarations),
-                                         ArtifactExpectation("collection-result.json", maximum_bytes=16384)])
+                                         ArtifactExpectation("collection-result.json", maximum_bytes=16384),
+                                         ArtifactExpectation("retained-inputs.json", maximum_bytes=RETAINED_MAX)])
     collection = admit_collection(coverage, expected_digest=coverage.digest, source_root=str(work), source_identity=(st.st_dev, st.st_ino),
                                   declarations=declarations, metadata_path="collection-result.json", operation_seconds=1,
                                   per_unit_teardown_seconds=2, collection_seconds=3, terminal_seconds=2, drain_seconds=2)
@@ -342,6 +361,7 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
                           dispatchTerminal=_fact(lambda: outcome.dispatch.terminal.public_data()
                                                  if outcome.dispatch and outcome.dispatch.terminal is not None else None))
         record["workArtifacts"] = _fact(lambda: sorted(p.name for p in work.iterdir()))
+        record["tickTiming"] = _fact(lambda: _tick_timing(tmp_path / "argus-maestro" / "events.jsonl", record["monotonicStartNs"]))
         markers = {}
         for p in work.glob("*.marker"):  # review 2 N-4: a marker records its unit's outcome, not only completion
             try:

@@ -115,9 +115,10 @@ Contracts: `xverse-compat` `docs/engineering/thesis-lite-phase7-live/carla-items
 - `host-monotonic`: pacing, Maestro deadlines and cancellation. These work while simulation time is paused;
   this is verified by `cancel-paused`.
 - `experiment-time`: Maestro's schedule ticks. They are not wall-paced: about 0.07–0.7 s per tick were
-  measured, depending on host load. The schedule runs 80 ticks, except `cancel-paused`, which runs 160 so that
-  it outlives the cancel at about 13 s. That case fails unless the cancel was issued during the run and the
-  outcome is `ML-SCHEDULE-CANCELLED` (S1c finding 15).
+  measured in Phase 7, depending on host load. After the S1a persistence repair a cycle runs at the 0.05 s poll
+  floor (mean 0.057 s), so the schedule runs 400 ticks (≥ 20 s after tick 0) and the freeze is at ticks 60–140
+  (S1c finding 16). `maestro-run.json` records the measured `tickTiming`. `cancel-paused` fails unless the
+  cancel was issued during the run and the outcome is `ML-SCHEDULE-CANCELLED` (S1c finding 15).
 
 ## Limits
 
