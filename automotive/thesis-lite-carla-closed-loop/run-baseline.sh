@@ -29,6 +29,20 @@ if [ -s "$RUN/host-competing-processes.txt" ]; then echo "BLOCKED: competing cli
 ss -tln | grep -q ':7447 ' && ss -tln | grep -q ':2000 ' || { echo "BLOCKED: router or CARLA missing"; exit 4; }
 carla_clients "$RUN/carla-clients-before.txt" || { echo "BLOCKED: unexpected client connected to CARLA"; cat "$RUN/carla-clients-before.txt"; exit 4; }
 world_settings "$RUN/world-before.json" "$RUN/carla-home"; echo "world before: $(cat "$RUN/world-before.json")"
+if python3 -c "import json,sys; w=json.load(open(sys.argv[1])); sys.exit(0 if w['synchronousMode'] and not w['frameAdvancing'] else 1)" "$RUN/world-before.json"; then
+  # declared setup step: an ownerless synchronous world (live finding 05) cannot host the asynchronous legacy loop
+  (cd "$COMPAT/src" && env -i PATH=/usr/bin HOME="$RUN/carla-home" /usr/bin/python3.10 -s -B -m xverse_compat_carla.restore --carla-site "$SITE") > "$RUN/world-normalised.json"
+  echo "world normalised to asynchronous before the baseline: $(cat "$RUN/world-normalised.json")"
+fi
+OBS=; VCU=; VV=; STIM=
+baseline_cleanup() {  # stop every process this baseline started, on any exit (incl. timeout/interrupt)
+  trap - EXIT INT TERM
+  for P in $STIM $VV $VCU; do kill -0 "$P" 2>/dev/null && kill -INT "$P"; done
+  sleep 3
+  for P in $STIM $VV $VCU; do kill -0 "$P" 2>/dev/null && { echo "killing $P"; kill -KILL "$P"; }; done
+  [ -n "$OBS" ] && kill -TERM "$OBS" 2>/dev/null
+}
+trap baseline_cleanup INT TERM
 
 (cd "$COMPAT/src" && exec env -i PATH=/usr/bin HOME="$RUN/carla-home" /usr/bin/python3.10 -s -B -m xverse_compat_carla.observe \
    --role ego_vehicle --duration-s 60 --out "$RUN/observer.jsonl" --carla-site "$SITE") 2> "$RUN/observer.err" & OBS=$!
@@ -44,7 +58,10 @@ sleep 2
 for P in $VV $VCU; do kill -INT $P 2>/dev/null; done   # as the author's supervisor: SIGINT first
 for i in $(seq 1 20); do kill -0 $VV 2>/dev/null || kill -0 $VCU 2>/dev/null || break; sleep 0.5; done
 for P in $VV $VCU; do kill -0 $P 2>/dev/null && { echo "terminating $P"; kill -TERM $P; }; done
+for i in $(seq 1 20); do kill -0 $VV 2>/dev/null || kill -0 $VCU 2>/dev/null || break; sleep 0.5; done
+for P in $VV $VCU; do kill -0 $P 2>/dev/null && { echo "killing $P (ignored SIGINT and SIGTERM)"; kill -KILL $P; }; done
 wait $VV; echo "virtual-vehicle exit=$?"; wait $VCU; echo "vcu exit=$?"
+trap - INT TERM
 kill -TERM $OBS 2>/dev/null; wait $OBS; echo "observer exit=$?"
 (cd "$COMPAT/src" && env -i PATH=/usr/bin HOME="$RUN/carla-home" /usr/bin/python3.10 -s -B -c "
 import sys,json,site; site.addsitedir('$SITE'); import carla

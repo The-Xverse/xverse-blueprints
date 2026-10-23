@@ -31,8 +31,9 @@ carla_clients() {  # $1 = output file; returns 4 when an unexpected client is co
 # World settings as a fresh client sees them (DLG-11).
 world_settings() {  # $1 = output JSON, $2 = HOME for the client
   (cd /tmp && env -i PATH=/usr/bin HOME="$2" /usr/bin/python3.10 -s -B -c "
-import json, site, sys; site.addsitedir('$SITE'); import carla
+import json, site, sys, time; site.addsitedir('$SITE'); import carla
 c = carla.Client('127.0.0.1', 2000); c.set_timeout(10); w = c.get_world(); s = w.get_settings()
-print(json.dumps({'synchronousMode': s.synchronous_mode, 'fixedDeltaSeconds': s.fixed_delta_seconds,
-                  'frame': w.get_snapshot().frame, 'vehicles': [(a.id, a.type_id, a.attributes.get('role_name')) for a in w.get_actors().filter('vehicle.*')]}))") > "$1"
+f0 = w.get_snapshot().frame; time.sleep(1.0); f1 = w.get_snapshot().frame  # DLG-11a: is any client ticking?
+print(json.dumps({'synchronousMode': s.synchronous_mode, 'fixedDeltaSeconds': s.fixed_delta_seconds, 'frame': f1,
+                  'frameAdvancing': f1 > f0, 'vehicles': [(a.id, a.type_id, a.attributes.get('role_name')) for a in w.get_actors().filter('vehicle.*')]}))") > "$1"
 }
