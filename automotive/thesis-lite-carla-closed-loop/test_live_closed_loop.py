@@ -186,7 +186,8 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
     if case == "freeze-vcu":  # Phase 5 freeze (cgroup.freeze) of the legacy VCU unit; thaw on clear (automatic)
         from tests.thesis_lite.faults.support import fault  # noqa: PLC0415
 
-        freeze = fault("f-freeze-vcu", "freeze", "legacy-vcu-instance", at=16, duration=8, recovery="automatic")
+        # 20 ticks (~3-10 s with load) so that the freeze spans the throttle phase (review: final run 011855 froze in the idle second)
+        freeze = fault("f-freeze-vcu", "freeze", "legacy-vcu-instance", at=16, duration=20, recovery="automatic")
         freeze = _rename(freeze)
         docs["scenario.json"]["spec"]["faults"] = [freeze]
         record["faults"] = [freeze]
