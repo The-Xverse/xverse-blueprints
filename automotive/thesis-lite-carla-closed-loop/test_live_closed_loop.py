@@ -63,7 +63,9 @@ RUN_ID = "lite-carla-closed-loop"
 # window holds 400 ticks while the mean cycle stays <= 0.13 s. The S-D1 long-run horizon is S1c-2 scope.
 HORIZON = 400
 OBSERVE_TICK = HORIZON // 2
-FREEZE_AT, FREEZE_TICKS = 60, 80  # ~3.4 s after tick 0 for ~4.6 s: inside the throttle phase
+# The freeze starts ~3.4 s after tick 0 and must end inside the VCU's 5 s health freshness: the last success can be
+# ~1.6 s (the scan interval) before the freeze, so 40 ticks (~2.4 s; ~3.2 s at a 0.08 s cycle) (S1c finding 17).
+FREEZE_AT, FREEZE_TICKS = 60, 40
 RETAINED_MAX = 4 * 1024 * 1024  # ~2.2 KB per event, ~560 events at 400 ticks; above the 1 MiB default
 POLL = 0.05
 ORDER = ("lite-driver", "carla-adapter", "legacy-vcu", "driver-stimulus")
