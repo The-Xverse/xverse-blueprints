@@ -17,8 +17,9 @@ python3 automotive/thesis-lite-carla-closed-loop/report.py --out DIR RUN_DIR...
 ```
 
 Preconditions:
-- `XVERSE_COMPAT_SRC` names the `xverse-compat` checkout to use. There is no default path, and both commands
-  refuse to run without it (thesis S1 FR-014);
+- `XVERSE_COMPAT_SRC` names the `xverse-compat` checkout to use. There is no default path. Both commands
+  refuse to run without it: exit 4, before any run directory exists. They record its absolute path as
+  `compat-src` in `identities.txt` (thesis S1 FR-014);
 - a CARLA 0.9.15 server on `127.0.0.1:2000`, started with the author's recipe `just server-nvidia Epic 2000`
   from `~/autoverse`;
 - a zenoh router on `tcp/127.0.0.1:7447`;
@@ -35,9 +36,12 @@ The baseline command:
 - refuses a world that already has any vehicle, as the Lite run does (S1 T-5 a);
 - after a normalisation, lists the world again into `world-after-normalisation.json`, so `world-before.json`
   keeps the state found before the run (S1 T-2);
-- traps EXIT, INT and TERM, and stops its legacy processes with INT, then TERM, then KILL;
+- traps EXIT, INT and TERM. Its normal stop sends INT, then TERM, then KILL. The trap cleanup after an
+  interrupt sends INT, then KILL after 3 s. The log `tee` and the cleanup ignore further INT and TERM, so
+  a Ctrl-C of the process group cannot cut the cleanup short (S1c finding 7);
 - destroys a legacy ego that appeared during the run, and verifies the cleanup by listing the world again;
-- writes `baseline-status.txt`, writes its exit code to `baseline-exit.txt` (S1 T-5 c), and exits 3 when any of
+- writes `baseline-status.txt`, writes its exit code to `baseline-exit.txt` on every exit after the run
+  directory exists (S1 T-5 c), and exits 3 when any of
   the following holds:
   - the stimulus did not complete;
   - the virtual vehicle or the VCU exited with anything other than 0 or 130, or 143 after the declared TERM step
@@ -83,8 +87,9 @@ After each run, it runs the following, also from a trap on EXIT, INT and TERM:
     using the adapter's owned-actor registry;
   - restores the recorded pre-run settings (DLG-11). When the recorded state was synchronous and not advancing,
     it restores asynchronous mode and records the reason (DLG-11a);
-  - holds every owned ego with brake until it is at standstill (< 0.05 m/s), or for 5 s, recorded as a failure.
-    It records the un-pause, standstill and destroy times (S1 FR-022);
+  - with an asynchronous restore target, holds every owned ego with brake until it is at standstill
+    (< 0.05 m/s), or for 5 s, recorded as a failure. It records the hold, un-pause, standstill and destroy
+    times (S1 FR-022);
   - destroys the `xverse-lite-*` actors by ID;
   - verifies that none remain.
 - **Socket cleanup**, and a copy of Maestro's tmpfs journal and Argus root into the run directory.

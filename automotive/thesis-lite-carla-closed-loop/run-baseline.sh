@@ -16,7 +16,7 @@ require_compat || exit 4
 COMPAT=$XVERSE_COMPAT_SRC
 EX=/home/jefferson/carla-api/PythonAPI/examples
 mkdir -p "$RUN/carla-home"
-exec > >(tee "$RUN/run-baseline.log") 2>&1
+exec > >(trap '' INT TERM; exec tee "$RUN/run-baseline.log") 2>&1  # survives a Ctrl-C of the group (S1c finding 7)
 echo "baseline run=$RUN started=$(date -Is)"
 finish() {  # explicit status (S1 FR-015, T-5 c); the EXIT trap below writes it for every other exit too
   echo "$1" > "$RUN/baseline-exit.txt"; exit "$1"
@@ -24,9 +24,9 @@ finish() {  # explicit status (S1 FR-015, T-5 c); the EXIT trap below writes it 
 ACTIVE=0; OBS=; VCU=; VV=; STIM=
 on_exit() {  # every exit, including a signal or a set -u abort, writes baseline-exit.txt (S1c review 1 R1-3)
   local rc=$?
-  trap - EXIT INT TERM
+  [ -f "$RUN/baseline-exit.txt" ] || echo "$rc" > "$RUN/baseline-exit.txt"  # first, before any output (finding 7)
+  trap - EXIT; trap '' INT TERM PIPE  # a second signal or a closed log must not cut the cleanup short
   [ "$ACTIVE" = 1 ] && baseline_cleanup
-  [ -f "$RUN/baseline-exit.txt" ] || echo "$rc" > "$RUN/baseline-exit.txt"
 }
 trap on_exit EXIT
 trap 'exit 130' INT

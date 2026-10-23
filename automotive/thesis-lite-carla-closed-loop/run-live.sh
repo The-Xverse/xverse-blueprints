@@ -15,12 +15,12 @@ require_compat || exit 4
 export XVERSE_COMPAT_SRC
 export XVERSE_LIVE_RUN_DIR=$RUN XVERSE_LIVE_CASE=$CASE
 mkdir -p "$RUN/carla-home"
-exec > >(tee "$RUN/run-live.log") 2>&1
+exec > >(trap '' INT TERM; exec tee "$RUN/run-live.log") 2>&1  # the log survives a Ctrl-C of the group (S1c finding 7)
 echo "case=$CASE run=$RUN started=$(date -Is) wall_epoch_ns=$(date +%s%N)"
 OBS=; PYTEST=1; SHM=/dev/shm/xverse-lite-$(basename "$RUN"); SOCK=/run/user/$(id -u)/xverse-lite/lite-carla-closed-loop.sock
 
 cleanup() {  # runs on every exit path, including an interrupt (review 1 R-7)
-  trap - EXIT INT TERM
+  trap - EXIT; trap '' INT TERM PIPE  # a second signal or a closed log must not cut the guard short (S1c finding 7)
   ps -eo pid=,comm=,args= | awk '$2 !~ /^(bash|sh|grep|ps|awk|timeout|tee)$/' | grep -E 'xverse_compat_carla.main|xverse_compat.live|-B main.py' > "$RUN/residue-processes.txt"
   echo "residue processes: $(wc -l < "$RUN/residue-processes.txt")"
   if [ "$CASE" != no-carla ] && [ -s "$RUN/world-before.json" ]; then  # residue first, then the guard (skipped after a BLOCKED preflight, review 2 N-5)

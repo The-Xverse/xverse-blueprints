@@ -311,9 +311,11 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
         record["endedWallNs"] = time.time_ns()
         record["monotonicEndNs"] = time.monotonic_ns()
         if outcome is not None:
-            record.update(executionSucceeded=outcome.execution_succeeded, cleanupComplete=outcome.cleanup_complete,
-                          diagnostics=list(outcome.diagnostics), dispatchDiagnostic=outcome.dispatch.diagnostic if outcome.dispatch else None,
-                          steps=[asdict(s) for s in outcome.dispatch.steps] if outcome.dispatch else None,
+            record.update(executionSucceeded=_fact(lambda: outcome.execution_succeeded),
+                          cleanupComplete=_fact(lambda: outcome.cleanup_complete),
+                          diagnostics=_fact(lambda: list(outcome.diagnostics)),
+                          dispatchDiagnostic=_fact(lambda: outcome.dispatch.diagnostic if outcome.dispatch else None),
+                          steps=_fact(lambda: list(outcome.dispatch.steps) if outcome.dispatch else None),
                           normalUnitRecordsComplete=_fact(lambda: outcome.closure.normal_unit_records_complete),
                           nativeUnits=_fact(lambda: list(outcome.closure.native_units)),
                           # S1 FR-017: the facts that attribute a closure outcome (research R-2); each is computed
@@ -321,10 +323,10 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
                           persistenceFailure=_fact(lambda: outcome.persistence_failure),
                           closureDiagnostics=_fact(lambda: list(outcome.closure.diagnostics)),
                           closureWriters=_fact(lambda: list(outcome.closure.writers)),
-                          closureTerminalReports=_fact(lambda: [r.public_data() for r in outcome.closure.terminal_reports]),
+                          closureTerminalReports=_fact(lambda: [_fact(r.public_data) for r in outcome.closure.terminal_reports]),
                           dispatchTerminal=_fact(lambda: outcome.dispatch.terminal.public_data()
                                                  if outcome.dispatch and outcome.dispatch.terminal is not None else None))
-        record["workArtifacts"] = sorted(p.name for p in work.iterdir())
+        record["workArtifacts"] = _fact(lambda: sorted(p.name for p in work.iterdir()))
         markers = {}
         for p in work.glob("*.marker"):  # review 2 N-4: a marker records its unit's outcome, not only completion
             try:
