@@ -189,7 +189,8 @@ def main() -> int:
             world = s.get("world-after", {})
             cleanup = f"world after: synchronous={world.get('synchronousMode')} vehicles={len(world.get('vehicles', []))}"
         act, cmd = o.get("actuatedThrottle") or {}, s["runtime"].get("commandedThrottle") or {}
-        throttle = f"{act.get('max')} for {act.get('simDurationS')} s / " + (f"{cmd.get('max')} for {cmd.get('simDurationS')} s" if cmd else "legacy VCU / 1.2 damping")
+        commanded = (f"{cmd.get('max')} for {cmd.get('simDurationS')} s" if cmd else "none") if s["kind"] == "lite" else "legacy VCU / 1.2 damping"
+        throttle = f"{act.get('max')} for {act.get('simDurationS')} s / {commanded}"
         lines.append(f"| {s['run']} | {s['kind']}/{m.get('case', '-')} | {verdict} | {throttle} | {o.get('peakKmh')} | {o.get('standstillAfterOnsetS')} | "
                      f"{o.get('minAccelForwardMps2')} | {o.get('distanceM')} | residue={len(s.get('residue-processes', []))}; {cleanup} |")
     (out / "report.md").write_text("\n".join(lines) + "\n")
