@@ -59,7 +59,7 @@ RUN_ID = "lite-carla-closed-loop"
 # appends lengthen each tick, so the run is kept short. Cycles measured 0.17 s per tick at load ~7 and
 # 0.3-0.7 s at load 9-10.5: 80 ticks span ~14-55 s, covering the 9.5 s driver episode plus ~2 s startup.
 # After S1a the cycle runs at the 0.05 s poll floor (steady mean ~0.057 s; the platform caps poll_seconds at
-# 0.05 s), so tick counts are derived from that floor (S1c findings 15, 16 and 19). Tick 0 came 1.5-2.8 s after
+# 0.05 s), so tick counts are derived from that floor (S1c findings 15, 16 and 19). Tick 0 came 1.5-2.9 s after
 # start and its start cycle took 0.9-2.1 s in the runs measured (S1c findings 22 and 24). 400 ticks last >= 20 s
 # after tick 0; the driver episode ends ~11.5 s and the cancel-paused cancel ~12.3 s after tick 0. The 55 s active window, less the start and the stop/cleanup
 # budget, holds 400 ticks while the mean cycle stays <= ~0.12 s. The S-D1 long-run horizon is S1c-2 scope.
@@ -69,7 +69,7 @@ HORIZON = 400
 OBSERVE_TICK = 60
 # The thaw must come <= cadence 5 s - health_scan_seconds 1.52 s = 3.48 s after the VCU's last health success
 # (S1c finding 18). Without the observe probe that success can be up to ~1.7 s (measured gap) before the freeze;
-# 10 ticks (0.72-1.00 s measured) keep the worst case inside the bound up to a ~0.15 s mean cycle (S1c findings 19
+# 10 ticks (0.50-1.00 s measured) keep the worst case inside the bound up to a ~0.15 s mean cycle (S1c findings 19
 # and 24). Tick 40 fell only 0.08-0.89 s after the stimulus throttle start (a ~3.45 s segment), so the freeze is
 # ~1.1-2.0 s into the segment (finding 22). It starts at tick 61, one tick after the observe at tick 60, so that
 # observe really probes the VCU (a frozen unit's probe returns its cached observation; finding 24, MEDIUM-1).
