@@ -58,6 +58,11 @@ RUN_ID = "lite-carla-closed-loop"
 # appends lengthen each tick, so the run is kept short. Cycles measured 0.17 s per tick at load ~7 and
 # 0.3-0.7 s at load 9-10.5: 80 ticks span ~14-55 s, covering the 9.5 s driver episode plus ~2 s startup.
 HORIZON = 80
+# cancel-paused: the cancel comes ~13 s after start (pause at 4 s of the episode, then 6 s paused). With the S1a
+# persistence repair a cycle measured 0.165 s, so 80 ticks ended 13.2 s after start, before the cancel (S1c
+# finding 15). 160 ticks last >= ~26 s at that rate; the cancel still ends the schedule at ~13 s.
+CANCEL_HORIZON = 160
+OBSERVE_TICK = HORIZON // 2  # unchanged for every case
 POLL = 0.05
 ORDER = ("lite-driver", "carla-adapter", "legacy-vcu", "driver-stimulus")
 # the fixture's flow source starts first: the driver is the source of the actuation-command flow to the adapter
@@ -85,7 +90,7 @@ def _rename(value):
     return json.loads(text)
 
 
-def build_documents(defs, artifacts):
+def build_documents(defs, artifacts, horizon=HORIZON):
     """Derive the blueprint's XDL documents from the platform's validated fixture set."""
 
     docs = _rename(fixture_documents())
@@ -124,8 +129,8 @@ def build_documents(defs, artifacts):
     for index, name in enumerate(ORDER):
         before = [f"start-{ORDER[index - 1]}"] if index else []
         plan += [(f"prepare-{name}", name, "prepare", 0, []), (f"start-{name}", name, "start", 0, [f"prepare-{name}"] + before),
-                 (f"observe-{name}", name, "observe", HORIZON // 2, [f"start-{name}"])]
-    stops = {"driver-stimulus": HORIZON - 3, "legacy-vcu": HORIZON - 2, "carla-adapter": HORIZON - 1, "lite-driver": HORIZON}
+                 (f"observe-{name}", name, "observe", OBSERVE_TICK, [f"start-{name}"])]
+    stops = {"driver-stimulus": horizon - 3, "legacy-vcu": horizon - 2, "carla-adapter": horizon - 1, "lite-driver": horizon}
     for name, tick in stops.items():
         plan += [(f"stop-{name}", name, "stop", tick, [f"observe-{name}"]), (f"cleanup-{name}", name, "cleanup", tick, [f"stop-{name}"])]
     for step_id, unit, phase, tick, deps in plan:
@@ -204,7 +209,9 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
                             pause_after_s=4.0 if case == "cancel-paused" else None)  # inside the throttle segment (review 2 N-3)
     artifacts = {"python310": ("/usr/bin/python3.10", _digest("/usr/bin/python3.10")),
                  "python313": (defs[0].executable, _digest(defs[0].executable))}
-    docs = build_documents(defs, artifacts)
+    horizon = CANCEL_HORIZON if case == "cancel-paused" else HORIZON
+    record["horizonTicks"] = horizon
+    docs = build_documents(defs, artifacts, horizon)
     if case == "freeze-vcu":  # Phase 5 freeze (cgroup.freeze) of the legacy VCU unit; thaw on clear (automatic)
         from tests.thesis_lite.faults.support import fault  # noqa: PLC0415
 
@@ -223,7 +230,7 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
     helper_pin = "sha256:" + hashlib.sha256(authority_binary.read_bytes()).hexdigest()
     prepared = prepare_lifecycle(result, resources, provider_descriptors=(ProviderDescriptor("maestro-process-v1", "process", helper_pin,
                                                                                             "isolated-fixture"),),
-                                 limits=Limits(horizon_ticks=HORIZON))
+                                 limits=Limits(horizon_ticks=horizon))
     record["units"] = [u.unit_id for u in prepared.units]
     now = datetime.now(timezone.utc)
     bindings, approvals = [], []
@@ -245,7 +252,7 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
                                         now - timedelta(seconds=30), now + timedelta(seconds=150)))
     # health capacity: period = cadence - n*op - (S+1)*op must exceed n*op; cadence <= 5 s, 4 units, S >= 4 (native controller) -> op < 0.385 s
     schedule = admit_schedule(prepared, policies=tuple(ProbePolicy(u.unit_id, 5, 5, 1) for u in prepared.units),
-                              ticks=tuple(range(HORIZON + 1)), active_seconds=55, operation_seconds=0.38, service_operation_count=4, per_unit_seconds=2, poll_seconds=POLL,
+                              ticks=tuple(range(horizon + 1)), active_seconds=55, operation_seconds=0.38, service_operation_count=4, per_unit_seconds=2, poll_seconds=POLL,
                               request_limit=8192, event_limit=8192, use_action_timeouts=True)
     owned = [u for u in prepared.units if "legacy-vcu" not in u.unit_id]
     declarations = tuple(ArtifactDeclaration(u.unit_id, 1, u.binding_id + ".marker", "outputs/" + u.binding_id + ".txt") for u in owned)
@@ -286,18 +293,23 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
     record["scope"] = {"activeS": round(active.monotonic_seconds - time.monotonic(), 2), "terminalReserveS": config.schedule.terminal_reserve_seconds}
     outcome = None
     canceller = None
+    run_ended = threading.Event()  # set when entry.start returns: a cancel is never issued after the run (S1c finding 15)
     if case == "cancel-paused":  # cancel while the simulation clock is paused (driver stopped ticking)
         def cancel():
             summary = run_dir / "driver" / "driver-summary.json"
             limit = time.monotonic() + 40
-            while time.monotonic() < limit:
+            while time.monotonic() < limit and not run_ended.is_set():
                 try:
                     if json.loads(summary.read_text()).get("endReason") == "paused":
+                        record["pauseSeenMonotonicNs"] = time.monotonic_ns()
                         break
                 except (OSError, ValueError):
                     pass
                 time.sleep(0.2)
-            time.sleep(6.0)  # paused (synchronous, no tick) for 6 s of host time, beyond the 5 s probe freshness (R-6)
+            # paused (synchronous, no tick) for 6 s of host time, beyond the 5 s probe freshness (R-6)
+            if "pauseSeenMonotonicNs" not in record or run_ended.wait(6.0):
+                record["cancelNotIssued"] = "run ended first" if run_ended.is_set() else "pause not seen within 40 s"
+                return
             record["cancelRequestedMonotonicNs"] = time.monotonic_ns()
             record["cancelEpoch"] = entry.stop(RUN_ID, reason="operator-cancel-while-paused")
             record["cancelReturnedMonotonicNs"] = time.monotonic_ns()
@@ -306,8 +318,11 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
     try:
         outcome = entry.start(scope)
     finally:
+        run_ended.set()
         if canceller is not None:
             canceller.join(timeout=5)
+            if canceller.is_alive():  # entry.stop has not returned: recorded, never silently dropped
+                record["cancelNotIssued"] = record.get("cancelNotIssued", "entry.stop still running after 5 s")
         record["endedWallNs"] = time.time_ns()
         record["monotonicEndNs"] = time.monotonic_ns()
         if outcome is not None:
@@ -345,3 +360,7 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
             os.close(image.descriptor)
     if case == "nominal":
         assert outcome.execution_succeeded and outcome.cleanup_complete and record["markersOk"], record.get("dispatchDiagnostic")
+    if case == "cancel-paused":  # the case fails unless it exercised the cancel path (S1c finding 15)
+        assert "cancelReturnedMonotonicNs" in record and "cancelNotIssued" not in record, record.get("cancelNotIssued")
+        assert record["cancelRequestedMonotonicNs"] < record["monotonicEndNs"], "cancel after the run ended"
+        assert record.get("dispatchDiagnostic") == "ML-SCHEDULE-CANCELLED", record.get("dispatchDiagnostic")
