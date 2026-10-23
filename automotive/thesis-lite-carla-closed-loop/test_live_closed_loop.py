@@ -585,7 +585,9 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
         margins = (timing.get("startMarginS"), timing.get("endMarginS"))
         assert all(m is not None and m >= 0 for m in margins), timing
     if case == "no-carla":
-        assert record.get("dispatchDiagnostic") == "ML-RUN-CHILD-EXIT" and outcome.cleanup_complete, record.get("dispatchDiagnostic")
+        # DR-14 (S1c finding 43): with the nonce-marker probe, a missing simulator is a readiness failure
+        assert record.get("dispatchDiagnostic") in ("ML-RUN-CHILD-EXIT", "ML-PROBE-NOT-READY") and outcome.cleanup_complete, \
+            record.get("dispatchDiagnostic")
     if case == "cancel-paused":  # the case fails unless it exercised the cancel path
         assert "cancelReturnedMonotonicNs" in record and "cancelNotIssued" not in record, record.get("cancelNotIssued", "no cancel return")
         assert "cancellerAliveAfterJoin" not in record, "entry.stop still running after the join"  # S1c finding 22, LOW-1

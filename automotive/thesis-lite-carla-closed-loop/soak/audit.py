@@ -195,7 +195,9 @@ def audit(run: Path) -> dict:
         observations["flowRoot"] = roots["flows"]  # DR-6 (c): reported, not a criterion until S1b's graceful stop
         observations["brokerCancel"] = record.get("brokerCancelResult")
     if case == "no-carla":
-        checks["P4"] = {"childExit": record.get("dispatchDiagnostic") == "ML-RUN-CHILD-EXIT",
+        # DR-14: a readiness-declaring adapter fails readiness before its own connection timeout ends it
+        checks["P4"] = {"childExit": record.get("dispatchDiagnostic") in ("ML-RUN-CHILD-EXIT", "ML-PROBE-NOT-READY"),
+                        "cleanupComplete": record.get("cleanupComplete") is True,
                         "maestroWriterFailedDr6": _failed_writer_only(roots["maestro"], allow_closed=False),
                         "noResidue": _residue(run)}
         observations["flowRoot"] = roots["flows"]
