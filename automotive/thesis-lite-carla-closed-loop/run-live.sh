@@ -66,6 +66,8 @@ if [ "$CASE" != no-carla ]; then
   carla_clients "$RUN/carla-clients-before.txt" || { echo "BLOCKED: unexpected client connected to CARLA"; cat "$RUN/carla-clients-before.txt"; exit 4; }
   world_settings "$RUN/world-before.json" "$RUN/carla-home" || { echo "BLOCKED: cannot read the world settings"; exit 4; }
   echo "world before: $(cat "$RUN/world-before.json")"
+  python3 -c "import json,sys; sys.exit(1 if json.load(open(sys.argv[1])).get('vehicles') else 0)" "$RUN/world-before.json" \
+    || { echo "BLOCKED: the declared scenario needs a world without vehicles (review log 22)"; rm -f "$RUN/world-before.json"; exit 4; }
 fi
 ss -tlnp > "$RUN/listeners-before.txt" 2>/dev/null
 
