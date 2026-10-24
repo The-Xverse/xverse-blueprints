@@ -148,3 +148,48 @@ code. The time below is the time of the corrected record.
 3. Hub delivery at `deliverAtNs` and the single-latency rule (WP-10).
 4. The oracle is not yet implemented (WP-17). Its separation test here is structural; the V14 import
    scan must be repeated when the oracle exists.
+
+## Finding 2: implementation result (2026-10-24 11:43:07; commit `329eaf4`)
+
+**What was added.**
+- `assured_aeb/motion_sensor.py` (standard library only): `MotionSensorParams`, `MotionSensor`, `noise`,
+  `quantise` and `check_output`.
+- `tests/test_motion_sensor.py`: 40 tests.
+
+**Commands.**
+- `/dev/shm/compat-p6-venv/bin/python -I -m pytest tests/test_motion_sensor.py`: **40 passed**.
+- The whole blueprint suite with `XVERSE_PLATFORM_PROFILES` (rc.1 export): **114 passed**.
+- `check_topology.py`: exit 0. The WP-12 documents are unchanged.
+- Host load 4.85. No live run, no CARLA; the loop10 worktrees and the pinned live environment were not
+  touched.
+
+**Results against the design (finding 1).**
+
+| Design item | Implemented and tested |
+| --- | --- |
+| Parameters §1.3 | Every member is required (one test per member); extra members, the wrong schema and out-of-domain values are refused; the sensor cannot be built without a validated record. The record digest is in every output (`modelDigest`) |
+| Sampling §1.2 | One sample per simulation-time slot `floor(originNs / samplingPeriodNs)`. There is no sample between grid instants. A non-advancing or rewinding input is refused (`not-advancing`), and a gap yields one sample for the next frame, with none invented |
+| Noise and determinism | The draws are a function of seed, slot and channel only: the same seed gives an identical stream, a different seed differs, and noise is independent of earlier gaps. Paired streams are identical up to the first divergent input (PAIR-1) |
+| Model rules | Speed is clamped at 0. Quantisation is on the declared grid. With zero noise, the output is the quantised input. With the test noise, the speed error has the declared spread (V14: "values differ by the declared model") |
+| Latency | `deliverAtNs = originNs + latencyNs`; one AD-30 entry shared with F10 (§1.2) |
+| Output vocabulary §1.4 | Closed `motion-evidence/1` members. No input value, true value or noise draw is carried |
+| Separation | The sensor refuses the WP-01 observer header and rows (`evaluationOnly`, schema `evaluation-observer/*`), other flows and malformed items. An AST import scan shows the module imports only standard-library modules. No blueprint oracle, evaluation, observer or metric module imports it. In every arm the topology sends `motion-evidence` only to `chassis-zone`, admits no relay fault on F10, and has no observer or oracle element |
+| E-5 §1.6 | The topology gives the driver the adapter item (`loop-gateway → driver-profile`, `motion-raw`), not the sensor. The sensor's item has no `flowId`, so WP-03 `_motion` would refuse it. Confirmed |
+| Fault hooks §1.5 | None (no decided case). No hook code exists |
+
+All parameter values in the tests are labelled test values (50 ms grid, quanta 0.01, noise σ 0.1 and
+0.2, seed 7, latency 20 ms). No protocol value is set.
+
+**Residuals.**
+1. **Model values and their class-J justification sources** (AD-27). The seed comes from the P-4
+   lists.
+2. **No Phase 8 fault hook.** AD-32's "FR-023 fault hooks" have no decided instance. A later hook goes
+   in this U2 stage and is evidence-only ("WP-04 fault status").
+3. **Hub delivery** at `deliverAtNs`, with F10's latency not added a second time (WP-10). The U2 wiring
+   that passes the gateway's F03 item to the sensor is WP-10/WP-13.
+4. **The oracle does not exist yet** (WP-17). The separation test here is structural and must be
+   repeated as the V14 import and process scan when it exists.
+5. **The sensor's time base** is the `originNs` of the adapter item, the absolute CARLA world
+   simulation clock. Episode-relative consumers must convert, as the WP-04 review found for F17.
+
+The next step is an independent read-only review of `329eaf4`, then acceptance and merge.
