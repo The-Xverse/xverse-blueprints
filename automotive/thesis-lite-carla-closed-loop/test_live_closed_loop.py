@@ -73,17 +73,21 @@ HORIZON = 400
 # long-run stimulus profile (three standard cycles, 21 s, from ~1.5 s after the episode starts); events ~800 < 8192
 # and retained inputs ~1.3 MB (measured) < RETAINED_MAX.
 LONG_RUN_HORIZON, LONG_RUN_EPISODE_S = 600, 25.0
-# Observe at tick 60 (~7 s after start at the floor): before the cancel-paused cancel (>= 13.2 s after start) up to
-# a ~0.15 s mean cycle, so that case always completes observe before the cancel (S1c finding 19, MEDIUM-3).
-OBSERVE_TICK = 60
+# Observe before the cancel-paused cancel (>= 13.2 s after start) up to a ~0.15 s mean cycle, so that case always
+# completes observe before the cancel (S1c finding 19, MEDIUM-3): tick 24 comes ~5.6 s after start (finding 48).
+# S1c finding 48: the observe moves to tick 24, one tick before the freeze (below); ticks 1+ begin after start-up.
+OBSERVE_TICK = 24
 # The thaw must come <= cadence 5 s - health_scan_seconds 1.52 s = 3.48 s after the VCU's last health success
 # (S1c finding 18). Without the observe probe that success can be up to ~1.7 s (measured gap) before the freeze;
 # 10 ticks (0.50-1.00 s measured) keep the worst case inside the bound up to a ~0.15 s mean cycle (S1c findings 19
 # and 24). Tick 40 fell only 0.08-0.89 s after the stimulus throttle start (a ~3.45 s segment), so the freeze is
 # ~1.1-2.0 s into the segment (finding 22). It starts at tick 61, one tick after the observe at tick 60, so that
 # observe really probes the VCU (a frozen unit's probe returns its cached observation; finding 24, MEDIUM-1).
-# The case fails unless the freeze lies inside the throttle segment (finding 24, LOW-1).
-FREEZE_AT, FREEZE_TICKS = 61, 10
+# The case fails unless the freeze lies inside the throttle segment (finding 24, LOW-1). After the S1b adoption, tick
+# 61 lay 2.79-3.84 s into the ~3.5 s host-timed segment and ended past it once at load 9.2 (S1c finding 48). Placed
+# from the recorded Argus tick clocks and stimulus samples of ten runs, including the observe step's own cost, tick 25
+# leaves at least 0.94 s before and 0.96 s after the freeze; the observe stays one tick before it.
+FREEZE_AT, FREEZE_TICKS = 25, 10
 RETAINED_MAX = 4 * 1024 * 1024  # ~2.2 KB per event, ~560 events at 400 ticks; above the 1 MiB default
 POLL = 0.05
 # S1c-2 part 2 (S1c finding 40; platform S1b, thesis FR-018). Every unit, the legacy VCU included, declares a TERM
