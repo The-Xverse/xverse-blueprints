@@ -238,3 +238,47 @@ Verdict: CHANGES REQUESTED for R14b0-1. After a separately designed repair, obta
 root-scheduled focused/owning/topology/compiled/capacity evidence, plus the 14e dependency acceptance and correct
 assembled integration. The original declared later 14b/14c/WP15 startup, timing, qualification and diagnostics work,
 actual projection/source attestation, confidence minima/calibration support, AD27 and live/scientific gates remain.
+
+## Finding 5: R14b0-1 narrow binding repair design before code (Codex, 2026-10-24)
+
+Root authorizes the explicit immutable-model-output binding alternative to finding4; do not impose canonical
+label order on the generic postprocess/CameraInference APIs. Starting reviewed HEAD is c0cd027. This design is
+committed separately before implementation. Sol/high is recommended for the exact admission/consumer boundary.
+
+Add stdlib `model_output_binding.py` with a frozen, slotted `ModelOutputBinding`. Its only retained fields are
+`bin_labels: tuple[str, ...]` and `postprocess_sha256: str`. Its constructor accepts model metadata only, copies
+that mapping, calls existing `PP.verify_binding` and `PP.parse`, and derives BOTH fields from the resulting parsed
+record. No hash/order-pair constructor, default, setter, full retained postprocess record, scientific number or
+alternate parsing method is provided. Caller mutation cannot change the binding. Invalid code binding, malformed
+or noncanonical record refuses construction before Fusion exists. This checks record/code consistency; it does
+not independently prove that caller-supplied metadata originated in an admitted model.
+
+`FusionRiskAeb(projection, *, model_output_binding=...)` requires the exact binding type, with no default.
+Require its label count and complete label set to equal the vocabulary implied by the admitted distance edges;
+arbitrary order within that set remains valid. Remove canonical-order reconstruction from confidence indexing;
+use the bound actual order. Before computing either new confidence scalar, compare the incoming original
+`postprocessSha256` against the binding. A mismatch makes both scalars unavailable/null, without altering the
+productive `_camera`/association/decision/latch/hold path or legacy fields. Missing/malformed input still follows
+its existing productive treatment. This metadata refusal adds no threshold, actuation gate, vector/order on F11,
+new provenance field, full postprocess state in Fusion or dependency on another role's internals. PP/CI files and
+model fixture bytes/code hash remain unchanged.
+
+Trusted U4 composition in later14f must derive the binding from the **same digest-verified frozen model metadata**
+that genuine `CameraInference.load` inspects, before readiness. It must verify/read those frozen bytes through the
+existing loader/static inspector, construct this binding from that public metadata, and supply it explicitly to
+Fusion while CI.load independently checks the same declared digest/metadata. It must not invent an unrelated
+order/hash pair, infer order from protocol conventions, read CI's private state, or claim helper construction alone
+attests a model file. Actual 14f composition/ORT readiness remains deferred, not implemented by this repair.
+
+Tests: migrate all actual Fusion construction sites to explicit bindings from real PP metadata, retaining each
+existing parameter/refusal intent. Add genuine SmartCamera→FrontZone→CI-contract fixture with permuted real PP
+record and derived provenance: `[no-obstacle, overlap, bin-2, bin-0, bin-1, beyond]` plus TEST-ONLY probabilities
+`[.05,.05,.7,.05,.05,.1]` must report actual selected confidence .7. Canonical fixture remains .7; p=0 and actual
+threshold equation remain checked. Refuse wrong binding type/missing argument, wrong label count/set, invalid code
+binding/malformed/noncanonical metadata; prove frozen/detached state and digest changes when order changes.
+Wrong valid PP binding against incoming provenance yields null confidence without a productive change. Repeat
+metadata-stripped paired equivalence against the actual prechange owner, including canonical/permuted/mismatched
+provenance input. No test may substitute max probability or fabricate a live-model quality claim. All fixtures are
+TEST-ONLY; generic PP/CI permutation support must survive. Only stdlib direct controls/AST/diff are currently
+authorized. Root schedules pytest/owning/topology verification and independently reviews the exact successor.
+No acceptance, merge, new scientific decision or canonical-note update is implied.
