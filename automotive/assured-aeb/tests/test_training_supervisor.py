@@ -115,6 +115,25 @@ class TrainingSupervisorTests(unittest.TestCase):
                 self.capture()
         self.assertEqual(path.read_bytes(), b'original')
 
+    def test_nonfinite_keyword_crash_or_unrelated_exception_cannot_count_as_refusal(self):
+        scripts = (
+            ('import os,signal,sys;print("ValueError: nonfinite loss",file=sys.stderr,flush=True);os.kill(os.getpid(),signal.SIGKILL)', False),
+            ('import sys;print("warning: overflow",file=sys.stderr,flush=True);raise ImportError("unrelated")', False),
+            ('raise ValueError("nonfinite per-example loss")', True),
+            ('raise RuntimeError("value cannot be converted without overflow")', True),
+            ('raise OverflowError("unrelated numeric problem")', False),
+        )
+        for index, (script, expected) in enumerate(scripts):
+            with self.subTest(index=index):
+                directory = self.root/str(index); directory.mkdir()
+                result = self.capture(script, directory=directory)
+                self.assertTrue(result['capture_complete'])
+                tail = (directory/'worker.stderr').read_text()
+                self.assertEqual(S.expected_nonfinite_refusal(result, tail, directory/'absent-output'), expected)
+                if expected:
+                    (directory/'absent-output').symlink_to(directory/'missing-target')
+                    self.assertFalse(S.expected_nonfinite_refusal(result, tail, directory/'absent-output'))
+
     def test_term_ignoring_descendant_requires_kill_and_actual_group_disappearance(self):
         # Harness-only Linux subreaper prevents orphaned zombies; restore prior setting after owned reaping.
         libc = ctypes.CDLL(None, use_errno=True)

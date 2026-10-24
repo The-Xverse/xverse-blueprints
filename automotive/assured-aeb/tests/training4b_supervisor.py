@@ -7,6 +7,7 @@ import json
 import math
 import os
 from pathlib import Path
+import re
 import signal
 import subprocess
 import time
@@ -14,6 +15,17 @@ import time
 
 class AttemptInterrupted(BaseException):
     pass
+
+
+def expected_nonfinite_refusal(result, error_tail, output):
+    """Recognize the pinned Python refusal path, never signal death or an earlier keyword warning."""
+    if result.get('capture_complete') is not True or type(result.get('returncode')) is not int or result['returncode'] != 1:
+        return False
+    if output.exists() or output.is_symlink():
+        return False
+    lines = error_tail.rstrip().splitlines()
+    match = re.fullmatch(r'(?:ValueError|RuntimeError|OverflowError): (.+)', lines[-1]) if lines else None
+    return bool(match and any(word in match.group(1).lower() for word in ('nonfinite', 'overflow')))
 
 
 def _group_exists(pid):

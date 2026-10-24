@@ -99,3 +99,8 @@ bounded TERM/KILL and cancellation-safe spawn ownership. A leader exit is not de
 trusted owned-worker group claim, not containment of deliberately escaped sessions. Filesystem failure may leave
 partial diagnostics and always fails verification; existing attempts are never overwritten. No genuine training
 result is implied by supervisor-only stdlib controls.
+
+Expected nonfinite refusal requires actual Python exit1 and the final stderr exception line from ValueError,
+RuntimeError or OverflowError whose message contains nonfinite/overflow, complete capture and no output path or
+symlink. Negative signal exit, an earlier keyword warning followed by another exception, ordinary success and a
+partial capture are refused as verification. The genuine fitting cases remain separately unexecuted.

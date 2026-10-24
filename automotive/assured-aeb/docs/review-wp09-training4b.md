@@ -367,3 +367,15 @@ The prior all-partition integrity versus fit/selection computation distinction r
 and tiny ownership controls do not demonstrate framework fitting, held-out invariance or model-quality results.
 No pytest, Torch/NumPy/ORT, genuine namespace worker, acceptance or merge occurred. R4b-3 and its independent
 successor re-review precede genuine-driver scheduling; parent4a and all actual4b/4c–4e/scientific gates remain.
+
+
+## Finding9: decisive nonfinite-refusal classification successor (coordinator, 2026-10-24)
+
+Accept independent R4b-3/finding8 before repair. Require actual Python exit1 plus the final stderr exception line
+from ValueError/RuntimeError/OverflowError with nonfinite/overflow in its MESSAGE, complete capture, and no output
+path/symlink. Earlier keyword warnings, signal death and unrelated exceptions cannot satisfy the expected refusal.
+No worker/product/admission module changed. Eight actual stdlib unittest controls pass in5.279s, rc0, including
+real keyword+SIGKILL and warning+ImportError counterexamples, genuine Python refusals, class-name-only rejection,
+and output-symlink refusal. Full log and current test/helper hashes retained in docs/evidence/training4b-supervisor-
+classification-20261024/. No pytest, framework, genuine training, source-tree environment scan or acceptance ran.
+Independent successor review and actual owning/fresh isolated framework verification remain mandatory.

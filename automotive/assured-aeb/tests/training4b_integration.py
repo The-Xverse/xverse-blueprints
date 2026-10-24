@@ -17,7 +17,7 @@ from assured_aeb.perception.training_io import canonical, sha
 from assured_aeb.perception.training_weights import read_weights
 from assured_aeb.perception.store import FrameStore
 from training4a_fixture import build, refresh_job, rehash
-from training4b_supervisor import capture_attempt
+from training4b_supervisor import capture_attempt, expected_nonfinite_refusal
 
 
 def prepare(root, args, *, mutate_held_out=False, nonfinite_loss=False):
@@ -85,8 +85,7 @@ def run(root, output, args, *, expect_success=True):
         stream.seek(max(0, stream.tell()-3000))
         error_tail = stream.read().decode(errors='replace')
     if not expect_success:
-        assert completed['returncode'] != 0 and not output.exists(), "nonfinite training must refuse without output"
-        assert "nonfinite" in error_tail or "overflow" in error_tail, error_tail
+        assert expected_nonfinite_refusal(completed, error_tail, output), error_tail
         return None
     assert completed['returncode'] == 0, f"worker failed {completed['returncode']}: {error_tail}"
     return json.loads((output / "training-report.json").read_bytes())
