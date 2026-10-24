@@ -175,3 +175,110 @@ complete genuine repeats, #5 characterisation, #7 real-model quality and AD-27 n
 open gates. The accepted design's requirement/SADS dispositions are preserved; source admission is not a completed
 model or scientific result. Recommend a DRAFT Note23 update after author approval linking the accepted method
 decision and this engineering scope; do not change the canonical note automatically.
+
+## Finding 4: independent source review, CHANGES REQUESTED (Codex, 2026-10-24)
+
+Reviewed exact source candidate `c494dbe48c838cf12346a09f8f55e1380b23686f`, accepted pipeline design `a89a52e`
+(byte-exact carried findings 1–5), 4a design `0a3840ca`, snapshot amendment `cf6a5c2`, the exact admission contract,
+all three new modules, fixtures/tests and the genuine label/scenario/manifest/store/preprocess owner contracts.
+The reviewer did not author 4a and makes **no source/test repair**. Thesis freshness fetch succeeded at HEAD/upstream
+`d97fdd1`; no incoming canonical-note change, working-note blob `ba244ddb` unchanged from fully read context.
+Sol/high remains appropriate for narrow integrity/resource/I/O repairs and independent successor review.
+
+### R4a-1, MEDIUM: actual pinned source records are checked with lossy Python equality
+
+`dataset_consumer.py:192–194` compares parsed actual labelParams/frameFormat/separation with embedded admitted
+records using `==`. Python considers integer 4 equal to float 4.0 (and also some booleans equal to integers), while
+the declared identities are digests of canonical JSON and the owner contracts require exact integer fields/seeds.
+The actual source does not have to reproduce the expected canonical-record digest or its exact typed record.
+
+Three separately reproduced TEST-ONLY genuine-fixture cases, with **no job/expected-pin rewrite**:
+- Change only actual label-parameter source `camera.width` from integer 4 to float 4.0.
+- Change only actual frame-format source `width` from integer 4 to float 4.0.
+- Change only actual separation source training seed list from `[10,11]` to `[10.0,11.0]`.
+
+Each actual canonical digest differs from its admitted `labelParamsSha256`, `frameFormatSha256` or separation.sha256.
+The genuine typed parameter/seed contract would refuse those types, but complete dataset admission still succeeds
+and reports the original pinned record identity. Embedded job validation and frame reads remain otherwise valid;
+this is a source-record identity/type gap, not a SHA-256 collision or a geometry-truth claim.
+
+**Required disposition before repair:** bind each private actual parsed source to its expected canonical-record
+identity (and preserve exact typed semantics), then consume the verified record. Do not replace pins with the newly
+observed digest or accept Python numeric equality as byte identity. Canonical-record identity differs intentionally
+from raw observer/run-parameter/scenario byte identity; preserve those existing owner contracts. Add decisive tests
+where a mathematically equal, differently typed/re-encoded record has the wrong canonical digest, including these
+three source roles; an ordinary unequal-value mutation alone does not exercise this bug.
+
+### R4a-2, MEDIUM: model parameter storage can exceed admitted memoryBytes
+
+`training_record.py:209–210` checks parameter count and its float32 byte size against modelParameters/outputBytes;
+237–238 checks peak activation/batch bytes against memoryBytes. There is no necessary memory check for the model's
+parameter storage itself. A valid record can pass every current size check yet be unable to hold its weights within
+the declared memory budget even before gradients, optimizer state or other runtime overhead.
+
+Concrete TEST-ONLY genuine-fixture mutation: one output channel, kernel `[99,99]`, padding `[49,49]`, existing
+stride/dilation/bias and two heads; modelParameters=100000 and memoryBytes=50000. Positive static dimensions and
+small activations remain valid. Admission derives 29416 parameters, needing **117664 float32 bytes > 50000**, yet
+both TrainingJob.from_bytes and full dataset admission succeed, including source-snapshot accounting and all real
+frame checks. No framework/model allocation was executed; this is a pre-framework budget contradiction, not an
+observed OOM or estimate of PyTorch process RSS.
+
+**Required disposition before repair:** derive/check at least necessary weight-memory storage against the supplied
+memory bound before a future framework import, and document the boundary between these necessary static checks and
+later actual gradient/optimizer/framework/process memory enforcement. Do not claim that one peak activation alone
+bounds full training memory. Any stronger accounting policy must be explicit/reviewed; do not invent a safety factor
+or scientific resource value. Include a parameter-dominated case where activation/input checks still pass.
+
+### R4a-3, MEDIUM: no-symlink shard guarantee has a directory check/open race
+
+`training_io.py:130–134` checks root/shard with `Path.is_dir/is_symlink` and then opens a full pathname via
+read_regular. O_NOFOLLOW there protects the **final frame file**, not intervening directories. A root/shard can be
+replaced by a symlink after its check and before that open, and the reader follows it.
+
+The independent deterministic probe uses only a fresh temporary 64-byte-frame store. At the boundary immediately
+before read_regular's real open, rename the checked shard and install a symlink at its old name to that renamed
+directory. read_frame returns the genuine raw bytes while the traversed shard is now a symlink. This changes no
+checkout, never accesses a real cache and uses no timing race/thread. Existing digest, exact-length, zlib completion,
+regular-file, compressed/raw bounds and nonblocking checks remain effective: the probe **does not** demonstrate
+wrong-digest bytes, a decompression-limit bypass or a FIFO hang. It disproves the advertised no-symlink path contract.
+
+**Required disposition before repair:** traverse/open the admitted existing root and digest shard with directory
+file descriptors and no-follow/type checks, opening the final file relative to that pinned directory; use equivalent
+race-resistant semantics if a different mechanism is selected. Do not create/sweep/write stores or widen path trust.
+A deterministic check/open substitution regression must be refused or remain rooted at the already admitted real
+directory without following the replacement. Keep all existing per-read content/size/stream checks.
+
+### Positive review, actual checks and carried limits
+
+Closed canonical job/source-locator JSON refuses duplicate/unsafe/nonfinite/unknown fields; explicit future methods,
+seeds, scalar domains, positive convolution dimensions, class order, exact fit/selection run coverage, P-4 membership,
+whole protected-section training/calibration refusal and held-out split/seed rules are present. The shared genuine
+preprocess parameter/source binding is used without importing NumPy. Calibration/OOD/method/quality fields remain
+future-stage declarations, not measured evidence or a scientific value choice.
+
+Consumed labels have closed shape/provenance, exact bool/int flags, actual observer-line/frame/time/status binding,
+coherent obstacle conjunction and distance-bin semantics. Hashing redefined labels does not excuse these independent
+checks. This does not replay original geometry or prove recorder#6 world/map/traversal/actual-seed truth. Supplied
+recorder exclusions stay distinct from unlabelled counts. Private public-access copies protect admitted reports,
+labels/job records and derived tuple/scalar properties; this is an API immutability observation, not language-level
+security against deliberate private-attribute mutation.
+
+Source reads use bounded nonblocking regular-file descriptors; scenarios passed to the genuine unchanged manifest
+validator are exact private temporary snapshots. Raw frames are streamed and revalidated at every iteration, with
+bounded compressed input, capped decompression, exact length/hash, EOF and no trailing/concatenated stream. No store
+writer/sweeper is invoked by the consumer. R4a-3 concerns directory resolution only, not those effective checks.
+
+**Actual independent checks:** the five counterexamples above reproduced all three findings (three source-role
+identity cases, one memory case, one directory substitution). Thirteen separate tiny stdlib controls passed: genuine
+12-labelled-frame admission/all partition reads, detached report/job access, rehashed integer obstacle refusal,
+wrong observer-line refusal, whole-run protected-section refusal, truncated/trailing/concatenated/oversized-output/
+short zlib refusals, changed-file next-iteration refusal and immediate nonblocking FIFO refusal. One initial control
+script stopped because its own fixture-restoration dictionary shared nested provenance with the saved copy; that
+harness was corrected to deepcopy on restoration, then all 13 completed. No product/test source was changed to make
+the probe pass. Five Python AST parses and `git diff --check` passed.
+
+No pytest, NumPy/torch/ONNX/ORT import, durable Argus, training/export/calibration, environment-tree hashing, simulator,
+download, factory or live work occurred. Existing claimed 51 controls are the author's evidence, not rerun/claimed
+as this review's suite. Owning/assembled tests remain deferred to the recorded coordinator schedule. Design-before-
+repair, independent successor review, acceptance/merge, 4b–4e genuine execution/two repeats, recorder#6, #7 and AD-27
+scientific gates remain open. This review accepts, merges and repairs nothing.
