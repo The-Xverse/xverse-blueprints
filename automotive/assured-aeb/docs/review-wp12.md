@@ -227,3 +227,161 @@ action timeouts, horizon 600). `admit_schedule` agrees with `(2n + S + 1)·op < 
 
 No platform file was changed. This is engineering evidence only: not M1, not AEB evidence and not
 X-Verse fitness for purpose. An independent read-only review comes next, then acceptance and merge.
+
+## Finding 3: independent review of findings 1 and 2 (2026-10-24 11:20:22)
+
+**Reviewer and method.**
+- An independent, read-only reviewer who did not write this increment.
+- Read `fe51b0b`, `3aed505` and `58d5726` against base `99df3a4`, together with `topology.py`,
+  `check_topology.py`, `tests/test_topology.py` and the generated documents. Checked them against the
+  thesis design records `wp11-unit-allocation.md` and `wp12-xdl-topology.md` (§3.3, §4, §5, §7 and §8)
+  and `decisions.md` §J and §K.
+- The profile schemas came from `git archive xverse-lite-v1.0.0-rc.1 xdl` of `/home/jefferson/xverse-platform`
+  (`64ff9d3eb`), extracted into a scratch directory.
+- Commands:
+  - `/dev/shm/compat-p6-venv/bin/python -I check_topology.py --platform-profiles <export>/xdl/profiles
+    --report <scratch>`: exit 0, 42 checks, all `ok`;
+  - `XVERSE_PLATFORM_PROFILES=<export>/xdl/profiles … -I -m pytest tests -q -p no:cacheprovider`:
+    52 passed;
+  - `topology.py --write` in a scratch `git archive` copy: `diff -r` against the committed `xdl/` is
+    empty.
+- Probes ran in that copy or in memory: the fault-admission rule, cycle detection with the intra-unit
+  messages included, a field-by-field comparison of the two forms, a scan for numbers in the documents,
+  and the X-COM contract owners. Nothing in the worktree changed except this entry. No CARLA, no live
+  run, no unit process.
+
+### Verdict: **FAIL: one HIGH issue blocks the merge** (a small repair)
+
+Everything else is sound or needs recording only. Once HIGH-1 is repaired and re-reviewed, the
+increment is expected to pass with notes. This verdict is engineering only and carries no acceptance.
+
+### Confirmed
+- **Determinism (V01).** The regenerated documents equal the committed ones, and the drift check and the
+  two-compilation plan digest pass for every arm and form.
+- **Arm composition (§7, §J).**
+  - The comparator has U1–U5 and 22 element instances, without proposer, goal-interpreter,
+    objective-source, safety-monitor, safety-gate or F12–F16.
+  - The MLOC arms have U1–U6 and 27 element instances.
+  - F19 exists only in `authorization-bypass`.
+  - There is no legacy VCU, stimulus, observer or oracle instance, and IVI has no instance or endpoint.
+  - The camera corruption stage is hosted in U2 (the FR-031 point of §J).
+- **Admission dry run.** The 12 cases agree with `(2n + S + 1)·op < cadence`, for example n 6 at op
+  0.29: 17 × 0.29 = 4.93 < 5, admitted; n 7 at op 0.29: 5.51, refused.
+- **V02.** A-1 to A-7 hold in every arm, and every rule has at least one rejected negative case
+  (test_topology.py 64–103). The F19 exception holds only in its own arm.
+- **Placeholders.**
+  - The `io.xverse.assured-aeb` extension contains no number. In the `mloc` topology form, 84 members are `TODO: …` strings,
+    constrained by the schema pattern (`assured-aeb-v0.1.schema.json` 79).
+  - Seed 0 (L-9, `ENGINEERING_SOURCES`) and the time-mapping tolerance 0 (L-6) are declared
+    placeholders.
+  - `deadlineMs: 0` in the X-COM flow policy is platform-mandated: `binding.py` 306 refuses any other
+    value. It is not a protocol deadline.
+- **The two forms.** For every arm, the topology and Maestro forms have identical `componentInstances`,
+  identical Deployment `bindings`, and an identical `io.xverse.assured-aeb` extension except `form` and
+  `unplannedFlows`. The Maestro form drops only `flows`, `networks`, the two non-experiment domains, the
+  provider targets, the network bindings and the CARLA simulator entry.
+
+### Issues
+
+**HIGH-1: the blueprint freeze-target rule admits a lone freeze of `vc-functional`, which design §5
+forbids.** This blocks the merge.
+- Where: check_topology.py 222; the source is topology.py 255.
+- `admitted = set(admitted) | {every member of every admittedSet}` makes each member of the CC-1 pair
+  admissible on its own. Probes on `mloc`:
+  - a single `freeze` of `vc-functional-unit` gives **no refusal**;
+  - the "pair" at different ticks (100 and 300) gives no refusal.
+- Design §5 admits only `front-zone`, `adas-hpc` and `vc-assurance`, plus the pair together. CC-2c says
+  "none by `freeze` alone".
+- A freeze of U5 alone stops the functional AEB path, the fixed-fallback supervisor and the whole
+  degraded path ([N] 1497). That is outside every decided case.
+- Finding 2 calls this rule load-bearing, because the platform admits such freezes statically (L-7).
+  Its D-4a row reports the rule as passing, but `tests/test_topology.py` 106–112 has no lone-U5 case.
+- Repair:
+  - a member of an `admittedSet` that is not individually admitted is admitted only when every member
+    of the set is frozen with the same onset (and, if declared, the same duration);
+  - add negative tests for a lone `vc-functional-unit` and for a non-concurrent pair;
+  - correct the D-4a row of finding 2.
+
+**MEDIUM-1: the two return flows are minimal only for the XDL-visible graph. The real inter-unit loops
+are closed through intra-unit messages that XDL cannot see.** Not blocking.
+- Where: topology.py 207–212; finding 2, L-2.
+- The intra-unit messages live in the System extension, so `XDL1-PLAN-DEPENDENCY-CYCLE` does not see
+  them.
+- With them included, a probe finds 10 cycles (comparator) or 11 (MLOC arms) after removing F04 and F15b.
+  Two of them cross units:
+  - the brake loop `loop-gateway →F06 smart-radar → front-zone →F07/F08 … fusion-risk-aeb →F11
+    evidence-validator → … → functional-arbiter → chassis-zone → brake-esc-node →F17 loop-gateway`
+    (U2 → U3 → U4 → U5 → U2);
+  - in the MLOC arms, the authorization loop `configuration-manager →F15a safety-monitor →
+    safety-gate →F14 configuration-manager` (U5 → U6 → U5).
+- F04 and F15b break neither of them. The statement that the set "breaks every cycle" is therefore true
+  only of the XDL instance graph.
+- At run time each loop is broken by the hub's one-tick delay, as in the Phase 7 loop. The hub (WP-13)
+  must know which flows carry that delay: at least F17, and F14 or F15a.
+- Repair: correct the wording in topology.py and in L-2, and add to residual 4 that the hub's
+  delay points include F17 and F14/F15a. Alternatively, declare those flows as return flows too.
+
+**MEDIUM-2: no admission path enforces the blueprint fault-admission rule, and residuals 1–6 do not
+say so.** Not blocking while nothing runs.
+- Where: finding 2, L-7, and §2.4.
+- L-7 says the rule "must run before any schedule is admitted". Today it runs only inside the offline
+  checker and its tests. No generator, plan or admission hook calls it, and the platform admits
+  every refused case statically.
+- Add a residual: WP-10 and WP-16 must call `check_fault_admission` on the exact fault schedule before
+  `admit_schedule` and refuse on any finding. Until then a freeze of U1 or U2, a freeze of an element
+  instance, a `crash`, or an unadmitted message fault would be accepted.
+- The rule also does not bound a freeze duration by the WP-11 thaw bound. Durations are TODO, but the
+  check should exist once they are set.
+
+**MEDIUM-3: deviations from the design's §4 flow table are not recorded.** Not blocking.
+- Where: topology.py 178, 184, 186 and 190.
+- XDL flows here have one destination, and some consumers are reached through intra-unit messages
+  instead of the flow itself:
+  - F03 ends at `loop-gateway` (design: `motion-sensor-model`), and the model is fed by an intra message;
+  - F09 ends at `evidence-validator` only (design: `radar-fallback` and `evidence-validator`, "the
+    direct logical stream, [N] 1497"). `radar-fallback` now receives only `qualified-evidence` through
+    the validator;
+  - F11 ends at `evidence-validator` only (design: also `functional-arbiter`);
+  - F15a starts at `configuration-manager` only (design: also `transition-verifier`).
+- The degraded-path dependency list still holds, because the validator is in the VC-HPC dependency. The
+  radar fallback is no longer fed directly, however, and that is a design change.
+- Record each deviation and its reason in this log for the design owner's acceptance. Either restore a
+  direct radar input to `radar-fallback` (a second destination on F09, or an intra fan-out from the
+  front-zone input), or amend design §4.
+
+**LOW-1: the two forms are equal by construction, but no check asserts it.** Optional: add a check that
+instances, bindings and the extension, except `form` and `unplannedFlows`, are identical. In addition,
+`d4a-topology-form-maestro` (check_topology.py 453–458) reports `True` even when the topology form
+becomes preparable, so it cannot fail.
+
+**LOW-2: the Maestro form cannot carry message faults.** The fidelity gap in the two-form projection
+(under L-1, L-4 and L-8) is wider than residual 4 states.
+- The preparable form has no flows, so the relay faults of §K (F09 loss, stale and delay; the F12 and
+  F13 assurance kinds) can be checked only by `validate_static` on the topology form
+  (`_static_message_fault`). They cannot be in a Maestro schedule at rc.1.
+- The Maestro plan also declares no flow evidence, and `unplannedFlows` lists only flow ids.
+- Residual 4 should say that the hub carries the message-fault schedule and the flow evidence, and that
+  it reads both from the topology form.
+
+**LOW-3: the contract of `proposal` is carried by `fault-relay`.** In the MLOC arms, `fault-relay`, an
+experiment-control element, carries the X-COM `interface-policy` of `proposal`, because L-4 assigns
+the contract to the first producer in name order. This is harmless for compilation, but WP-13 must not
+read the contract carrier as the proposal's owner. Optionally pick the carrier by authority class.
+
+**LOW-4: smaller points.**
+- `scenario.json` step `schedule.tolerance` 0 ticks (topology.py 626) is an engineering value with no
+  entry in `ENGINEERING_SOURCES`.
+- A-7's evaluation-only detection matches id substrings (`ground-truth`, `oracle`, `observer`;
+  check_topology.py 212), so a differently named evaluation instance would pass.
+- A-4 has no negative case for the right producer sending to the wrong consumer.
+
+### Residuals 1 to 6
+- Residuals 1, 2, 3, 5 and 6 are accurate.
+- Residual 4 is incomplete: see MEDIUM-1 and LOW-2.
+- Missing: the enforcement gap of MEDIUM-2 and the unrecorded design deviations of MEDIUM-3.
+
+### Recommendation
+- Repair HIGH-1, with tests, on this branch.
+- Record MEDIUM-1 to MEDIUM-3 in a disposition: the wording of L-2 and residual 4, an enforcement
+  residual, and the §4 deviations for the design owner. Optionally repair LOW-1 to LOW-4.
+- Then a focused re-review, followed by acceptance and merge.
