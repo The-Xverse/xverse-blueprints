@@ -282,3 +282,45 @@ download, factory or live work occurred. Existing claimed 51 controls are the au
 as this review's suite. Owning/assembled tests remain deferred to the recorded coordinator schedule. Design-before-
 repair, independent successor review, acceptance/merge, 4b–4e genuine execution/two repeats, recorder#6, #7 and AD-27
 scientific gates remain open. This review accepts, merges and repairs nothing.
+
+## Finding 5: R4a-1/R4a-2/R4a-3 repair design before code (2026-10-24)
+
+The coordinator accepted all three independent findings in `9adb1fe` for narrow repair, without accepting the
+candidate. Fresh thesis fetch leaves HEAD/upstream `d97fdd1` and working canonical-note blob `ba244ddb` unchanged.
+Sol/high remains recommended for typed identities, exact storage accounting and descriptor lifetime checks.
+
+**R4a-1.** Bounded-read/strict-parse each actual label-parameter/frame-format/separation source. Compare SHA256 of
+its canonical JSON bytes to the already admitted expected canonical-record digest, never Python `==` as pin proof;
+do not rewrite an expected pin. Validate the actual `LabelParams` through the genuine owner and share the same
+closed frame-format/separation validators used for embedded jobs. Consume those verified actual records for
+labels/frame length/P-4, not the former embedded surrogate. Keep canonical-record identity distinct from actual
+raw observer/run-parameter/scenario file-byte identity; innocuous whitespace/key order does not change a canonical
+record identity. Test int4→float4.0 for actual label camera/format, integer→float P-4 seeds and an owner-valid numeric
+re-encoding whose Python values compare equal but canonical digests differ. Embedded pins stay unchanged.
+
+**R4a-2.** Record an explicit necessary resident-tensor ledger using the actual derived trainable parameter count P
+and float32's four-byte representation: weights=4P; full trainable gradients=4P; SGD momentum buffers=4P iff the
+explicit momentum is >0 (Nesterov shares those buffers), otherwise zero. Existing declared maximum activation
+batch storage remains 4A. The necessary lower bound is max(weights+activation, weights+gradients+momentum), covering
+the distinct forward and update points without assuming all transient activations coexist with all gradients.
+No checkpoint-in-RAM assumption, allocator/workspace safety factor or new byte value is selected. Refuse a job
+whose declared memory is below this lower bound. Expose a private-copy/read-only ledger for review/reporting and
+retain model/output/tensor limits. This is necessary planning arithmetic, not a peak RSS or framework allocation
+guarantee; actual gradients/optimizer/activation/workspace/process memory remain 4b–4e verification. Test the exact
+29416-parameter counterexample, no-momentum versus momentum/Nesterov buffer counts and exact-bound/one-byte-below.
+
+**R4a-3.** Replace Path check-then-full-path frame access with descriptor-pinned traversal. Walk the existing
+absolute store root's directory components using O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC and fd-relative opens, with
+fstat directory checks; no symlink component is followed. Open the digest shard relative to the pinned root and
+the final O_RDONLY|O_NOFOLLOW|O_CLOEXEC|O_NONBLOCK file relative to that shard, then fstat regular-file and bounded
+read from that exact descriptor. Refactor the existing regular-file bounded read for descriptor reuse, preserving
+compressed/raw caps, exact digest/length, complete single-stream decompression and FIFO refusal. Close every
+owned descriptor on success, open/read/content failure and interrupted exits; no writable open/create/sweep.
+The pin is per read; it does not claim immutable file content or inode identity across separate reads, which still
+rehash bytes. Remove misleading parent Path prechecks from consumer admission. Deterministically swap a checked
+shard to a symlink immediately before its open (must refuse) and after its descriptor opens (must stay on the
+pinned original), also test root/file/ancestor symlinks, read-only flags and descriptor cleanup on failures.
+
+Only stdlib probes/AST/diff checks are authorized now. Commit the scoped successor for another independent
+review; pytest/framework/heavy execution, acceptance/merge, recorder#6 truth and all later scientific gates stay
+with the coordinator and recorded authorities.
