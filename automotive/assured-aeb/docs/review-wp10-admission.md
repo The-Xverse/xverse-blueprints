@@ -259,3 +259,67 @@ review.
 | LOW-1 | Repair | Apply the FreezeBound tick cap in admission: a freeze's duration in Maestro ticks, `ceil(D/step)` steps, must not exceed `FreezeBound.max_ticks`. A bound allowing 0 ticks refuses a 500 ms freeze (test) |
 | LOW-2 | Record | The `platform`, `prepare_fn` and `admit_fn` parameters are test seams. The increment #5 run command must not pass them: the real harness uses the imported `xverse.faults` module and the real prepare and admit. Documented in the docstring |
 | LOW-3 | Repair | The hub re-check repeats the simulation-time duration bound for each freeze descriptor, when the bound is given |
+
+## Finding 5: result of the finding 4 repairs (2026-10-24 15:22:21; repair commit `c61a2bc`)
+
+**Commands.** `tests/test_admission.py` with the rc.1 profiles: 34 passed (27 before). Whole suite: 205 passed.
+`check_topology.py`: exit 0. Host load 6.2. Offline only; no CARLA, no live run; the loop10 paths and the
+pinned live environment were not touched.
+
+**MEDIUM-1, repaired.**
+- `sim_keying(fault)` requires a `time` trigger, the domain `carla-simulation`, and both the trigger unit
+  and the duration unit in `ns/us/ms/s`.
+- Stage `sim-duration` now applies it to **every** fault, message faults included, before any freeze bound.
+- Tests, with (A) injected: a tick-keyed F09 `stale` is refused at `sim-duration`; a freeze with a tick
+  trigger and a millisecond duration is refused; a simulation-time-keyed F09 `stale` passes to admission.
+  On rc.1 that `stale` is still refused by the interim gate.
+- The interim-position cases now use simulation-time-keyed message faults, so they reach and test the
+  gate.
+
+**MEDIUM-2, repaired.**
+- `SimTimeFreezeBound.steps(D) = ceil(D / step_s)`, and `host_seconds = steps × max_step_host_s + 2 ×
+  handshake_s`.
+- Test (bounds: step 0.05 s, `max_step_host` 0.1 s, handshake 0.2 s, thaw 2.85 s): 1201 ms is 25 steps,
+  2.9 s, and is refused ("25 steps"). The old fractional count would have given 2.802 s and admitted it.
+  1200 ms is 24 steps, 2.8 s, and is admitted.
+
+**MEDIUM-3, repaired.**
+- `HubArmingRecheck.recheck(batch)` takes the whole armed batch.
+- A member of an admitted set that is not individually admitted is armable only when every member is in
+  the batch with the same onset and duration.
+- Tests:
+  - a lone `vc-functional-unit` is refused (CC-1);
+  - the pair is armable;
+  - the pair with a different onset, or a different duration, is refused;
+  - `vc-assurance-unit` alone is armable, because it is individually admitted.
+
+**LOW-1, repaired.**
+- The FreezeBound tick cap is applied in admission: `ceil(D/step) ≤ FreezeBound.max_ticks`. Under the
+  lockstep hub each simulator step is counted as at least one dispatcher cycle, a conservative reading
+  recorded in the module docstring.
+- Test: `FreezeBound(0.001, 1.0)` (0 ticks) refuses a 500 ms CC-1 pair ("tick cap 0").
+
+**LOW-2, recorded.** The module docstring states that `platform`, `prepare_fn` and `admit_fn` are test seams.
+The increment #5 run command must not pass them: the real harness uses the imported `xverse.faults` and the
+real prepare and admit.
+
+**LOW-3, repaired.**
+- With a `SimTimeFreezeBound` (and optionally a `FreezeBound`), the hub re-check repeats the duration
+  rules for each freeze descriptor. It refuses when the bound is unknown.
+- Tests: no bound means not checked; a known bound refuses 1500 ms; an unknown bound refuses.
+
+**Residuals (replaces finding 2's list).**
+1. **D-4c values:** `max_step_host_s` and `handshake_s` are unknown, so every freeze is refused at
+   `sim-duration` even after (A). `step_s` and the thaw bound are caller inputs.
+2. **Capability probe:** `xverse.faults.SIMULATION_TIME_TRIGGERS` is provisional until increment #3's ADR.
+3. **Gate-lift conditions (increments #3 and #5).** Simulation-time faults must be admissible in the
+   one-domain Maestro form, with the keying and whole-step rules of this path applied unchanged. Real
+   prepare and `admit_schedule` with faults are still untested: spies stand in under the injected
+   capability.
+4. **Hub arming:** the control channel and `arm()` belong to increments #3 and #4. The batch re-check
+   (targets, kinds, CC-1, durations) is in place.
+5. **The tick-cap reading** (one step is at least one dispatcher cycle) is to be confirmed or replaced by
+   D-4c.
+6. **The run command** (increment #5) calls `admit_run` without the test seams.
+
+The next step is acceptance and a merge. Neither has happened.
