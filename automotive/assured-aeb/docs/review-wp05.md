@@ -308,3 +308,16 @@ The only consumer that is wrong is the sensor's own grid and noise key (HIGH-1).
 - Repair HIGH-1 with a two-epoch PAIR-1 test.
 - Record LOW-1 to LOW-4.
 - Then a focused re-review, followed by acceptance and merge.
+
+## Finding 4: disposition of finding 3 (2026-10-24 11:54:15; recorded before any change)
+
+This disposition is the coordinator's, under the author's delegation, and is flagged for the author's
+review. It applies `decisions.md` "AD-30 delivery rule" (11:51).
+
+| Item | Disposition | Planned change |
+| --- | --- | --- |
+| HIGH-1 | Repair | Key the sampling slot and the seeded noise on episode-relative time, `originNs − episodeOriginNs`. The origin is bound late, once, from the first frame (`bind_origin`; a different second value is refused), and no sample is emitted until it is bound. The absolute `originNs` and `deliverAtNs` stamps stay. New test: PAIR-1 with two different world epochs, which fails on `329eaf4` |
+| LOW-1 | Repair | Replace `random.gauss` with a declared Box–Muller transform over two `random()` draws of a generator seeded by an integer. CPython's Mersenne Twister `random()` sequence for an integer seed is stable across versions, and `gauss()` is not part of that guarantee |
+| LOW-2 | Repair | The wording becomes "the first frame in each slot" (the code is kept: the slot's first frame is the earliest measurement and does not wait for the slot to end). Quantisation uses integer arithmetic: the value is rounded to an integer number of quanta, and the result is rounded to the quantum's decimal precision |
+| LOW-3 | Record | `latencyNs` covers the element's WP-12 `computeLatency` for `motion-sensor-model`, so AD-30 declares the sensor delay once |
+| LOW-4 | Record | Cite the AD-30 delivery rule: the hub delivers at the first step boundary at or after `deliverAtNs`, so the declared latency is rounded up to whole steps, and the declaration states both values |
