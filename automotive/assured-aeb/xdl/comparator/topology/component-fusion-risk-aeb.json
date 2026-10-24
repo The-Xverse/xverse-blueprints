@@ -1,0 +1,144 @@
+{
+  "apiVersion": "xverse.io/xdl/v1alpha1",
+  "extensions": {
+    "io.xverse.assured-aeb": {
+      "authorityClass": "productive",
+      "kind": "component-authority",
+      "permittedOutputs": [
+        "adas-cycle",
+        "proposal-basis"
+      ],
+      "schemaVersion": "0.1"
+    },
+    "io.xverse.xcom": {
+      "kind": "flow-policy",
+      "policy": {
+        "deadlineMs": 0,
+        "observationPoints": [],
+        "ordering": "fifo",
+        "overflow": "reject",
+        "queueDepth": 4,
+        "reliability": "best-effort",
+        "retry": 0
+      },
+      "schemaVersion": "0.1",
+      "target": {
+        "apiVersion": "xverse.io/xdl/v1alpha1",
+        "kind": "Component",
+        "name": "aeb-fusion-risk-aeb",
+        "namespace": "org.xverse.assured-aeb"
+      }
+    }
+  },
+  "kind": "Component",
+  "metadata": {
+    "description": "Assured AEB element fusion-risk-aeb (productive); module of its host unit, not a Maestro unit.",
+    "name": "aeb-fusion-risk-aeb",
+    "namespace": "org.xverse.assured-aeb",
+    "provenance": {
+      "maturity": "architectural-target",
+      "revision": "wp12-v0.1",
+      "source": "xverse-blueprints/automotive/assured-aeb/topology.py"
+    },
+    "version": "0.1.0"
+  },
+  "spec": {
+    "capabilities": [
+      "assured-aeb-productive"
+    ],
+    "endpoints": [
+      {
+        "direction": "output",
+        "id": "adas-cycle-out",
+        "interfaceId": "adas-cycle",
+        "ownerId": "aeb-fusion-risk-aeb"
+      },
+      {
+        "direction": "output",
+        "id": "proposal-basis-out",
+        "interfaceId": "proposal-basis",
+        "ownerId": "aeb-fusion-risk-aeb"
+      },
+      {
+        "direction": "input",
+        "id": "perception-output-in",
+        "interfaceId": "perception-output",
+        "ownerId": "aeb-fusion-risk-aeb"
+      },
+      {
+        "direction": "input",
+        "id": "radar-evidence-in",
+        "interfaceId": "radar-evidence",
+        "ownerId": "aeb-fusion-risk-aeb"
+      }
+    ],
+    "interfaces": [
+      {
+        "compatibility": "exact",
+        "direction": "output",
+        "extensions": {
+          "io.xverse.xcom": {
+            "kind": "interface-policy",
+            "policy": {
+              "encoding": "json",
+              "interactionKind": "message",
+              "schemaId": "adas-cycle-schema",
+              "schemaVersion": "1.0.0",
+              "semanticCompatibility": "exact"
+            },
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "kind": "Component",
+              "name": "aeb-fusion-risk-aeb",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "adas-cycle",
+        "payloadSchema": "urn:xverse:assured-aeb:adas-cycle:v1",
+        "unitSemantics": "evidence-item"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "output",
+        "extensions": {
+          "io.xverse.xcom": {
+            "kind": "interface-policy",
+            "policy": {
+              "encoding": "json",
+              "interactionKind": "message",
+              "schemaId": "proposal-basis-schema",
+              "schemaVersion": "1.0.0",
+              "semanticCompatibility": "exact"
+            },
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "kind": "Component",
+              "name": "aeb-fusion-risk-aeb",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "proposal-basis",
+        "payloadSchema": "urn:xverse:assured-aeb:proposal-basis:v1",
+        "unitSemantics": "evidence-item"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "perception-output",
+        "payloadSchema": "urn:xverse:assured-aeb:perception-output:v1",
+        "unitSemantics": "evidence-item"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "radar-evidence",
+        "payloadSchema": "urn:xverse:assured-aeb:radar-evidence:v1",
+        "unitSemantics": "evidence-item"
+      }
+    ]
+  }
+}

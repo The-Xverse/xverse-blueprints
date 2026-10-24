@@ -1,0 +1,802 @@
+{
+  "apiVersion": "xverse.io/xdl/v1alpha1",
+  "kind": "Deployment",
+  "metadata": {
+    "description": "Single-host Lite realization of the assured AEB, arm mloc.",
+    "name": "assured-aeb-mloc-deployment",
+    "namespace": "org.xverse.assured-aeb",
+    "provenance": {
+      "limitations": [
+        "Declared process units; not M1 (AD-21); no live run is authorized by this document."
+      ],
+      "maturity": "architectural-target",
+      "revision": "wp12-v0.1",
+      "source": "xverse-blueprints/automotive/assured-aeb/topology.py"
+    },
+    "version": "0.1.0"
+  },
+  "spec": {
+    "artifacts": [
+      {
+        "artifactKind": "executable",
+        "digest": "sha256:a2f33a6e006989270f4340528eb61f8f97366e00a5d1b602ac8672ea44fc56ae",
+        "id": "python310",
+        "maturity": "prototype",
+        "sourceRef": "file:///usr/bin/python3.10",
+        "version": "3.10"
+      },
+      {
+        "artifactKind": "executable",
+        "digest": "sha256:9907c621375bc585b55087a939f30310d5bc6e3b6b15a986f734dc24077cf968",
+        "id": "python313",
+        "maturity": "prototype",
+        "sourceRef": "file:///home/jefferson/.pyenv/versions/3.13.13/bin/python3.13",
+        "version": "3.13.13"
+      },
+      {
+        "artifactKind": "model",
+        "id": "aeb-perception-model",
+        "limitations": [
+          "Not yet trained or frozen: digest TODO: measurement (WP-09, AD-02); not bound to a unit yet."
+        ],
+        "maturity": "architectural-target",
+        "sourceRef": "urn:xverse:assured-aeb:model:perception",
+        "version": "0.0.0"
+      }
+    ],
+    "bindings": [
+      {
+        "artifactIds": [
+          "python310"
+        ],
+        "extensions": {
+          "io.xverse.experiment": {
+            "delivery": "none",
+            "fidelityLimitations": [
+              "Declared unit realization; the unit program is implemented in WP-13 to WP-17."
+            ],
+            "kind": "realization-intent",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "carla-adapter-binding",
+              "kind": "Deployment",
+              "name": "assured-aeb-mloc-deployment",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          },
+          "io.xverse.runtime.compatibility": {
+            "actions": [
+              {
+                "id": "prepare",
+                "operation": "validate",
+                "phase": "prepare",
+                "timeoutSeconds": 2
+              },
+              {
+                "id": "start",
+                "operation": "start",
+                "phase": "start",
+                "timeoutSeconds": 5
+              },
+              {
+                "condition": "nonce-marker",
+                "id": "observe",
+                "operation": "observe",
+                "phase": "observe",
+                "timeoutSeconds": 4
+              },
+              {
+                "id": "stop",
+                "operation": "stop",
+                "phase": "stop",
+                "timeoutSeconds": 5
+              },
+              {
+                "id": "cleanup",
+                "operation": "cleanup",
+                "phase": "cleanup",
+                "timeoutSeconds": 5
+              }
+            ],
+            "environmentId": "assured-aeb-owned",
+            "evidence": {
+              "limitations": [
+                "environment unit; module path and working directory are declared, substituted by the run harness as in the Phase 7 blueprint; no live execution is authorized."
+              ],
+              "maturity": "architectural-target"
+            },
+            "process": {
+              "arguments": [
+                "-B",
+                "-m",
+                "assured_aeb.units.carla_adapter"
+              ],
+              "environmentNames": [
+                "HOME",
+                "PATH",
+                "PYTHONPATH"
+              ],
+              "executable": "/usr/bin/python3.10",
+              "implicitShell": false,
+              "inheritedHandles": "closed",
+              "stderr": {
+                "capture": "run-scoped-private",
+                "maximumBytes": 262144
+              },
+              "stop": {
+                "graceSeconds": 0.6
+              },
+              "workingDirectory": "/xverse-run/assured-aeb/work/carla-adapter"
+            },
+            "provider": {
+              "id": "maestro-process-v1",
+              "kind": "process"
+            },
+            "schemaVersion": "0.2.0"
+          }
+        },
+        "id": "carla-adapter-binding",
+        "lifecycle": {
+          "failure": "failure",
+          "prepare": "prepare",
+          "ready": "ready",
+          "start": "start",
+          "stop": "stop"
+        },
+        "logicalRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "carla-adapter-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "realizationClass": "simulated",
+        "targetId": "carla-adapter-target"
+      },
+      {
+        "artifactIds": [
+          "python313"
+        ],
+        "extensions": {
+          "io.xverse.experiment": {
+            "delivery": "none",
+            "fidelityLimitations": [
+              "Declared unit realization; the unit program is implemented in WP-13 to WP-17."
+            ],
+            "kind": "realization-intent",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "vehicle-loop-binding",
+              "kind": "Deployment",
+              "name": "assured-aeb-mloc-deployment",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          },
+          "io.xverse.runtime.compatibility": {
+            "actions": [
+              {
+                "id": "prepare",
+                "operation": "validate",
+                "phase": "prepare",
+                "timeoutSeconds": 2
+              },
+              {
+                "id": "start",
+                "operation": "start",
+                "phase": "start",
+                "timeoutSeconds": 5
+              },
+              {
+                "condition": "nonce-marker",
+                "id": "observe",
+                "operation": "observe",
+                "phase": "observe",
+                "timeoutSeconds": 4
+              },
+              {
+                "id": "stop",
+                "operation": "stop",
+                "phase": "stop",
+                "timeoutSeconds": 5
+              },
+              {
+                "id": "cleanup",
+                "operation": "cleanup",
+                "phase": "cleanup",
+                "timeoutSeconds": 5
+              }
+            ],
+            "environmentId": "assured-aeb-owned",
+            "evidence": {
+              "limitations": [
+                "experiment-control unit; module path and working directory are declared, substituted by the run harness as in the Phase 7 blueprint; no live execution is authorized."
+              ],
+              "maturity": "architectural-target"
+            },
+            "process": {
+              "arguments": [
+                "-B",
+                "-m",
+                "assured_aeb.units.vehicle_loop"
+              ],
+              "environmentNames": [
+                "HOME",
+                "PATH",
+                "PYTHONPATH"
+              ],
+              "executable": "/home/jefferson/.pyenv/versions/3.13.13/bin/python3.13",
+              "implicitShell": false,
+              "inheritedHandles": "closed",
+              "stderr": {
+                "capture": "run-scoped-private",
+                "maximumBytes": 262144
+              },
+              "stop": {
+                "graceSeconds": 0.6
+              },
+              "workingDirectory": "/xverse-run/assured-aeb/work/vehicle-loop"
+            },
+            "provider": {
+              "id": "maestro-process-v1",
+              "kind": "process"
+            },
+            "schemaVersion": "0.2.0"
+          }
+        },
+        "id": "vehicle-loop-binding",
+        "lifecycle": {
+          "failure": "failure",
+          "prepare": "prepare",
+          "ready": "ready",
+          "start": "start",
+          "stop": "stop"
+        },
+        "logicalRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "vehicle-loop-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "realizationClass": "simulated",
+        "targetId": "vehicle-loop-target"
+      },
+      {
+        "artifactIds": [
+          "python313"
+        ],
+        "extensions": {
+          "io.xverse.experiment": {
+            "delivery": "none",
+            "fidelityLimitations": [
+              "Declared unit realization; the unit program is implemented in WP-13 to WP-17."
+            ],
+            "kind": "realization-intent",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "front-zone-binding",
+              "kind": "Deployment",
+              "name": "assured-aeb-mloc-deployment",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          },
+          "io.xverse.runtime.compatibility": {
+            "actions": [
+              {
+                "id": "prepare",
+                "operation": "validate",
+                "phase": "prepare",
+                "timeoutSeconds": 2
+              },
+              {
+                "id": "start",
+                "operation": "start",
+                "phase": "start",
+                "timeoutSeconds": 5
+              },
+              {
+                "condition": "nonce-marker",
+                "id": "observe",
+                "operation": "observe",
+                "phase": "observe",
+                "timeoutSeconds": 4
+              },
+              {
+                "id": "stop",
+                "operation": "stop",
+                "phase": "stop",
+                "timeoutSeconds": 5
+              },
+              {
+                "id": "cleanup",
+                "operation": "cleanup",
+                "phase": "cleanup",
+                "timeoutSeconds": 5
+              }
+            ],
+            "environmentId": "assured-aeb-owned",
+            "evidence": {
+              "limitations": [
+                "runtime unit; module path and working directory are declared, substituted by the run harness as in the Phase 7 blueprint; no live execution is authorized."
+              ],
+              "maturity": "architectural-target"
+            },
+            "process": {
+              "arguments": [
+                "-B",
+                "-m",
+                "assured_aeb.units.front_zone"
+              ],
+              "environmentNames": [
+                "HOME",
+                "PATH",
+                "PYTHONPATH"
+              ],
+              "executable": "/home/jefferson/.pyenv/versions/3.13.13/bin/python3.13",
+              "implicitShell": false,
+              "inheritedHandles": "closed",
+              "stderr": {
+                "capture": "run-scoped-private",
+                "maximumBytes": 262144
+              },
+              "stop": {
+                "graceSeconds": 0.6
+              },
+              "workingDirectory": "/xverse-run/assured-aeb/work/front-zone"
+            },
+            "provider": {
+              "id": "maestro-process-v1",
+              "kind": "process"
+            },
+            "schemaVersion": "0.2.0"
+          }
+        },
+        "id": "front-zone-binding",
+        "lifecycle": {
+          "failure": "failure",
+          "prepare": "prepare",
+          "ready": "ready",
+          "start": "start",
+          "stop": "stop"
+        },
+        "logicalRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "front-zone-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "realizationClass": "simulated",
+        "targetId": "front-zone-target"
+      },
+      {
+        "artifactIds": [
+          "python313"
+        ],
+        "extensions": {
+          "io.xverse.experiment": {
+            "delivery": "none",
+            "fidelityLimitations": [
+              "Declared unit realization; the unit program is implemented in WP-13 to WP-17."
+            ],
+            "kind": "realization-intent",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "adas-hpc-binding",
+              "kind": "Deployment",
+              "name": "assured-aeb-mloc-deployment",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          },
+          "io.xverse.runtime.compatibility": {
+            "actions": [
+              {
+                "id": "prepare",
+                "operation": "validate",
+                "phase": "prepare",
+                "timeoutSeconds": 2
+              },
+              {
+                "id": "start",
+                "operation": "start",
+                "phase": "start",
+                "timeoutSeconds": 5
+              },
+              {
+                "condition": "nonce-marker",
+                "id": "observe",
+                "operation": "observe",
+                "phase": "observe",
+                "timeoutSeconds": 4
+              },
+              {
+                "id": "stop",
+                "operation": "stop",
+                "phase": "stop",
+                "timeoutSeconds": 5
+              },
+              {
+                "id": "cleanup",
+                "operation": "cleanup",
+                "phase": "cleanup",
+                "timeoutSeconds": 5
+              }
+            ],
+            "environmentId": "assured-aeb-owned",
+            "evidence": {
+              "limitations": [
+                "runtime unit; module path and working directory are declared, substituted by the run harness as in the Phase 7 blueprint; no live execution is authorized."
+              ],
+              "maturity": "architectural-target"
+            },
+            "process": {
+              "arguments": [
+                "-B",
+                "-m",
+                "assured_aeb.units.adas_hpc"
+              ],
+              "environmentNames": [
+                "HOME",
+                "PATH",
+                "PYTHONPATH"
+              ],
+              "executable": "/home/jefferson/.pyenv/versions/3.13.13/bin/python3.13",
+              "implicitShell": false,
+              "inheritedHandles": "closed",
+              "stderr": {
+                "capture": "run-scoped-private",
+                "maximumBytes": 262144
+              },
+              "stop": {
+                "graceSeconds": 0.6
+              },
+              "workingDirectory": "/xverse-run/assured-aeb/work/adas-hpc"
+            },
+            "provider": {
+              "id": "maestro-process-v1",
+              "kind": "process"
+            },
+            "schemaVersion": "0.2.0"
+          }
+        },
+        "id": "adas-hpc-binding",
+        "lifecycle": {
+          "failure": "failure",
+          "prepare": "prepare",
+          "ready": "ready",
+          "start": "start",
+          "stop": "stop"
+        },
+        "logicalRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "adas-hpc-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "realizationClass": "simulated",
+        "targetId": "adas-hpc-target"
+      },
+      {
+        "artifactIds": [
+          "python313"
+        ],
+        "extensions": {
+          "io.xverse.experiment": {
+            "delivery": "none",
+            "fidelityLimitations": [
+              "Declared unit realization; the unit program is implemented in WP-13 to WP-17."
+            ],
+            "kind": "realization-intent",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "vc-functional-binding",
+              "kind": "Deployment",
+              "name": "assured-aeb-mloc-deployment",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          },
+          "io.xverse.runtime.compatibility": {
+            "actions": [
+              {
+                "id": "prepare",
+                "operation": "validate",
+                "phase": "prepare",
+                "timeoutSeconds": 2
+              },
+              {
+                "id": "start",
+                "operation": "start",
+                "phase": "start",
+                "timeoutSeconds": 5
+              },
+              {
+                "condition": "nonce-marker",
+                "id": "observe",
+                "operation": "observe",
+                "phase": "observe",
+                "timeoutSeconds": 4
+              },
+              {
+                "id": "stop",
+                "operation": "stop",
+                "phase": "stop",
+                "timeoutSeconds": 5
+              },
+              {
+                "id": "cleanup",
+                "operation": "cleanup",
+                "phase": "cleanup",
+                "timeoutSeconds": 5
+              }
+            ],
+            "environmentId": "assured-aeb-owned",
+            "evidence": {
+              "limitations": [
+                "runtime unit; module path and working directory are declared, substituted by the run harness as in the Phase 7 blueprint; no live execution is authorized."
+              ],
+              "maturity": "architectural-target"
+            },
+            "process": {
+              "arguments": [
+                "-B",
+                "-m",
+                "assured_aeb.units.vc_functional"
+              ],
+              "environmentNames": [
+                "HOME",
+                "PATH",
+                "PYTHONPATH"
+              ],
+              "executable": "/home/jefferson/.pyenv/versions/3.13.13/bin/python3.13",
+              "implicitShell": false,
+              "inheritedHandles": "closed",
+              "stderr": {
+                "capture": "run-scoped-private",
+                "maximumBytes": 262144
+              },
+              "stop": {
+                "graceSeconds": 0.6
+              },
+              "workingDirectory": "/xverse-run/assured-aeb/work/vc-functional"
+            },
+            "provider": {
+              "id": "maestro-process-v1",
+              "kind": "process"
+            },
+            "schemaVersion": "0.2.0"
+          }
+        },
+        "id": "vc-functional-binding",
+        "lifecycle": {
+          "failure": "failure",
+          "prepare": "prepare",
+          "ready": "ready",
+          "start": "start",
+          "stop": "stop"
+        },
+        "logicalRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "vc-functional-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "realizationClass": "simulated",
+        "targetId": "vc-functional-target"
+      },
+      {
+        "artifactIds": [
+          "python313"
+        ],
+        "extensions": {
+          "io.xverse.experiment": {
+            "delivery": "none",
+            "fidelityLimitations": [
+              "Declared unit realization; the unit program is implemented in WP-13 to WP-17."
+            ],
+            "kind": "realization-intent",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "vc-assurance-binding",
+              "kind": "Deployment",
+              "name": "assured-aeb-mloc-deployment",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          },
+          "io.xverse.runtime.compatibility": {
+            "actions": [
+              {
+                "id": "prepare",
+                "operation": "validate",
+                "phase": "prepare",
+                "timeoutSeconds": 2
+              },
+              {
+                "id": "start",
+                "operation": "start",
+                "phase": "start",
+                "timeoutSeconds": 5
+              },
+              {
+                "condition": "nonce-marker",
+                "id": "observe",
+                "operation": "observe",
+                "phase": "observe",
+                "timeoutSeconds": 4
+              },
+              {
+                "id": "stop",
+                "operation": "stop",
+                "phase": "stop",
+                "timeoutSeconds": 5
+              },
+              {
+                "id": "cleanup",
+                "operation": "cleanup",
+                "phase": "cleanup",
+                "timeoutSeconds": 5
+              }
+            ],
+            "environmentId": "assured-aeb-owned",
+            "evidence": {
+              "limitations": [
+                "runtime unit; module path and working directory are declared, substituted by the run harness as in the Phase 7 blueprint; no live execution is authorized."
+              ],
+              "maturity": "architectural-target"
+            },
+            "process": {
+              "arguments": [
+                "-B",
+                "-m",
+                "assured_aeb.units.vc_assurance"
+              ],
+              "environmentNames": [
+                "HOME",
+                "PATH",
+                "PYTHONPATH"
+              ],
+              "executable": "/home/jefferson/.pyenv/versions/3.13.13/bin/python3.13",
+              "implicitShell": false,
+              "inheritedHandles": "closed",
+              "stderr": {
+                "capture": "run-scoped-private",
+                "maximumBytes": 262144
+              },
+              "stop": {
+                "graceSeconds": 0.6
+              },
+              "workingDirectory": "/xverse-run/assured-aeb/work/vc-assurance"
+            },
+            "provider": {
+              "id": "maestro-process-v1",
+              "kind": "process"
+            },
+            "schemaVersion": "0.2.0"
+          }
+        },
+        "id": "vc-assurance-binding",
+        "lifecycle": {
+          "failure": "failure",
+          "prepare": "prepare",
+          "ready": "ready",
+          "start": "start",
+          "stop": "stop"
+        },
+        "logicalRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "vc-assurance-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "realizationClass": "simulated",
+        "targetId": "vc-assurance-target"
+      }
+    ],
+    "readiness": {
+      "failurePolicy": "fail-fast",
+      "requiredConditions": [
+        "artifacts-pinned"
+      ]
+    },
+    "systemRef": {
+      "apiVersion": "xverse.io/xdl/v1alpha1",
+      "kind": "System",
+      "name": "assured-aeb-mloc",
+      "namespace": "org.xverse.assured-aeb"
+    },
+    "targets": [
+      {
+        "capabilities": [
+          "execute-process"
+        ],
+        "id": "carla-adapter-target",
+        "lifecycle": {
+          "failure": "failure",
+          "prepare": "prepare",
+          "ready": "ready",
+          "start": "start",
+          "stop": "stop"
+        },
+        "targetClass": "process"
+      },
+      {
+        "capabilities": [
+          "execute-process"
+        ],
+        "id": "vehicle-loop-target",
+        "lifecycle": {
+          "failure": "failure",
+          "prepare": "prepare",
+          "ready": "ready",
+          "start": "start",
+          "stop": "stop"
+        },
+        "targetClass": "process"
+      },
+      {
+        "capabilities": [
+          "execute-process"
+        ],
+        "id": "front-zone-target",
+        "lifecycle": {
+          "failure": "failure",
+          "prepare": "prepare",
+          "ready": "ready",
+          "start": "start",
+          "stop": "stop"
+        },
+        "targetClass": "process"
+      },
+      {
+        "capabilities": [
+          "execute-process"
+        ],
+        "id": "adas-hpc-target",
+        "lifecycle": {
+          "failure": "failure",
+          "prepare": "prepare",
+          "ready": "ready",
+          "start": "start",
+          "stop": "stop"
+        },
+        "targetClass": "process"
+      },
+      {
+        "capabilities": [
+          "execute-process"
+        ],
+        "id": "vc-functional-target",
+        "lifecycle": {
+          "failure": "failure",
+          "prepare": "prepare",
+          "ready": "ready",
+          "start": "start",
+          "stop": "stop"
+        },
+        "targetClass": "process"
+      },
+      {
+        "capabilities": [
+          "execute-process"
+        ],
+        "id": "vc-assurance-target",
+        "lifecycle": {
+          "failure": "failure",
+          "prepare": "prepare",
+          "ready": "ready",
+          "start": "start",
+          "stop": "stop"
+        },
+        "targetClass": "process"
+      }
+    ]
+  }
+}

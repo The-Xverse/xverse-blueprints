@@ -1,0 +1,7 @@
+{
+  "artifacts": {
+    "python310": "sha256:a2f33a6e006989270f4340528eb61f8f97366e00a5d1b602ac8672ea44fc56ae",
+    "python313": "sha256:9907c621375bc585b55087a939f30310d5bc6e3b6b15a986f734dc24077cf968"
+  },
+  "note": "host interpreter digests at generation time"
+}

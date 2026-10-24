@@ -1,0 +1,23 @@
+{
+  "apiVersion": "xverse.io/xdl/v1alpha1",
+  "kind": "Profile",
+  "metadata": {
+    "name": "net-u2-returns-profile",
+    "namespace": "org.xverse.assured-aeb",
+    "provenance": {
+      "maturity": "prototype",
+      "revision": "wp12-v0.1",
+      "source": "xverse-blueprints/automotive/assured-aeb/topology.py"
+    },
+    "version": "0.1.0"
+  },
+  "spec": {
+    "compatibleApiVersions": [
+      "xverse.io/xdl/v1alpha1"
+    ],
+    "conflictPolicy": "reject",
+    "documentationRef": "urn:xverse:assured-aeb:docs:review-wp12",
+    "extensionNamespace": "io.xverse.assured-aeb.net-u2-returns",
+    "schemaRef": "urn:xverse:assured-aeb:network-selector:net-u2-returns"
+  }
+}

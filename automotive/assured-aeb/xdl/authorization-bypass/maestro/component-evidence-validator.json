@@ -1,0 +1,124 @@
+{
+  "apiVersion": "xverse.io/xdl/v1alpha1",
+  "extensions": {
+    "io.xverse.assured-aeb": {
+      "authorityClass": "productive",
+      "kind": "component-authority",
+      "permittedOutputs": [
+        "qualified-evidence"
+      ],
+      "schemaVersion": "0.1"
+    },
+    "io.xverse.xcom": {
+      "kind": "flow-policy",
+      "policy": {
+        "deadlineMs": 0,
+        "observationPoints": [],
+        "ordering": "fifo",
+        "overflow": "reject",
+        "queueDepth": 4,
+        "reliability": "best-effort",
+        "retry": 0
+      },
+      "schemaVersion": "0.1",
+      "target": {
+        "apiVersion": "xverse.io/xdl/v1alpha1",
+        "kind": "Component",
+        "name": "aeb-evidence-validator",
+        "namespace": "org.xverse.assured-aeb"
+      }
+    }
+  },
+  "kind": "Component",
+  "metadata": {
+    "description": "Assured AEB element evidence-validator (productive); module of its host unit, not a Maestro unit.",
+    "name": "aeb-evidence-validator",
+    "namespace": "org.xverse.assured-aeb",
+    "provenance": {
+      "maturity": "architectural-target",
+      "revision": "wp12-v0.1",
+      "source": "xverse-blueprints/automotive/assured-aeb/topology.py"
+    },
+    "version": "0.1.0"
+  },
+  "spec": {
+    "capabilities": [
+      "assured-aeb-productive"
+    ],
+    "endpoints": [
+      {
+        "direction": "output",
+        "id": "qualified-evidence-out",
+        "interfaceId": "qualified-evidence",
+        "ownerId": "aeb-evidence-validator"
+      },
+      {
+        "direction": "input",
+        "id": "adas-cycle-in",
+        "interfaceId": "adas-cycle",
+        "ownerId": "aeb-evidence-validator"
+      },
+      {
+        "direction": "input",
+        "id": "radar-evidence-in",
+        "interfaceId": "radar-evidence",
+        "ownerId": "aeb-evidence-validator"
+      },
+      {
+        "direction": "input",
+        "id": "vehicle-state-record-in",
+        "interfaceId": "vehicle-state-record",
+        "ownerId": "aeb-evidence-validator"
+      }
+    ],
+    "interfaces": [
+      {
+        "compatibility": "exact",
+        "direction": "output",
+        "extensions": {
+          "io.xverse.xcom": {
+            "kind": "interface-policy",
+            "policy": {
+              "encoding": "json",
+              "interactionKind": "message",
+              "schemaId": "qualified-evidence-schema",
+              "schemaVersion": "1.0.0",
+              "semanticCompatibility": "exact"
+            },
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "kind": "Component",
+              "name": "aeb-evidence-validator",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "qualified-evidence",
+        "payloadSchema": "urn:xverse:assured-aeb:qualified-evidence:v1",
+        "unitSemantics": "evidence-item"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "adas-cycle",
+        "payloadSchema": "urn:xverse:assured-aeb:adas-cycle:v1",
+        "unitSemantics": "evidence-item"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "radar-evidence",
+        "payloadSchema": "urn:xverse:assured-aeb:radar-evidence:v1",
+        "unitSemantics": "evidence-item"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "vehicle-state-record",
+        "payloadSchema": "urn:xverse:assured-aeb:vehicle-state-record:v1",
+        "unitSemantics": "evidence-item"
+      }
+    ]
+  }
+}

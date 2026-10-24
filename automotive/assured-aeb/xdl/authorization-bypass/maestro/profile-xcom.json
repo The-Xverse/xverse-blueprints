@@ -1,0 +1,23 @@
+{
+  "apiVersion": "xverse.io/xdl/v1alpha1",
+  "kind": "Profile",
+  "metadata": {
+    "name": "xcom-lite",
+    "namespace": "org.xverse.assured-aeb",
+    "provenance": {
+      "maturity": "prototype",
+      "revision": "wp12-v0.1",
+      "source": "xverse-blueprints/automotive/assured-aeb/topology.py"
+    },
+    "version": "0.1.0"
+  },
+  "spec": {
+    "compatibleApiVersions": [
+      "xverse.io/xdl/v1alpha1"
+    ],
+    "conflictPolicy": "reject",
+    "documentationRef": "https://xverse.io/profiles/xcom/v0.1/README.md",
+    "extensionNamespace": "io.xverse.xcom",
+    "schemaRef": "https://xverse.io/profiles/xcom/v0.1/schema.json"
+  }
+}

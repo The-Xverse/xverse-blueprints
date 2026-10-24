@@ -1,0 +1,1306 @@
+{
+  "apiVersion": "xverse.io/xdl/v1alpha1",
+  "extensions": {
+    "io.xverse.assured-aeb": {
+      "evaluationObservers": [
+        {
+          "id": "ground-truth-observer",
+          "outputRoot": "separate evaluation output root",
+          "realization": "separate process outside Maestro (WP-01; FR-021)",
+          "samplingIntent": "every CARLA frame; evaluation-only",
+          "timeDomainId": "carla-simulation"
+        }
+      ],
+      "form": "maestro",
+      "kind": "scenario-evaluation",
+      "offlineMetrics": [
+        {
+          "acceptance": "TODO: author decision (AD-14)",
+          "calculationRef": "urn:xverse:assured-aeb:metric:a-dq",
+          "id": "a-dq"
+        },
+        {
+          "acceptance": "TODO: author decision (AD-15)",
+          "calculationRef": "urn:xverse:assured-aeb:metric:minimum-gap",
+          "id": "minimum-gap"
+        }
+      ],
+      "schemaVersion": "0.1"
+    },
+    "io.xverse.experiment": {
+      "fidelityLimitations": [
+        "Seed 0 is a structural placeholder; seed lists TODO (P-4).",
+        "Fault model TODO (AD-31, AD-13); faults keyed to simulator time (WP-10)."
+      ],
+      "kind": "scenario-intent",
+      "parameters": [],
+      "schemaVersion": "0.1",
+      "seed": {
+        "unitSemantics": "experiment-seed",
+        "value": 0
+      },
+      "target": {
+        "apiVersion": "xverse.io/xdl/v1alpha1",
+        "kind": "Scenario",
+        "name": "assured-aeb-mloc-scenario",
+        "namespace": "org.xverse.assured-aeb"
+      }
+    }
+  },
+  "kind": "Scenario",
+  "metadata": {
+    "description": "Lifecycle skeleton of the assured AEB, arm mloc; scenario family and fault model TODO.",
+    "name": "assured-aeb-mloc-scenario",
+    "namespace": "org.xverse.assured-aeb",
+    "provenance": {
+      "limitations": [
+        "Horizon 600 Maestro ticks is the S1 engineering capacity, not the protocol horizon (AD-25)."
+      ],
+      "maturity": "architectural-target",
+      "revision": "wp12-v0.1",
+      "source": "xverse-blueprints/automotive/assured-aeb/topology.py"
+    },
+    "version": "0.1.0"
+  },
+  "spec": {
+    "deploymentRef": {
+      "apiVersion": "xverse.io/xdl/v1alpha1",
+      "kind": "Deployment",
+      "name": "assured-aeb-mloc-deployment",
+      "namespace": "org.xverse.assured-aeb"
+    },
+    "faults": [],
+    "initialConditions": {
+      "scenarioFamily": "TODO: author decision (AD-04)"
+    },
+    "metrics": [
+      {
+        "acceptance": "engineering evidence only; no scientific acceptance",
+        "calculationRef": "urn:xverse:assured-aeb:metric:completion-markers",
+        "id": "completion-markers",
+        "observerIds": [
+          "unit-completion-markers"
+        ],
+        "unitSemantics": "count"
+      }
+    ],
+    "observers": [
+      {
+        "evidenceSinkRef": "urn:xverse:assured-aeb:collection-result",
+        "id": "unit-completion-markers",
+        "payloadSchema": "urn:xverse:assured-aeb:completion-marker:v1",
+        "samplingIntent": "one completion marker per owned unit",
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "vehicle-loop-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time",
+        "unitSemantics": "count"
+      }
+    ],
+    "steps": [
+      {
+        "action": {
+          "operation": "validate"
+        },
+        "actionKind": "validate",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [],
+            "kind": "step-intent",
+            "phase": "prepare",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "prepare-vehicle-loop",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "prepare-vehicle-loop",
+        "schedule": {
+          "at": 0,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "vehicle-loop-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "start"
+        },
+        "actionKind": "start",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [
+              "prepare-vehicle-loop"
+            ],
+            "kind": "step-intent",
+            "phase": "start",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "start-vehicle-loop",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "start-vehicle-loop",
+        "schedule": {
+          "at": 0,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "vehicle-loop-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "observe"
+        },
+        "actionKind": "observe",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [
+              "start-vehicle-loop"
+            ],
+            "kind": "step-intent",
+            "phase": "observe",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "observe-vehicle-loop",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "observe-vehicle-loop",
+        "schedule": {
+          "at": 24,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "vehicle-loop-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "validate"
+        },
+        "actionKind": "validate",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [],
+            "kind": "step-intent",
+            "phase": "prepare",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "prepare-carla-adapter",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "prepare-carla-adapter",
+        "schedule": {
+          "at": 0,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "carla-adapter-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "start"
+        },
+        "actionKind": "start",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [
+              "prepare-carla-adapter",
+              "start-vehicle-loop"
+            ],
+            "kind": "step-intent",
+            "phase": "start",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "start-carla-adapter",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "start-carla-adapter",
+        "schedule": {
+          "at": 0,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "carla-adapter-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "observe"
+        },
+        "actionKind": "observe",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [
+              "start-carla-adapter"
+            ],
+            "kind": "step-intent",
+            "phase": "observe",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "observe-carla-adapter",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "observe-carla-adapter",
+        "schedule": {
+          "at": 24,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "carla-adapter-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "validate"
+        },
+        "actionKind": "validate",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [],
+            "kind": "step-intent",
+            "phase": "prepare",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "prepare-front-zone",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "prepare-front-zone",
+        "schedule": {
+          "at": 0,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "front-zone-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "start"
+        },
+        "actionKind": "start",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [
+              "prepare-front-zone",
+              "start-carla-adapter"
+            ],
+            "kind": "step-intent",
+            "phase": "start",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "start-front-zone",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "start-front-zone",
+        "schedule": {
+          "at": 0,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "front-zone-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "observe"
+        },
+        "actionKind": "observe",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [
+              "start-front-zone"
+            ],
+            "kind": "step-intent",
+            "phase": "observe",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "observe-front-zone",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "observe-front-zone",
+        "schedule": {
+          "at": 24,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "front-zone-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "validate"
+        },
+        "actionKind": "validate",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [],
+            "kind": "step-intent",
+            "phase": "prepare",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "prepare-vc-functional",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "prepare-vc-functional",
+        "schedule": {
+          "at": 0,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "vc-functional-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "start"
+        },
+        "actionKind": "start",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [
+              "prepare-vc-functional",
+              "start-front-zone"
+            ],
+            "kind": "step-intent",
+            "phase": "start",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "start-vc-functional",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "start-vc-functional",
+        "schedule": {
+          "at": 0,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "vc-functional-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "observe"
+        },
+        "actionKind": "observe",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [
+              "start-vc-functional"
+            ],
+            "kind": "step-intent",
+            "phase": "observe",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "observe-vc-functional",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "observe-vc-functional",
+        "schedule": {
+          "at": 24,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "vc-functional-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "validate"
+        },
+        "actionKind": "validate",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [],
+            "kind": "step-intent",
+            "phase": "prepare",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "prepare-vc-assurance",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "prepare-vc-assurance",
+        "schedule": {
+          "at": 0,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "vc-assurance-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "start"
+        },
+        "actionKind": "start",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [
+              "prepare-vc-assurance",
+              "start-vc-functional"
+            ],
+            "kind": "step-intent",
+            "phase": "start",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "start-vc-assurance",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "start-vc-assurance",
+        "schedule": {
+          "at": 0,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "vc-assurance-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "observe"
+        },
+        "actionKind": "observe",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [
+              "start-vc-assurance"
+            ],
+            "kind": "step-intent",
+            "phase": "observe",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "observe-vc-assurance",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "observe-vc-assurance",
+        "schedule": {
+          "at": 24,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "vc-assurance-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "validate"
+        },
+        "actionKind": "validate",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [],
+            "kind": "step-intent",
+            "phase": "prepare",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "prepare-adas-hpc",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "prepare-adas-hpc",
+        "schedule": {
+          "at": 0,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "adas-hpc-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "start"
+        },
+        "actionKind": "start",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [
+              "prepare-adas-hpc",
+              "start-vc-assurance"
+            ],
+            "kind": "step-intent",
+            "phase": "start",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "start-adas-hpc",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "start-adas-hpc",
+        "schedule": {
+          "at": 0,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "adas-hpc-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "observe"
+        },
+        "actionKind": "observe",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [
+              "start-adas-hpc"
+            ],
+            "kind": "step-intent",
+            "phase": "observe",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "observe-adas-hpc",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "observe-adas-hpc",
+        "schedule": {
+          "at": 24,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "adas-hpc-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "stop"
+        },
+        "actionKind": "stop",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [
+              "observe-adas-hpc"
+            ],
+            "kind": "step-intent",
+            "phase": "stop",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "stop-adas-hpc",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "stop-adas-hpc",
+        "schedule": {
+          "at": 595,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "adas-hpc-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "cleanup"
+        },
+        "actionKind": "cleanup",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [
+              "stop-adas-hpc"
+            ],
+            "kind": "step-intent",
+            "phase": "cleanup",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "cleanup-adas-hpc",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "cleanup-adas-hpc",
+        "schedule": {
+          "at": 595,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "adas-hpc-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "stop"
+        },
+        "actionKind": "stop",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [
+              "observe-vc-assurance"
+            ],
+            "kind": "step-intent",
+            "phase": "stop",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "stop-vc-assurance",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "stop-vc-assurance",
+        "schedule": {
+          "at": 596,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "vc-assurance-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "cleanup"
+        },
+        "actionKind": "cleanup",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [
+              "stop-vc-assurance"
+            ],
+            "kind": "step-intent",
+            "phase": "cleanup",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "cleanup-vc-assurance",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "cleanup-vc-assurance",
+        "schedule": {
+          "at": 596,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "vc-assurance-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "stop"
+        },
+        "actionKind": "stop",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [
+              "observe-vc-functional"
+            ],
+            "kind": "step-intent",
+            "phase": "stop",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "stop-vc-functional",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "stop-vc-functional",
+        "schedule": {
+          "at": 597,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "vc-functional-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "cleanup"
+        },
+        "actionKind": "cleanup",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [
+              "stop-vc-functional"
+            ],
+            "kind": "step-intent",
+            "phase": "cleanup",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "cleanup-vc-functional",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "cleanup-vc-functional",
+        "schedule": {
+          "at": 597,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "vc-functional-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "stop"
+        },
+        "actionKind": "stop",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [
+              "observe-front-zone"
+            ],
+            "kind": "step-intent",
+            "phase": "stop",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "stop-front-zone",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "stop-front-zone",
+        "schedule": {
+          "at": 598,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "front-zone-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "cleanup"
+        },
+        "actionKind": "cleanup",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [
+              "stop-front-zone"
+            ],
+            "kind": "step-intent",
+            "phase": "cleanup",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "cleanup-front-zone",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "cleanup-front-zone",
+        "schedule": {
+          "at": 598,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "front-zone-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "stop"
+        },
+        "actionKind": "stop",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [
+              "observe-carla-adapter"
+            ],
+            "kind": "step-intent",
+            "phase": "stop",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "stop-carla-adapter",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "stop-carla-adapter",
+        "schedule": {
+          "at": 599,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "carla-adapter-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "cleanup"
+        },
+        "actionKind": "cleanup",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [
+              "stop-carla-adapter"
+            ],
+            "kind": "step-intent",
+            "phase": "cleanup",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "cleanup-carla-adapter",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "cleanup-carla-adapter",
+        "schedule": {
+          "at": 599,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "carla-adapter-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "stop"
+        },
+        "actionKind": "stop",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [
+              "observe-vehicle-loop"
+            ],
+            "kind": "step-intent",
+            "phase": "stop",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "stop-vehicle-loop",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "stop-vehicle-loop",
+        "schedule": {
+          "at": 600,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "vehicle-loop-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      },
+      {
+        "action": {
+          "operation": "cleanup"
+        },
+        "actionKind": "cleanup",
+        "extensions": {
+          "io.xverse.experiment": {
+            "dependsOn": [
+              "stop-vehicle-loop"
+            ],
+            "kind": "step-intent",
+            "phase": "cleanup",
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "element": "cleanup-vehicle-loop",
+              "kind": "Scenario",
+              "name": "assured-aeb-mloc-scenario",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "cleanup-vehicle-loop",
+        "schedule": {
+          "at": 600,
+          "tolerance": {
+            "unit": "tick",
+            "value": 0
+          },
+          "unit": "tick"
+        },
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "vehicle-loop-unit",
+          "kind": "System",
+          "name": "assured-aeb-mloc",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "experiment-time"
+      }
+    ],
+    "systemRef": {
+      "apiVersion": "xverse.io/xdl/v1alpha1",
+      "kind": "System",
+      "name": "assured-aeb-mloc",
+      "namespace": "org.xverse.assured-aeb"
+    }
+  }
+}

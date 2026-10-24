@@ -1,0 +1,131 @@
+{
+  "apiVersion": "xverse.io/xdl/v1alpha1",
+  "extensions": {
+    "io.xverse.assured-aeb": {
+      "authorityClass": "actuation-path",
+      "kind": "component-authority",
+      "permittedOutputs": [
+        "brake-command",
+        "brake-status"
+      ],
+      "schemaVersion": "0.1"
+    },
+    "io.xverse.xcom": {
+      "kind": "flow-policy",
+      "policy": {
+        "deadlineMs": 0,
+        "observationPoints": [],
+        "ordering": "fifo",
+        "overflow": "reject",
+        "queueDepth": 4,
+        "reliability": "best-effort",
+        "retry": 0
+      },
+      "schemaVersion": "0.1",
+      "target": {
+        "apiVersion": "xverse.io/xdl/v1alpha1",
+        "kind": "Component",
+        "name": "aeb-brake-esc-node",
+        "namespace": "org.xverse.assured-aeb"
+      }
+    }
+  },
+  "kind": "Component",
+  "metadata": {
+    "description": "Assured AEB element brake-esc-node (actuation-path); module of its host unit, not a Maestro unit.",
+    "name": "aeb-brake-esc-node",
+    "namespace": "org.xverse.assured-aeb",
+    "provenance": {
+      "maturity": "architectural-target",
+      "revision": "wp12-v0.1",
+      "source": "xverse-blueprints/automotive/assured-aeb/topology.py"
+    },
+    "version": "0.1.0"
+  },
+  "spec": {
+    "capabilities": [
+      "assured-aeb-actuation-path"
+    ],
+    "endpoints": [
+      {
+        "direction": "output",
+        "id": "brake-command-out",
+        "interfaceId": "brake-command",
+        "ownerId": "aeb-brake-esc-node"
+      },
+      {
+        "direction": "output",
+        "id": "brake-status-out",
+        "interfaceId": "brake-status",
+        "ownerId": "aeb-brake-esc-node"
+      },
+      {
+        "direction": "input",
+        "id": "brake-request-in",
+        "interfaceId": "brake-request",
+        "ownerId": "aeb-brake-esc-node"
+      }
+    ],
+    "interfaces": [
+      {
+        "compatibility": "exact",
+        "direction": "output",
+        "extensions": {
+          "io.xverse.xcom": {
+            "kind": "interface-policy",
+            "policy": {
+              "encoding": "json",
+              "interactionKind": "message",
+              "schemaId": "brake-command-schema",
+              "schemaVersion": "1.0.0",
+              "semanticCompatibility": "exact"
+            },
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "kind": "Component",
+              "name": "aeb-brake-esc-node",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "brake-command",
+        "payloadSchema": "urn:xverse:assured-aeb:brake-command:v1",
+        "unitSemantics": "brake-request"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "output",
+        "extensions": {
+          "io.xverse.xcom": {
+            "kind": "interface-policy",
+            "policy": {
+              "encoding": "json",
+              "interactionKind": "message",
+              "schemaId": "brake-status-schema",
+              "schemaVersion": "1.0.0",
+              "semanticCompatibility": "exact"
+            },
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "kind": "Component",
+              "name": "aeb-brake-esc-node",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "brake-status",
+        "payloadSchema": "urn:xverse:assured-aeb:brake-status:v1",
+        "unitSemantics": "node-status"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "brake-request",
+        "payloadSchema": "urn:xverse:assured-aeb:brake-request:v1",
+        "unitSemantics": "brake-request"
+      }
+    ]
+  }
+}

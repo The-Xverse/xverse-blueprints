@@ -1,0 +1,144 @@
+{
+  "apiVersion": "xverse.io/xdl/v1alpha1",
+  "extensions": {
+    "io.xverse.assured-aeb": {
+      "authorityClass": "actuation-path",
+      "kind": "component-authority",
+      "permittedOutputs": [
+        "brake-request",
+        "motion-evidence"
+      ],
+      "schemaVersion": "0.1"
+    },
+    "io.xverse.xcom": {
+      "kind": "flow-policy",
+      "policy": {
+        "deadlineMs": 0,
+        "observationPoints": [],
+        "ordering": "fifo",
+        "overflow": "reject",
+        "queueDepth": 4,
+        "reliability": "best-effort",
+        "retry": 0
+      },
+      "schemaVersion": "0.1",
+      "target": {
+        "apiVersion": "xverse.io/xdl/v1alpha1",
+        "kind": "Component",
+        "name": "aeb-chassis-zone",
+        "namespace": "org.xverse.assured-aeb"
+      }
+    }
+  },
+  "kind": "Component",
+  "metadata": {
+    "description": "Assured AEB element chassis-zone (actuation-path); module of its host unit, not a Maestro unit.",
+    "name": "aeb-chassis-zone",
+    "namespace": "org.xverse.assured-aeb",
+    "provenance": {
+      "maturity": "architectural-target",
+      "revision": "wp12-v0.1",
+      "source": "xverse-blueprints/automotive/assured-aeb/topology.py"
+    },
+    "version": "0.1.0"
+  },
+  "spec": {
+    "capabilities": [
+      "assured-aeb-actuation-path"
+    ],
+    "endpoints": [
+      {
+        "direction": "output",
+        "id": "brake-request-out",
+        "interfaceId": "brake-request",
+        "ownerId": "aeb-chassis-zone"
+      },
+      {
+        "direction": "output",
+        "id": "motion-evidence-out",
+        "interfaceId": "motion-evidence",
+        "ownerId": "aeb-chassis-zone"
+      },
+      {
+        "direction": "input",
+        "id": "aeb-status-in",
+        "interfaceId": "aeb-status",
+        "ownerId": "aeb-chassis-zone"
+      },
+      {
+        "direction": "input",
+        "id": "brake-status-in",
+        "interfaceId": "brake-status",
+        "ownerId": "aeb-chassis-zone"
+      }
+    ],
+    "interfaces": [
+      {
+        "compatibility": "exact",
+        "direction": "output",
+        "extensions": {
+          "io.xverse.xcom": {
+            "kind": "interface-policy",
+            "policy": {
+              "encoding": "json",
+              "interactionKind": "message",
+              "schemaId": "brake-request-schema",
+              "schemaVersion": "1.0.0",
+              "semanticCompatibility": "exact"
+            },
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "kind": "Component",
+              "name": "aeb-chassis-zone",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "brake-request",
+        "payloadSchema": "urn:xverse:assured-aeb:brake-request:v1",
+        "unitSemantics": "brake-request"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "output",
+        "extensions": {
+          "io.xverse.xcom": {
+            "kind": "interface-policy",
+            "policy": {
+              "encoding": "json",
+              "interactionKind": "message",
+              "schemaId": "motion-evidence-schema",
+              "schemaVersion": "1.0.0",
+              "semanticCompatibility": "exact"
+            },
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "kind": "Component",
+              "name": "aeb-chassis-zone",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "motion-evidence",
+        "payloadSchema": "urn:xverse:assured-aeb:motion-evidence:v1",
+        "unitSemantics": "evidence-item"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "aeb-status",
+        "payloadSchema": "urn:xverse:assured-aeb:aeb-status:v1",
+        "unitSemantics": "node-status"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "brake-status",
+        "payloadSchema": "urn:xverse:assured-aeb:brake-status:v1",
+        "unitSemantics": "node-status"
+      }
+    ]
+  }
+}

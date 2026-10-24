@@ -1,0 +1,85 @@
+{
+  "apiVersion": "xverse.io/xdl/v1alpha1",
+  "extensions": {
+    "io.xverse.assured-aeb": {
+      "authorityClass": "environment",
+      "kind": "component-authority",
+      "permittedOutputs": [
+        "objective"
+      ],
+      "schemaVersion": "0.1"
+    },
+    "io.xverse.xcom": {
+      "kind": "flow-policy",
+      "policy": {
+        "deadlineMs": 0,
+        "observationPoints": [],
+        "ordering": "fifo",
+        "overflow": "reject",
+        "queueDepth": 4,
+        "reliability": "best-effort",
+        "retry": 0
+      },
+      "schemaVersion": "0.1",
+      "target": {
+        "apiVersion": "xverse.io/xdl/v1alpha1",
+        "kind": "Component",
+        "name": "aeb-objective-source",
+        "namespace": "org.xverse.assured-aeb"
+      }
+    }
+  },
+  "kind": "Component",
+  "metadata": {
+    "description": "Assured AEB element objective-source (environment); module of its host unit, not a Maestro unit.",
+    "name": "aeb-objective-source",
+    "namespace": "org.xverse.assured-aeb",
+    "provenance": {
+      "maturity": "architectural-target",
+      "revision": "wp12-v0.1",
+      "source": "xverse-blueprints/automotive/assured-aeb/topology.py"
+    },
+    "version": "0.1.0"
+  },
+  "spec": {
+    "capabilities": [
+      "assured-aeb-environment"
+    ],
+    "endpoints": [
+      {
+        "direction": "output",
+        "id": "objective-out",
+        "interfaceId": "objective",
+        "ownerId": "aeb-objective-source"
+      }
+    ],
+    "interfaces": [
+      {
+        "compatibility": "exact",
+        "direction": "output",
+        "extensions": {
+          "io.xverse.xcom": {
+            "kind": "interface-policy",
+            "policy": {
+              "encoding": "json",
+              "interactionKind": "message",
+              "schemaId": "objective-schema",
+              "schemaVersion": "1.0.0",
+              "semanticCompatibility": "exact"
+            },
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "kind": "Component",
+              "name": "aeb-objective-source",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "objective",
+        "payloadSchema": "urn:xverse:assured-aeb:objective:v1",
+        "unitSemantics": "typed-objective"
+      }
+    ]
+  }
+}

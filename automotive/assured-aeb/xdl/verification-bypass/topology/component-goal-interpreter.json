@@ -1,0 +1,98 @@
+{
+  "apiVersion": "xverse.io/xdl/v1alpha1",
+  "extensions": {
+    "io.xverse.assured-aeb": {
+      "authorityClass": "goal-interpreter",
+      "kind": "component-authority",
+      "permittedOutputs": [
+        "goal-model"
+      ],
+      "schemaVersion": "0.1"
+    },
+    "io.xverse.xcom": {
+      "kind": "flow-policy",
+      "policy": {
+        "deadlineMs": 0,
+        "observationPoints": [],
+        "ordering": "fifo",
+        "overflow": "reject",
+        "queueDepth": 4,
+        "reliability": "best-effort",
+        "retry": 0
+      },
+      "schemaVersion": "0.1",
+      "target": {
+        "apiVersion": "xverse.io/xdl/v1alpha1",
+        "kind": "Component",
+        "name": "aeb-goal-interpreter",
+        "namespace": "org.xverse.assured-aeb"
+      }
+    }
+  },
+  "kind": "Component",
+  "metadata": {
+    "description": "Assured AEB element goal-interpreter (goal-interpreter); module of its host unit, not a Maestro unit.",
+    "name": "aeb-goal-interpreter",
+    "namespace": "org.xverse.assured-aeb",
+    "provenance": {
+      "maturity": "architectural-target",
+      "revision": "wp12-v0.1",
+      "source": "xverse-blueprints/automotive/assured-aeb/topology.py"
+    },
+    "version": "0.1.0"
+  },
+  "spec": {
+    "capabilities": [
+      "assured-aeb-goal-interpreter"
+    ],
+    "endpoints": [
+      {
+        "direction": "output",
+        "id": "goal-model-out",
+        "interfaceId": "goal-model",
+        "ownerId": "aeb-goal-interpreter"
+      },
+      {
+        "direction": "input",
+        "id": "objective-in",
+        "interfaceId": "objective",
+        "ownerId": "aeb-goal-interpreter"
+      }
+    ],
+    "interfaces": [
+      {
+        "compatibility": "exact",
+        "direction": "output",
+        "extensions": {
+          "io.xverse.xcom": {
+            "kind": "interface-policy",
+            "policy": {
+              "encoding": "json",
+              "interactionKind": "message",
+              "schemaId": "goal-model-schema",
+              "schemaVersion": "1.0.0",
+              "semanticCompatibility": "exact"
+            },
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "kind": "Component",
+              "name": "aeb-goal-interpreter",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "goal-model",
+        "payloadSchema": "urn:xverse:assured-aeb:goal-model:v1",
+        "unitSemantics": "typed-objective"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "objective",
+        "payloadSchema": "urn:xverse:assured-aeb:objective:v1",
+        "unitSemantics": "typed-objective"
+      }
+    ]
+  }
+}
