@@ -5,6 +5,8 @@ claim of durable Argus storage. No inference/model/library service is started.
 """
 from __future__ import annotations
 
+from model_output_fixture import model_binding
+
 import ast
 import copy
 from pathlib import Path
@@ -79,7 +81,7 @@ def genuine_basis(now=1_000, sequence=1):
               "aeb.distanceUncertaintyM":0.5, "aeb.speedUncertaintyMps":0.5, "aeb.latencyNs":100,
               "aeb.decelerationMps2":6.0, "aeb.marginM":1.0, "aeb.brakeLevel":1.0,
               "aeb.releaseSpeedMps":0.5, "aeb.releaseAbsentCycles":3}
-    fusion = F.FusionRiskAeb(P.Projection(dict(schema=P.PROJECTION,protocolRecordSha256="b"*64,unit="adas-hpc",entries=values)))
+    fusion = F.FusionRiskAeb(P.Projection(dict(schema=P.PROJECTION,protocolRecordSha256="b"*64,unit="adas-hpc",entries=values)), model_output_binding=model_binding())
     sensor = R.SmartRadar(R.SmartRadarParams.from_record({"schema":R.RADAR_CHECKS,
         "spec":{"rangeM":100.0,"horizontalFovDeg":30.0,"verticalFovDeg":10.0,"maxVelocityMps":100.0,"maxDetections":500},
         "thresholds":{"minCount":1,"maxCount":200}}),"radar-adas")
@@ -87,8 +89,9 @@ def genuine_basis(now=1_000, sequence=1):
     item = dict(type="item",flowId="radar-adas",sequence=1,originNs=now,frame=1,value={"detections":[[0.0,0.0,40.0,-10.0]],"count":1})
     radar = dict(zone.step(now,[("smart-radar-evidence",sensor.step(now,item))]))["f08-radar-adas"]
     camera = dict(schema=F.PERCEPTION_OUTPUT,source="perception",frame=1,frameSha256="c"*64,originNs=now,
-                  occupancyProbability=0.9,binProbabilities=[0.1,0.1,0.1,0.7],predictedBin="bin-2",oodScore=0.1,oodFlag=False,
-                  inputQuality={},provenance={"modelDigest":"d"*64,"preprocessParamsSha256":"e"*64,"postprocessSha256":"f"*64},
+                  occupancyProbability=0.9,binProbabilities=[0.05,0.05,0.05,0.05,0.7,0.1],predictedBin="bin-2",oodScore=0.1,oodFlag=False,
+                  inputQuality={},provenance={"modelDigest":"d"*64,"preprocessParamsSha256":"e"*64,
+                                              "postprocessSha256":model_binding().postprocess_sha256},
                   state="NOMINAL",reason=None)
     for _ in range(sequence):
         result = fusion.step(now,radar=radar,perception=camera)

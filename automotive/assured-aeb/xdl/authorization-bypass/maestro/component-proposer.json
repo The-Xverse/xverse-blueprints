@@ -116,7 +116,7 @@
         "compatibility": "exact",
         "direction": "input",
         "id": "proposal-basis",
-        "payloadSchema": "urn:xverse:assured-aeb:proposal-basis:v1",
+        "payloadSchema": "urn:xverse:assured-aeb:proposal-basis:v2",
         "unitSemantics": "evidence-item"
       }
     ]

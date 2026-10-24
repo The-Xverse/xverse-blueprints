@@ -2,7 +2,7 @@
 §1.5).
 
 The inputs are the intra-unit ``perception-output`` (increment #3 produces it) and F08 radar evidence. The output is one
-``assured-aeb.adas-cycle/1`` record per simulator step, sent on F11 to ``vc-ingress``. The rules:
+``assured-aeb.adas-cycle/2`` record per simulator step, sent on F11 to ``vc-ingress``. The rules:
 - **R-1:** in ``C_NOMINAL`` an obstacle is present only when the camera is positive **and** radar corroborates it.
 - **R-2:** the request latches.
 - **R-6:** a step with an input is a decision cycle, and a step without one still yields a ``no-input`` record.
@@ -16,13 +16,15 @@ import json
 import math
 from typing import Any
 
+from . import adas_contract as AC
 from .aeb_rule import (SHARED_DECLARATION, Latch, corridor_from, nearest_in_corridor, qualify_radar, rule_declaration,
                        rule_from, weakest)
 from .checks import HEX64, is_int, is_number
+from .model_output_binding import ModelOutputBinding
 from .parameters import Projection, params_digest
 
 PERCEPTION_OUTPUT = "assured-aeb.perception-output/1"
-ADAS_CYCLE = "assured-aeb.adas-cycle/1"
+ADAS_CYCLE = AC.SCHEMA
 SOURCE = "fusion-risk-aeb"
 RADAR_STREAM = "f08-radar-adas"
 PERCEPTION_MEMBERS = frozenset({"schema", "source", "frame", "frameSha256", "originNs", "occupancyProbability",
@@ -80,7 +82,7 @@ def _perception_ok(record: Any) -> bool:
 
 
 class FusionRiskAeb:
-    def __init__(self, projection: Projection) -> None:
+    def __init__(self, projection: Projection, *, model_output_binding: ModelOutputBinding) -> None:
         if type(projection) is not Projection:
             raise TypeError("a validated Projection is required (no default parameters)")
         self.values = projection.take(DECLARATION)
@@ -89,6 +91,12 @@ class FusionRiskAeb:
         self.rule = rule_from(self.values, "aeb")
         self.latch = Latch(self.rule)
         self.edges = [float(e) for e in self.values["fusion.distanceBinEdgesM"]]
+        if type(model_output_binding) is not ModelOutputBinding:
+            raise TypeError("a verified ModelOutputBinding is required (no default)")
+        expected = {"no-obstacle", "overlap", *(f"bin-{i}" for i in range(len(self.edges))), "beyond"}
+        if len(model_output_binding.bin_labels) != len(expected) or set(model_output_binding.bin_labels) != expected:
+            raise ValueError("model-output labels differ from the declared distance edges")
+        self.model_output_binding = model_output_binding
         self.camera: dict[str, Any] | None = None
         self.radar: dict[str, Any] | None = None
         self.sequence = 0
@@ -108,6 +116,9 @@ class FusionRiskAeb:
         if decision:
             self.cycle += 1
         camera_src, camera_state, camera_rec = self._camera(now_ns)
+        camera_src["inputQuality"] = AC.camera_quality(camera_rec["inputQuality"] if camera_rec is not None else None)
+        camera_src["occupancyDecisionConfidence"], camera_src["distanceClassConfidence"] = AC.confidences(
+            camera_rec, threshold=self.values["fusion.occupancyThreshold"], binding=self.model_output_binding)
         view = qualify_radar(self.radar, RADAR_STREAM, now_ns, self.values["fusion.radarFreshnessNs"]) if self.radar is not None \
             else None
         radar_state = view.state if view is not None else "UNCERTAIN"
@@ -160,7 +171,8 @@ class FusionRiskAeb:
                                       "ageNs": view.age_ns if view else None, "sequence": view.sequence if view else None,
                                       "count": len(view.detections) if view else None,
                                       "failures": list(view.failures) if view else ["no-radar"],
-                                      "selectedDetection": selected[0] if selected else None}},
+                                      "selectedDetection": selected[0] if selected else None,
+                                      "checks": AC.radar_checks(self.radar.get("checks")) if isinstance(self.radar, dict) else None}},
                 "state": state, "paramsSha256": self.params_sha256}
 
     def _camera(self, now_ns: int) -> tuple[dict[str, Any], str, dict[str, Any] | None]:

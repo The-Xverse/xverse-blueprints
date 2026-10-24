@@ -11,6 +11,7 @@ import json
 import re
 from types import MappingProxyType
 
+from . import adas_contract as AC
 from . import role_contract as C
 from .parameters import Projection
 from .role_events import RoleEvents, payload_digest
@@ -204,6 +205,10 @@ def _goal(record):
 
 def _basis(binding, incoming):
     record = incoming.payload
+    try:
+        record = AC.validate(record)
+    except ValueError as error:
+        raise C.ContractError("malformed active fusion /2 basis") from error
     raw = C.canonical(record)
     if (incoming.producer != binding.producer or not isinstance(record, dict) or set(record) != BASIS_MEMBERS
             or record["schema"] != C.LEGACY_SCHEMAS["proposal-basis"] or record["source"] != binding.producer
