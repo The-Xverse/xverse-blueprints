@@ -5,6 +5,11 @@ and not M1 evidence. Maestro is driven through its owned trusted-host harness pa
 `_OriginalRuntimeRun` path the platform uses for its own real-child runtime tests. The external
 readiness-reviewed `RuntimeService` path stays closed (thesis DLG-7).
 
+This blueprint is part of X-Verse Lite 1.0 rc.1; see the release record
+[`docs/releases/xverse-lite-1.0.md`](../../docs/releases/xverse-lite-1.0.md). It was stabilized in the thesis
+successor increment S1 (live harness S1c, soak tooling S1d); the review record is the `xverse-compat` log
+`docs/engineering/thesis-lite-stabilization/review-s1c.md`.
+
 ## Command
 
 ```bash
@@ -12,9 +17,12 @@ automotive/thesis-lite-carla-closed-loop/run-live.sh nominal            # Lite r
 automotive/thesis-lite-carla-closed-loop/run-live.sh freeze-vcu         # Phase 5 freeze of the legacy VCU unit
 automotive/thesis-lite-carla-closed-loop/run-live.sh cancel-paused      # cancel while the simulation clock is paused
 automotive/thesis-lite-carla-closed-loop/run-live.sh no-carla           # missing simulator (start without a server)
+automotive/thesis-lite-carla-closed-loop/run-live.sh long-run           # nominal at the S1 long-run horizon (600 ticks)
 automotive/thesis-lite-carla-closed-loop/run-baseline.sh                # legacy reference invocation (not Maestro)
 python3 automotive/thesis-lite-carla-closed-loop/report.py --out DIR RUN_DIR...
 ```
+
+`run-live.sh` takes an optional run directory as its second argument.
 
 Preconditions:
 - `XVERSE_COMPAT_SRC` names the `xverse-compat` checkout to use. There is no default path. Both commands
@@ -94,6 +102,21 @@ After each run, it runs the following, also from a trap on EXIT, INT and TERM:
   - verifies that none remain.
 - **Socket cleanup**, and a copy of Maestro's tmpfs journal and Argus root into the run directory.
 
+The units' run directory is staged on tmpfs (`/dev/shm/xverse-lite-run-<run>`) during the run and copied into
+the run directory at cleanup, before the restore guard, which reads the copied owned-actor registry (S1c finding
+49, thesis DR-19 (3)). Evidence durability is therefore that of the copy after the run.
+
+Unit controls (platform S1b, adopted in S1c-2):
+- Every unit declares a TERM grace of 0.6 s for its scheduled stop step. The terminal fence after a cancel stays
+  forced (thesis DR-7).
+- Every unit's stderr is a private run-scoped file of at most 256 KiB, never collected (thesis DR-9).
+- The owned units declare the `nonce-marker` readiness probe with an owned readiness window of 1.7 s (attempts
+  at 0, 0.725 and 1.45 s; thesis DR-17, DR-19). The legacy VCU stays liveness-only (`running`), and health
+  stays liveness-only for every unit. Each owned unit's ready latency is recorded (`readyLatencyS`).
+- The adapter's first run after a CARLA server start needed 1.3 s to more than 1.7 s to become ready, against
+  at most about 0.54 s in warm runs (S1c findings 47–49 and 54). That first run can therefore fail readiness
+  cleanly (`ML-PROBE-NOT-READY`, cleanup complete).
+
 A passive observer, which is evaluation-only, measures motion in every run, including through the guard.
 
 Inputs to the baseline and the Lite run:
@@ -117,21 +140,24 @@ Contracts: `xverse-compat` `docs/engineering/thesis-lite-phase7-live/carla-items
 - `experiment-time`: Maestro's schedule ticks. They are not wall-paced: about 0.07–0.7 s per tick were
   measured in Phase 7, depending on host load. After the S1a persistence repair a cycle runs at the 0.05 s poll
   floor (steady mean about 0.057 s), so the tick values are derived from that floor (S1c findings 16, 18 and 19):
-  - The schedule runs 400 ticks, which is at least 20 s after tick 0.
-  - Observe is at tick 60, before the cancel-paused cancel.
-  - The freeze is at ticks 61–71, about 1.1–2.0 s into the stimulus throttle, one tick after the observe at
-    tick 60. freeze-vcu fails unless the freeze lies inside the throttle segment. The platform refuses a thaw that comes more than 3.48 s after the frozen
-    unit's last health success (cadence 5 s minus `health_scan_seconds`). The freeze length keeps the worst
-    case inside that bound up to a mean cycle of about 0.17 s; it is a bound, not a guarantee under any load.
+  - The schedule runs 400 ticks, which is at least 20 s after tick 0. `long-run` runs 600 ticks with a 25 s
+    driver episode and the long-run stimulus profile (thesis S-D1 as revised in S1a).
+  - Observe is at tick 24, about 5.6 s after start, before the cancel-paused cancel (S1c finding 48).
+  - The freeze starts at tick 25, one tick after the observe, and lasts 10 ticks. It was placed from the recorded
+    Argus tick clocks and stimulus samples so that about 0.9 s remains before and after it inside the stimulus
+    throttle segment (S1c finding 48). freeze-vcu fails unless the freeze lies inside the throttle segment. The
+    platform refuses a thaw that comes more than 3.48 s after the frozen unit's last health success (cadence 5 s
+    minus `health_scan_seconds`). The freeze length keeps the worst case inside that bound up to a mean cycle of
+    about 0.15 s; it is a bound, not a guarantee under any load.
   - `maestro-run.json` records `tickTiming` and the load average at the start and the end.
   - `argus-verify.txt` holds `xverse-argus verify` for the Maestro and flow roots.
 
-  Every case asserts its expected path: nominal and freeze-vcu must succeed; no-carla must end with
-  `ML-RUN-CHILD-EXIT`. cancel-paused must complete observe, be cancelled during the run, and end with
+  Every case asserts its expected path: nominal, freeze-vcu and long-run must succeed; no-carla must end with
+  `ML-RUN-CHILD-EXIT` or `ML-PROBE-NOT-READY` (thesis DR-14), with cleanup complete. cancel-paused must complete observe, be cancelled during the run, and end with
   `ML-SCHEDULE-CANCELLED`. It must also have no persistence failure, cleanup complete, every native unit
   retired and reaped, and every closure writer `failed` or `closed` (S1c finding 20). Every case checks the
   Maestro Argus root with `xverse-argus verify`:
-  - nominal and freeze-vcu must be closed and complete;
+  - nominal, freeze-vcu and long-run must be closed and complete;
   - the failure paths must end `failed`, or `closed` for cancel-paused (DR-2), with no reason other than
     WRITER-STATE.
 
@@ -148,4 +174,26 @@ The following are not claimed or not covered:
 - An echo is not braking evidence.
 - No parity with the legacy loop: the physics step differs (fixed 0.05 s versus about 8 ms asynchronous) and
   the legacy vehicle uses a random spawn point.
-- The Maestro persistence path has a scaling limit (live finding 03), which constrains the run length.
+- Run length. Since platform S1a the persistence cost no longer grows with the evidence stream (the Phase 7 limit,
+  live finding 03, is removed). A run is still bounded by the platform's admitted capacity: at most 5 units, 8 192
+  events, a run that closes within 90 s of entry (an active window of about 55 s), and the declared 4 MiB
+  retained-inputs cap. The 600-tick long-run fits these bounds while the mean cycle stays at or below about
+  0.085 s.
+
+## Soak (S1d)
+
+`soak/` holds the predeclared soak of thesis `specs/029-lite-stabilization/plan.md` (FR-019, FR-020):
+- `run_soak.py --compat <clean detached compat worktree> --blueprints <clean detached blueprints worktree> --out
+  <soak dir> [--dry-run]` runs 140 runs: nominal, freeze-vcu, cancel-paused and long-run 30 times each, plus 10
+  no-carla runs in the server-stopped gaps and 10 baseline runs. It owns the CARLA server lifecycle (one server per
+  block of 10 rounds), makes one warm-up nominal run after each server start (recorded, excluded from the
+  statistics), starts a round only at a 1-minute load of 5 or less, and stops at the first criterion failure.
+  `--dry-run` checks that both checkouts are clean and detached and prints the pinned identities and the
+  schedule; it starts no server and no run, and creates only the output directory.
+- `audit.py` applies the criteria P1 and P3–P8 per run; `health_check.py` is the read-only server check before the
+  preflight and after the cleanup (thesis DR-21).
+- An operator stop is `kill -TERM <runner PID>`: the run in progress completes its cleanup, the soak stops before
+  the next run or server start and stops the server. It may take up to about 15 minutes; never send SIGKILL (S1c
+  findings 60–62).
+- Offline tests, from this directory: `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 <python> -m pytest -q -p no:cacheprovider
+  soak/test_health_check.py soak/test_run_soak_logic.py`, with `XVERSE_PLATFORM_SRC` and `XVERSE_COMPAT_SRC` set.
