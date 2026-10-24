@@ -365,3 +365,26 @@ R4a-1/R4a-2/R4a-3 are repaired at candidate source level, pending another indepe
 scheduled focused/owning/assembled suites. No acceptance/merge by this worker. Recorder#6 source/world/map/traversal
 truth, 4b–4e genuine process/framework/two-repeat evidence, #5, #7, AD-27 numeric/scientific freeze and all existing
 requirement/SADS dispositions remain unchanged. No canonical note is edited.
+
+## Finding7: independent coordinator successor re-review (2026-10-24), PASS for owning verification
+
+Reviewed exactb22ab067ca83a21fc0fcb87a204cb9b8f0648e8d against independent finding4 and design54d8240.
+R4a-1 now binds actual canonical records to admitted digests, then consumes actual owner-validated label/frame/
+separation records; Python equality cannot stand in for typed identity. Whitespace/key order remain compatible
+with canonical-record identity, while integer/float encodings are distinct. R4a-2 accounts exact float32 weights,
+gradients, explicit SGD momentum and simultaneous output/activation storage in a necessary lower bound with no
+invented factor. R4a-3 pins every absolute store directory component and opens shard/file relative to owned
+no-follow/cloexec descriptors, fstats bounded regular input and retains stream/length/hash safeguards. This closes
+the documented check/open shard substitution without writes or sweep. No additional blocker found in this scope.
+
+Independently executed stdlib-only probes: genuine12-labelled-frame admission and reads; all4 Python-equal but
+different-canonical source refusals with expected pins unchanged; parameter-dominated memory refusal; zero and
+nonzero momentum exact ledger checks; deterministic before-open shard replacement refusal; interrupted frame-read
+descriptor cleanup. All passed. Confirmed no pytest, numpy, torch, onnx or onnxruntime import. These are actual
+coordinator checks, not a repeated claim of the author's51/44 controls or a full suite result.
+
+Limits remain: memory ledger is necessary tensor storage only, not process peak/RSS/allocator/optimizer workspace
+proof; sources/snapshots have their own explicit bounded-input/disk limits. Actual environments/memory and genuine
+training/export/calibration/final-U4 repeats remain4b–4e. Content pins and bounded reads do not establish recorder
+world/map/traversal truth. Complete owning suite, accepted-main reconciliation and delegated acceptance remain
+mandatory; no training execution, real numeric freeze, model or scientific result is accepted here.
