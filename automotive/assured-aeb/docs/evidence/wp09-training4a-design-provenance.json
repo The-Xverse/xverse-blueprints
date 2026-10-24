@@ -1,0 +1,17 @@
+{
+  "acceptedDesignRevision": "a89a52ef39952f003e8c2572a5b4d5dc3d60facd",
+  "copiedFiles": [
+    {
+      "path": "automotive/assured-aeb/docs/review-wp09-training-pipeline.md",
+      "sha256": "1ad236bdf5bb246cbada6d73aa705a5cdd2bb8fc6f641af441d07e3ec6542169"
+    },
+    {
+      "path": "automotive/assured-aeb/docs/evidence/wp09-training-design-inputs.json",
+      "sha256": "9895b527ca64577d9186f0d6a4875db579646b9e4fbf309731ec6314b8e9bc94"
+    }
+  ],
+  "implementationBase": "12bc7464f7c3103f3beba34c040ac5c4afc2b9d4",
+  "originalDesignRevision": "48f9475e9f408d898f0e51f538329cfbb95b82eb",
+  "schema": "assured-aeb.training4a-design-provenance/1",
+  "scope": "Exact accepted documents only; no merge of the older design branch baseline. Training4a only; no framework execution/model acceptance."
+}
