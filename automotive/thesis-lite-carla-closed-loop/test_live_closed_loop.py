@@ -1,14 +1,19 @@
 """Lite CARLA closed-loop integration run under Maestro (Phase 7; engineering integration, not AEB
 validation). One test = one run. Configuration comes from environment variables set by ``run-live.sh``:
 
-- ``XVERSE_LIVE_RUN_DIR``: evidence directory (loop10);
+- ``XVERSE_LIVE_RUN_DIR``: the run directory, staged on tmpfs by ``run-live.sh`` and copied into the loop10 evidence
+  directory at cleanup (S1c finding 49);
 - ``XVERSE_COMPAT_SRC``: the xverse-compat checkout (adapters and descriptors);
-- ``XVERSE_LIVE_CASE``: ``nominal`` | ``no-carla`` | ``cancel-paused`` | ``freeze-vcu``.
+- ``XVERSE_LIVE_CASE``: ``nominal`` | ``no-carla`` | ``cancel-paused`` | ``freeze-vcu`` | ``long-run`` (S1 FR-018).
 
 The run: XDL documents -> validation and experiment plan -> ``prepare_lifecycle`` -> owned permits and
 approvals (DLG-7: non-M1) -> schedule, coverage and collection admissions -> sealed helper images and
 bootstrap -> ``_OriginalRuntimeRun.start``. Maestro writes its own Argus evidence; the driver writes the
 flow evidence; results are written before any assertion.
+
+S1c-2 part 2 (S1c finding 40; platform S1b; thesis FR-018): every unit declares a bounded TERM grace and private
+stderr capture, each owned unit declares the ``nonce-marker`` readiness probe, and the harness asserts that the
+owned units exit on TERM at their scheduled stops and that their readiness evidence carries the marker probe.
 """
 
 from __future__ import annotations
@@ -33,7 +38,7 @@ from xverse.maestro.bootstrap import BootstrapAdmission, encode_bootstrap, seal_
 from xverse.maestro.bootstrap_launcher import OriginalBootstrapRegistry
 from xverse.maestro.collection_plan import admit_collection
 from xverse.maestro.coverage import ArtifactExpectation, admit_coverage
-from xverse.maestro.persistence import encode_configuration
+from xverse.maestro.persistence import PersistenceClient, encode_configuration
 from xverse.maestro.prbc import BoundaryDescriptor
 from xverse.maestro.projection import Limits, ProviderDescriptor, prepare_lifecycle
 from xverse.maestro.providers import ProbePolicy
@@ -64,19 +69,49 @@ RUN_ID = "lite-carla-closed-loop"
 # after tick 0; the driver episode ends ~11.5 s and the cancel-paused cancel ~12.3 s after tick 0. The 55 s active window, less the start and the stop/cleanup
 # budget, holds 400 ticks while the mean cycle stays <= ~0.12 s. The S-D1 long-run horizon is S1c-2 scope.
 HORIZON = 400
-# Observe at tick 60 (~7 s after start at the floor): before the cancel-paused cancel (>= 13.2 s after start) up to
-# a ~0.15 s mean cycle, so that case always completes observe before the cancel (S1c finding 19, MEDIUM-3).
-OBSERVE_TICK = 60
+# S1 FR-018 / S-D1 (revised 600 Maestro ticks, 4 units): >= 30 s after tick 0 at the floor and inside the 55 s active
+# window while the mean cycle stays <= ~0.085 s (measured 0.055-0.068 s). The driver episode (25 s) covers the
+# long-run stimulus profile (three standard cycles, 21 s, from ~1.5 s after the episode starts); events ~800 < 8192
+# and retained inputs ~1.3 MB (measured) < RETAINED_MAX.
+LONG_RUN_HORIZON, LONG_RUN_EPISODE_S = 600, 25.0
+# Observe before the cancel-paused cancel (>= 13.2 s after start) up to a ~0.15 s mean cycle, so that case always
+# completes observe before the cancel (S1c finding 19, MEDIUM-3): tick 24 comes ~5.6 s after start (finding 48).
+# S1c finding 48: the observe moves to tick 24, one tick before the freeze (below); ticks 1+ begin after start-up.
+OBSERVE_TICK = 24
 # The thaw must come <= cadence 5 s - health_scan_seconds 1.52 s = 3.48 s after the VCU's last health success
 # (S1c finding 18). Without the observe probe that success can be up to ~1.7 s (measured gap) before the freeze;
 # 10 ticks (0.50-1.00 s measured) keep the worst case inside the bound up to a ~0.15 s mean cycle (S1c findings 19
-# and 24). Tick 40 fell only 0.08-0.89 s after the stimulus throttle start (a ~3.45 s segment), so the freeze is
-# ~1.1-2.0 s into the segment (finding 22). It starts at tick 61, one tick after the observe at tick 60, so that
-# observe really probes the VCU (a frozen unit's probe returns its cached observation; finding 24, MEDIUM-1).
-# The case fails unless the freeze lies inside the throttle segment (finding 24, LOW-1).
-FREEZE_AT, FREEZE_TICKS = 61, 10
+# and 24). The freeze starts one tick after the observe, so that observe really probes the VCU (a frozen unit's probe
+# returns its cached observation; finding 24, MEDIUM-1), and the case fails unless the freeze lies inside the stimulus
+# throttle segment (finding 24, LOW-1). After the S1b adoption, the earlier tick 61 lay 2.79-3.84 s into the ~3.5 s
+# host-timed segment and ended past it once at load 9.2 (S1c finding 48). Placed from the recorded Argus tick clocks
+# and stimulus samples of ten runs (dev2-dev4; method in S1c finding 51, LOW-4), including the observe step's own
+# cost, tick 25 leaves about 0.9 s before and after the freeze.
+FREEZE_AT, FREEZE_TICKS = 25, 10
 RETAINED_MAX = 4 * 1024 * 1024  # ~2.2 KB per event, ~560 events at 400 ticks; above the 1 MiB default
 POLL = 0.05
+# S1c-2 part 2 (S1c finding 40; platform S1b, thesis FR-018). Every unit, the legacy VCU included, declares a TERM
+# grace of 0.6 s: inside ML-SCHEDULE-STOP-GRACE, grace + STOP_FORCE_RESERVE 0.5 <= NORMAL_SHARE 0.6 x per_unit_seconds 2
+# = 1.2 s. The graceful stop applies to the scheduled stop steps only; the terminal fence after a cancel stays forced
+# (platform D-1, thesis DR-7). Every unit's stderr is a private run-scoped file of at most 256 KiB (D-3, DR-9).
+STOP_GRACE_S = 0.6
+STDERR_CAPTURE = {"capture": "run-scoped-private", "maximumBytes": 256 * 1024}
+MARKER_PROBE = "nonce-marker"
+# The readiness window is W = min(probe-policy timeout, observe action timeout); three marker attempts span it, the
+# last at W - 0.25 s (platform S1b finding 10). With the fixture's 1 s timeout the last attempt would come 0.75 s after
+# release. The adapter is ready only once CARLA, its owned scenario and its link are set up: its owned-actor registry
+# was written 0.24-1.26 s after its release in the S1c-2 part 1 runs (load 6.3-8.5). The owned units' timeout is
+# therefore the declared observe budget. 2 s (attempts at 0, 0.875 and 1.75 s) left the adapter on its last attempt
+# once (S1c finding 44, M3). 3.5 s then let the start step reach the bootstrap lease under load, so a cancel had no
+# native close time left (S1c finding 45-46; platform S1b-stack findings 22-25, RA1/RA2/RA5). Maestro now admits a
+# marker window only if W <= 5 - (2 native close + op failure statement + 0.25) - op = 2.75 - 2 x 0.38 = 1.99 s, renews
+# the lease before a marker start step, and caps the window at run time against the lease (a cut is recorded as
+# ML-PROBE-WINDOW-CUT). The owned window is 1.7 s (attempts at 0, 0.725 and 1.45 s; DR-17, DR-19): its run-time slack
+# was 0.35-0.51 s, while 1.95 s left only 0.017-0.063 s under load (S1c finding 50, HIGH-1). The adapter's first run
+# after a CARLA server start can take 1.3 s to more than 1.7 s (findings 47-49); the soak therefore warms each server
+# up with one recorded, excluded run (DR-18 (2), narrowed by DR-19). Every owned unit's ready latency is recorded
+# (readyLatencyS). The VCU keeps the fixture's 1 s.
+OWNED_READINESS_TIMEOUT_S = 1.7
 ORDER = ("lite-driver", "carla-adapter", "legacy-vcu", "driver-stimulus")
 # the fixture's flow source starts first: the driver is the source of the actuation-command flow to the adapter
 RENAME = {"source-instance": "lite-driver-instance", "sink-instance": "carla-adapter-instance",
@@ -94,6 +129,14 @@ FIXTURE_TEXT = {  # declared text replaced so that the plan does not describe an
 ENVIRONMENT_DIGEST = pin(b"owned-environment")
 
 
+def _drain_facts(drain):
+    """Public fields of a platform drain record (BootstrapDrain or PersistenceDrain), for attribution only."""
+    from dataclasses import fields  # noqa: PLC0415  (every field, including the init=False defaults; finding 50 LOW-7)
+
+    return None if drain is None else {f.name: getattr(drain, f.name) for f in fields(drain)
+                                       if isinstance(getattr(drain, f.name), (bool, int, str, type(None)))}
+
+
 def _rename(value):
     text = json.dumps(value)
     for old, new in FIXTURE_TEXT.items():
@@ -107,6 +150,11 @@ def build_documents(defs, artifacts, horizon=HORIZON):
     """Derive the blueprint's XDL documents from the platform's validated fixture set."""
 
     docs = _rename(fixture_documents())
+    # S1b: process.stop and process.stderr exist in the runtime-compatibility profile v0.2 only; the fixture is v0.1.
+    # The profile document and every binding payload move to v0.2 as in the platform's own S1b tests (declare()).
+    profile = docs["runtime-profile.json"]
+    profile["metadata"]["version"] = "0.2.0"
+    profile["spec"]["schemaRef"] = "https://xverse.io/profiles/runtime-compatibility/v0.2/schema.json"
     system = docs["system.json"]["spec"]
     template_instance = next(i for i in system["componentInstances"] if i["id"] == "lite-driver-instance")
     template_node = system["nodes"][1]
@@ -129,12 +177,18 @@ def build_documents(defs, artifacts, horizon=HORIZON):
         binding["artifactIds"] = ["python310" if unit.executable.endswith("python3.10") else "python313"]
         payload = binding["extensions"]["io.xverse.runtime.compatibility"]
         payload["provider"] = {"id": "maestro-process-v1", "kind": "process"}
+        payload["schemaVersion"] = "0.2.0"  # profile v0.2 (above)
         # declared action budgets (the schedule uses them: use_action_timeouts); 5 s is the platform cap.
         # A killed legacy VCU (many zenoh threads) needs more than the fixture's 1 s to be reaped.
         for action in payload["actions"]:
-            action["timeoutSeconds"] = {"prepare": 2, "start": 5, "observe": 2, "stop": 5, "cleanup": 5}[action["phase"]]
+            action["timeoutSeconds"] = {"prepare": 2, "start": 5, "observe": 4, "stop": 5, "cleanup": 5}[action["phase"]]
         payload["process"] = {"executable": unit.executable, "arguments": list(unit.arguments), "workingDirectory": unit.working_directory,
-                              "environmentNames": sorted(unit.environment), "inheritedHandles": "closed", "implicitShell": False}
+                              "environmentNames": sorted(unit.environment), "inheritedHandles": "closed", "implicitShell": False,
+                              "stop": {"graceSeconds": STOP_GRACE_S}, "stderr": dict(STDERR_CAPTURE)}  # S1b, every unit
+        if unit.owned:  # S1b nonce-marker readiness for the owned units; the legacy VCU stays liveness-only (running)
+            for action in payload["actions"]:
+                if action["phase"] == "observe":
+                    action["condition"] = MARKER_PROBE
     scenario = docs["scenario.json"]["spec"]
     template = scenario["steps"][0]
     scenario["steps"] = []
@@ -241,11 +295,96 @@ def _argus_verify(root):
             "evidenceReasons": data.get("evidenceReasons"), "diagnostics": [d.get("code") for d in data.get("diagnostics") or []]}
 
 
+TERMINAL_RPC_KINDS = {"init", "terminal-report", "closure", "abort", "collect", "public-export", "public-blob"}
+
+
+def _persistence_timing(timings):
+    """The FR-002 per-event metric over ordinary persistence calls; start-up and terminal calls apart (S1a bench)."""
+
+    ordinary = [ns / 1e9 for kind, ns in timings if kind not in TERMINAL_RPC_KINDS]
+    terminal = [(kind, round(ns / 1e9, 4)) for kind, ns in timings if kind in TERMINAL_RPC_KINDS]  # all, in call order
+    if not ordinary:
+        return {"count": 0, "terminalCallsS": terminal}
+    ordered, n = sorted(ordinary), len(ordinary)
+    deciles = [ordinary[i * n // 10:(i + 1) * n // 10] for i in range(10)]
+    means = [sum(d) / len(d) for d in deciles if d]
+    return {"count": n, "p99S": round(ordered[max(0, int(n * .99) - 1)], 4), "maxS": round(ordered[-1], 4),
+            "firstDecileMeanS": round(means[0], 4), "lastDecileMeanS": round(means[-1], 4),
+            "lastDecileIncreaseS": round(means[-1] - means[0], 4), "terminalCallsS": terminal}
+
+
 def _digest(path):
     return "sha256:" + hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap_binary, tmp_path):
+def _short(unit_id):
+    """``lite-driver`` for ``xdl://...#componentInstances/lite-driver-instance``."""
+
+    return str(unit_id).rsplit("/", 1)[-1].removesuffix("-instance")
+
+
+def _stop_modes(native):
+    """Each unit's S1b ``stop_mode`` (``exited-on-term`` or ``forced``) from the recorded native closure facts."""
+
+    return {_short(u["unit_id"]): u.get("stop_mode", "field-absent") for u in native}
+
+
+def _readiness_probes(events):
+    """The probe identities of the unit-scope readiness (probe, ready) and health annotations in the Maestro Argus
+    stream (S1b: probe and ready carry the declared identity; health stays running)."""
+
+    out = {}
+    for line in events.read_text().splitlines():
+        x = (json.loads(line).get("extensions") or {}).get("xverse.maestro") or {}
+        if x.get("scope") != "unit" or not x.get("unitId") or x.get("action") not in ("probe", "ready", "health", "health-loss"):
+            continue
+        row = out.setdefault(_short(x["unitId"]), {"probe": [], "ready": [], "healthProbeIds": []})
+        if x["action"] in ("probe", "ready"):
+            row[x["action"]].append([x.get("outcome"), x.get("probeId")])
+        elif x.get("probeId") not in row["healthProbeIds"]:
+            row["healthProbeIds"].append(x.get("probeId"))
+    return out
+
+
+def _ready_latency(work, names):
+    """Seconds from the platform's challenge to the unit's ready file, per owned unit (mtimes; S1c finding 44, M3)."""
+
+    out = {}
+    for name in names:
+        try:
+            base = Path(work) / name / ".xverse-ready"
+            challenge = os.stat(base / "challenge", follow_symlinks=False).st_mtime_ns
+            ready = os.stat(base / "ready", follow_symlinks=False).st_mtime_ns
+            out[name] = round((ready - challenge) / 1e9, 3)
+        except OSError:
+            out[name] = None
+    return out
+
+
+def _stderr_sizes(directories):
+    """Sizes of the private stderr files (names and sizes only; never their content or their paths; D-3)."""
+
+    return {name: {e.name: e.stat(follow_symlinks=False).st_size for e in os.scandir(path)} for name, path in directories.items()}
+
+
+def stderr_directories(run_dir, names):
+    """S1b private stderr directories ``<run>/stderr-private/<unit>/``: mode 0700, empty, distinct, outside the
+    collection source root (the work root is on tmpfs, the run directory on loop10). The path is resolved, because
+    the platform opens it component by component without following links."""
+
+    root = Path(run_dir).resolve() / "stderr-private"
+    root.mkdir(mode=0o700)
+    root.chmod(0o700)
+    directories = {}
+    for name in names:
+        path = root / name
+        path.mkdir(mode=0o700)
+        path.chmod(0o700)
+        directories[name] = path
+    return directories
+
+
+def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap_binary, tmp_path, monkeypatch):
     run_dir = Path(os.environ["XVERSE_LIVE_RUN_DIR"])
     compat = Path(os.environ["XVERSE_COMPAT_SRC"])
     case = os.environ.get("XVERSE_LIVE_CASE", "nominal")
@@ -267,11 +406,15 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
     Path(socket_path).parent.mkdir(parents=True, exist_ok=True)
     plan_path = run_dir / "experiment-plan.json"
     # a 9.5 s driver episode covers the stimulus start offset (~1.5 s measured) and its 7 s profile
-    defs = unit_definitions(compat=compat, run_dir=run_dir, work=work, socket_path=socket_path, plan=plan_path, episode_s=9.5,
-                            pause_after_s=4.0 if case == "cancel-paused" else None)  # inside the throttle segment (review 2 N-3)
+    long_run = case == "long-run"
+    defs = unit_definitions(compat=compat, run_dir=run_dir, work=work, socket_path=socket_path, plan=plan_path,
+                            episode_s=LONG_RUN_EPISODE_S if long_run else 9.5,
+                            pause_after_s=4.0 if case == "cancel-paused" else None,  # inside the throttle segment (review 2 N-3)
+                            stimulus_profile="long-run" if long_run else "standard")
+    stderr_dirs = stderr_directories(run_dir, [d.name for d in defs])  # before any helper is reserved
     artifacts = {"python310": ("/usr/bin/python3.10", _digest("/usr/bin/python3.10")),
                  "python313": (defs[0].executable, _digest(defs[0].executable))}
-    horizon = HORIZON
+    horizon = LONG_RUN_HORIZON if long_run else HORIZON
     record["horizonTicks"] = horizon
     docs = build_documents(defs, artifacts, horizon)
     if case == "freeze-vcu":  # Phase 5 freeze (cgroup.freeze) of the legacy VCU unit; thaw on clear (automatic)
@@ -313,7 +456,8 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
                                         unit_plan.environment_identity, unit_plan.artifact_digests, permit_digest(permit),
                                         now - timedelta(seconds=30), now + timedelta(seconds=150)))
     # health capacity: period = cadence - n*op - (S+1)*op must exceed n*op; cadence <= 5 s, 4 units, S >= 4 (native controller) -> op < 0.385 s
-    schedule = admit_schedule(prepared, policies=tuple(ProbePolicy(u.unit_id, 5, 5, 1) for u in prepared.units),
+    readiness_timeout = {u.unit_id: 1 if "legacy-vcu" in u.unit_id else OWNED_READINESS_TIMEOUT_S for u in prepared.units}
+    schedule = admit_schedule(prepared, policies=tuple(ProbePolicy(u.unit_id, 5, 5, readiness_timeout[u.unit_id]) for u in prepared.units),
                               ticks=tuple(range(horizon + 1)), active_seconds=55, operation_seconds=0.38, service_operation_count=4, per_unit_seconds=2, poll_seconds=POLL,
                               request_limit=8192, event_limit=8192, use_action_timeouts=True)
     owned = [u for u in prepared.units if "legacy-vcu" not in u.unit_id]
@@ -337,20 +481,41 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
     images = tuple(seal_helper_image(p, digest=pin(p.read_bytes()), argv0=sys.executable if p == Path(sys.executable).resolve() else str(p))
                    for p in (binaries["launcher"], binaries["bound-gate"], Path(sys.executable).resolve(), authority_binary))
     supervisor = seal_helper_image(run_bootstrap_binary, digest=pin(run_bootstrap_binary.read_bytes()), argv0=str(run_bootstrap_binary))
+    lease = HostDeadline("host-session", time.monotonic() + 4.8)
     boot = encode_bootstrap(BootstrapAdmission(config.run_id, config.prepared.lifecycle_digest, "bootstrap-approval", ENVIRONMENT_DIGEST,
                                                supervisor.digest, manager._admission.teardown_deadline,
-                                               HostDeadline("host-session", time.monotonic() + 4.8), images[:3], images[3], manager._root_fd))
+                                               lease, images[:3], images[3], manager._root_fd))
     launcher = OriginalBootstrapRegistry(1).reserve(boot, supervisor, manager)
     by_name = {d.name: d for d in defs}
+    record["declaredControls"] = {"stopGraceSeconds": STOP_GRACE_S, "stderr": STDERR_CAPTURE, "ownedReadinessProbe": MARKER_PROBE,
+                                  "ownedReadinessTimeoutS": OWNED_READINESS_TIMEOUT_S, "perUnitSeconds": config.schedule.per_unit_seconds}
     admissions = tuple(UnitAdmission(BoundaryDescriptor(config.run_id, u.unit_id, 1, "work-" + str(i), 0),
-                                     tuple(sorted(by_name[u.binding_id.removesuffix("-binding")].environment.items())), 1)
+                                     tuple(sorted(by_name[u.binding_id.removesuffix("-binding")].environment.items())), 1,
+                                     stderr_directory=str(stderr_dirs[u.binding_id.removesuffix("-binding")]))
                        for i, u in enumerate(config.prepared.units))
     entry = _OriginalRuntimeRun(config, launcher, admissions, controller_sessions=1)
     active = HostDeadline(config.session, config.coverage.data(config.coverage.digest)["end"] - .01)
     reserve = config.schedule.terminal_reserve_seconds + config.collection.collection_seconds + config.collection.terminal_seconds
     terminal = HostDeadline(config.session, active.monotonic_seconds + reserve + 1 + .01)
     closure = HostDeadline(config.session, min(terminal.monotonic_seconds + 3, time.monotonic() + 89.5, config.generation_ns / 1e9))
-    scope = RuntimeScope(HostDeadline("host-session", time.monotonic() + 2), active, terminal, closure)
+    # start-up ends just inside the bootstrap lease (the platform's upper bound), not 2 s from now: the controller worker
+    # missed a 2 s start-up once at load 9-10 (platform S1b finding 2, GA-10; S1c finding 28)
+    scope = RuntimeScope(HostDeadline("host-session", lease.monotonic_seconds - 0.05), active, terminal, closure)
+    record["startupScopeS"] = round(lease.monotonic_seconds - 0.05 - time.monotonic(), 3)
+    # S1c finding 46, H3: the lease facts, relative to the run start, to attribute a start step that reaches the lease
+    record["leaseFacts"] = {"bootstrapLeaseFromStartS": round(lease.monotonic_seconds - record["monotonicStartNs"] / 1e9, 3),
+                            "startupScopeEndFromStartS": round(lease.monotonic_seconds - 0.05 - record["monotonicStartNs"] / 1e9, 3)}
+    rpc_timings = []  # client-side persistence round trips, as in the S1a bench (measurement only; S1 P6, FR-002)
+    original_rpc = PersistenceClient._rpc
+
+    def timed_rpc(self, kind, body, deadline, **kwargs):
+        began = time.monotonic_ns()
+        try:
+            return original_rpc(self, kind, body, deadline, **kwargs)
+        finally:
+            rpc_timings.append((kind, time.monotonic_ns() - began))
+
+    monkeypatch.setattr(PersistenceClient, "_rpc", timed_rpc)
     record["budgets"] = {"terminalReserveS": config.schedule.terminal_reserve_seconds, "reserveS": reserve,
                          "closureFromNowS": round(closure.monotonic_seconds - time.monotonic(), 2)}
     record["scope"] = {"activeS": round(active.monotonic_seconds - time.monotonic(), 2), "terminalReserveS": config.schedule.terminal_reserve_seconds}
@@ -396,6 +561,8 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
                           diagnostics=_fact(lambda: list(outcome.diagnostics)),
                           dispatchDiagnostic=_fact(lambda: outcome.dispatch.diagnostic if outcome.dispatch else None),
                           steps=_fact(lambda: list(outcome.dispatch.steps) if outcome.dispatch else None),
+                          # S1c finding 46: declared and capped readiness windows (platform RA1/RA2, finding 25)
+                          readinessWindows=_fact(lambda: list(outcome.dispatch.readiness_windows) if outcome.dispatch else None),
                           normalUnitRecordsComplete=_fact(lambda: outcome.closure.normal_unit_records_complete),
                           nativeUnits=_fact(lambda: list(outcome.closure.native_units)),
                           # S1 FR-017: the facts that attribute a closure outcome (research R-2); each is computed
@@ -409,6 +576,16 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
         record["workArtifacts"] = _fact(lambda: sorted(p.name for p in work.iterdir()))
         record["tickTiming"] = _fact(lambda: _tick_timing(tmp_path / "argus-maestro" / "events.jsonl", record["monotonicStartNs"]))
         record["argusMaestroVerify"] = _fact(lambda: _argus_verify(tmp_path / "argus-maestro"))
+        record["persistenceTiming"] = _fact(lambda: _persistence_timing(rpc_timings))
+        record["brokerCancelResult"] = _fact(lambda: entry._broker._cancel_result)  # confirmed or revoked (S1a-2 finding 24)
+        # S1c-2 part 2: TERM outcome per unit, private stderr sizes, readiness probe identities (S1c finding 40)
+        record["stopModes"] = _fact(lambda: _stop_modes(record["nativeUnits"])) if isinstance(record.get("nativeUnits"), list) else None
+        record["stderrPrivateBytes"] = _fact(lambda: _stderr_sizes(stderr_dirs))
+        record["readyLatencyS"] = _fact(lambda: _ready_latency(work, [n for n in ORDER if n != "legacy-vcu"]))
+        # S1c finding 46, H3: the reap facts of the bootstrap root and of the storage worker (None when not drained)
+        record["reapFacts"] = {"bootstrap": _fact(lambda: _drain_facts(entry._session._drained) if entry._session else None),
+                               "storage": _fact(lambda: _drain_facts(entry._storage._drained) if entry._storage else None)}
+        record["readinessProbes"] = _fact(lambda: _readiness_probes(tmp_path / "argus-maestro" / "events.jsonl"))
         if case == "freeze-vcu":
             record["freezeThrottle"] = _fact(lambda: _freeze_overlap(tmp_path / "argus-maestro" / "events.jsonl", run_dir / "stimulus.jsonl"))
         markers = {}
@@ -429,18 +606,36 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
             os.close(image.descriptor)
     # every case asserts its expected path (S1c findings 15 and 19, MEDIUM-1) and its Maestro Argus root (finding 22)
     verified = record.get("argusMaestroVerify") or {}
-    if case in ("nominal", "freeze-vcu"):
+    if case in ("nominal", "freeze-vcu", "long-run"):
         assert outcome.execution_succeeded and outcome.cleanup_complete and record["markersOk"], record.get("dispatchDiagnostic")
         assert verified.get("writerState") == "closed" and verified.get("evidenceStatus") == "complete", verified
     else:  # a failed writer whose only reason is its own state (proposed DR-6); P3 also allows closed (DR-2)
         assert verified.get("writerState") in (("failed", "closed") if case == "cancel-paused" else ("failed",)), verified
         assert set(verified.get("evidenceReasons") or []) <= {"ARGUS2-REASON-WRITER-STATE"}, verified
+    native = record.get("nativeUnits")
+    if isinstance(native, list):  # S1b: the field exists for every unit (platform S1b review MEDIUM-1 disposition)
+        assert all("stop_mode" in u for u in native), native
+    if case in ("nominal", "freeze-vcu", "long-run"):  # the owned units exit on TERM at their scheduled stops (FR-009)
+        modes = record.get("stopModes") or {}
+        assert all(modes.get(name) == "exited-on-term" for name in ORDER if name != "legacy-vcu"), modes  # the VCU: recorded only
+    if case in ("nominal", "freeze-vcu", "long-run", "cancel-paused"):  # every unit started: its private stderr exists (L4)
+        sizes = record.get("stderrPrivateBytes") or {}
+        assert all(0 <= (sizes.get(name) or {}).get("stderr-g1", -1) <= STDERR_CAPTURE["maximumBytes"] for name in ORDER), sizes
+    if case in ("nominal", "freeze-vcu", "long-run", "cancel-paused"):  # every unit started before any cancel
+        probes = record.get("readinessProbes") or {}
+        for name in ORDER:
+            expected = "running" if name == "legacy-vcu" else MARKER_PROBE
+            row = probes.get(name) or {}
+            assert row.get("ready") and all(p == expected for _, p in row.get("probe", []) + row["ready"]), (name, row)
+            assert row.get("healthProbeIds") in ([], ["running"]), (name, row)  # health stays liveness-only
     if case == "freeze-vcu":
         timing = record.get("freezeThrottle") or {}  # the freeze lies inside the throttle segment (finding 24, LOW-1)
         margins = (timing.get("startMarginS"), timing.get("endMarginS"))
         assert all(m is not None and m >= 0 for m in margins), timing
     if case == "no-carla":
-        assert record.get("dispatchDiagnostic") == "ML-RUN-CHILD-EXIT" and outcome.cleanup_complete, record.get("dispatchDiagnostic")
+        # DR-14 (S1c finding 43): with the nonce-marker probe, a missing simulator is a readiness failure
+        assert record.get("dispatchDiagnostic") in ("ML-RUN-CHILD-EXIT", "ML-PROBE-NOT-READY") and outcome.cleanup_complete, \
+            record.get("dispatchDiagnostic")
     if case == "cancel-paused":  # the case fails unless it exercised the cancel path
         assert "cancelReturnedMonotonicNs" in record and "cancelNotIssued" not in record, record.get("cancelNotIssued", "no cancel return")
         assert "cancellerAliveAfterJoin" not in record, "entry.stop still running after the join"  # S1c finding 22, LOW-1

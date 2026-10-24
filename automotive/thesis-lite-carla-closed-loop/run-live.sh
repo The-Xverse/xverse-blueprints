@@ -1,7 +1,7 @@
 #!/bin/bash
 # Lite CARLA closed-loop integration run (Phase 7; engineering integration, NOT AEB validation, NOT M1).
 #
-#   run-live.sh <case> [run-dir]      case: nominal | no-carla | cancel-paused | freeze-vcu
+#   run-live.sh <case> [run-dir]      case: nominal | no-carla | cancel-paused | freeze-vcu | long-run
 #
 # Preconditions: CARLA 0.9.15 on 127.0.0.1:2000 (except no-carla), a zenoh router on tcp/127.0.0.1:7447, no other
 # tick owner or actuator writer (checked: process names and established CARLA connections), clean candidate trees.
@@ -11,10 +11,15 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 . "$HERE/lib-live.sh"
 RUN=${2:-$L10/.x-verse-build/runs/xverse-lite-live-20261022/lite-$(date +%Y%m%dT%H%M%S)-$CASE}
 export XVERSE_PLATFORM_SRC=${XVERSE_PLATFORM_SRC:-$L10/.x-verse-build/cache/xverse-lite-live-20261022/platform-src}
+export XVERSE_LIVE_DRIVER_VENV=$VENV  # units.py builds the owned units' PYTHONPATH from the same venv
 require_compat || exit 4
 export XVERSE_COMPAT_SRC
-export XVERSE_LIVE_RUN_DIR=$RUN XVERSE_LIVE_CASE=$CASE
-mkdir -p "$RUN/carla-home"
+# S1c finding 49 (H2): the units' run directory is staged on tmpfs during the run, because an fsync on the loop10 image
+# stalled a unit before its readiness marker; cleanup() copies it into the loop10 evidence directory.
+STAGE=/dev/shm/xverse-lite-run-$(basename "$RUN")
+[ -e "$STAGE" ] && { echo "BLOCKED: a stage left by an earlier run exists: $STAGE (finding 50, LOW-8)"; exit 4; }
+export XVERSE_LIVE_RUN_DIR=$STAGE XVERSE_LIVE_CASE=$CASE
+mkdir -p "$RUN/carla-home" "$STAGE"
 exec > >(trap '' INT TERM; exec tee "$RUN/run-live.log") 2>&1  # the log survives a Ctrl-C of the group (S1c finding 7)
 echo "case=$CASE run=$RUN started=$(date -Is) wall_epoch_ns=$(date +%s%N)"
 OBS=; PYTEST=not-run;  # S1c finding 11 R4-1: an interrupted run never shows a harness exit it did not have
@@ -25,9 +30,16 @@ cleanup() {  # runs on every exit path, including an interrupt (review 1 R-7); a
   trap - EXIT; trap '' INT TERM PIPE  # a second signal or a closed log must not cut the guard short (S1c finding 7)
   ps -eo pid=,comm=,args= | awk '$2 !~ /^(bash|sh|grep|ps|awk|timeout|tee)$/' | grep -E 'xverse_compat_carla.main|xverse_compat.live|-B main.py' > "$RUN/residue-processes.txt"
   echo "residue processes: $(wc -l < "$RUN/residue-processes.txt")"
+  if [ -d "$STAGE" ]; then  # before the guard, which reads the owned-actor registry (finding 49); removed only if copied
+    if cp -a "$STAGE"/. "$RUN"/; then rm -rf "$STAGE"; echo "staged run directory copied from $STAGE"
+    else COPY_FAILED=1; echo "staged run directory NOT copied; left in place at $STAGE"; fi
+  fi
+  REGISTRY="$RUN/owned-actors.json"  # the copied registry; the stage's own copy if the copy failed (finding 50, LOW-8)
+  # after a failed or partial copy the stage's own registry is used, even if a truncated copy exists (finding 53, LOW-7)
+  { [ ! -f "$REGISTRY" ] || [ -n "${COPY_FAILED:-}" ]; } && [ -f "$STAGE/owned-actors.json" ] && REGISTRY="$STAGE/owned-actors.json"
   if [ "$CASE" != no-carla ] && [ -s "$RUN/world-before.json" ]; then  # residue first, then the guard (skipped after a BLOCKED preflight, review 2 N-5)
     (cd "$XVERSE_COMPAT_SRC/src" && env -i PATH=/usr/bin HOME="$RUN/carla-home" /usr/bin/python3.10 -s -B -m xverse_compat_carla.restore \
-       --carla-site "$SITE" --settings-from "$RUN/world-before.json" --owned-registry "$RUN/owned-actors.json") > "$RUN/restore-guard.json"
+       --carla-site "$SITE" --settings-from "$RUN/world-before.json" --owned-registry "$REGISTRY") > "$RUN/restore-guard.json"
     echo "restore-guard exit=$? $(cat "$RUN/restore-guard.json")"
     sleep 1
   fi
@@ -51,9 +63,10 @@ record_revisions "$RUN" "blueprint=$HERE" "compat=$XVERSE_COMPAT_SRC" || exit 4
 {
   echo "compat-src $XVERSE_COMPAT_SRC"  # the checkout actually used (S1 FR-014)
   echo "platform-src $(cat "$XVERSE_PLATFORM_SRC/.export-revision" 2>/dev/null || echo unknown)"
+  echo "driver-venv $VENV"
   sha256sum /usr/bin/python3.10 /home/jefferson/.pyenv/versions/3.13.13/bin/python3.13 /usr/bin/zenohd \
     "$L10/.x-verse-build/cache/xverse-compat-wheels/carla-0.9.15-cp310-cp310-manylinux_2_27_x86_64.whl" \
-    "$L10"/.x-verse-build/cache/xverse-lite-live-20261022/wheels/*.whl
+    "$(dirname "$VENV")"/wheels/*.whl  # the wheels of the venv actually used (S1c finding 44, M1)
   legacy_identity legacy-vcu /home/jefferson/autoverse/vecu/vcu_zenoh
   sha256sum /home/jefferson/autoverse/vecu/vcu_zenoh/src/*.py
   cat /home/jefferson/carla-simulator/VERSION 2>/dev/null | head -1
