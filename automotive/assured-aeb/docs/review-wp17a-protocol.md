@@ -229,3 +229,17 @@ No pytest, external numerical framework, real record/pin, live execution, approv
 The full platform regression still owns the heavy-test slot. Run the finding 3 focused and owning-suite commands when
 that slot is released, then independently re-review this repaired delta and its exact-source evidence before acceptance.
 Global inventory/qualitative audit, projection membership and actual pilot/run-kind bindings remain 17b/17f gates.
+
+## Finding 6: independent parent successor review, PASS; full suite queued (2026-10-24)
+
+Reviewed worker successor `d1446c77cf571c36a04cf14b6d787938a59deb80` against separate design `798c259` and
+independent finding 3. The parent did not author this successor. Balanced-marker removal and token boundaries
+refuse the stated wrapped project markers while preserving ordinary final prose. The exact UTC ordering key
+compares integer date/time and normalized fractional strings; it does not truncate to datetime microseconds.
+Reviewed the private-copy entry API and schemas/documentation changes. No product repair was made in this pass.
+
+Tiny direct checks independently exercise the original wrapped markers, all three sub-microsecond chronology
+boundaries, trailing-zero equality, arbitrary precision, neighboring fractional ordering and entry-copy isolation.
+All pass, and `git diff --check` passes. No pytest or heavy check was started while platform regression is active.
+R17a-1/R17a-2 are closed at source-review level. Full schema/owning-suite verification remains mandatory before
+acceptance. Actual membership/provenance audit and pilot/run-kind composition remain the recorded downstream gates.
