@@ -126,3 +126,38 @@ those before decoding.4c must independently admit that report's expected digest;
 not an identity source. Keep the lower-level decoder as bounded structural validation of supplied bytes, and use
 it on freshly generated own bytes before writing. Add a public-reader case replacing both descriptor and blob with
 a different structurally valid/rehashed package: unchanged external expected report pins must still refuse.
+
+## Finding 4: completed source candidate and performed checks (2026-10-24)
+
+Implemented only the four designed offline modules and separate stage binding. Final four-module closure is
+`009804472ccd52670758bd9ee21595a4f9520c47e85dda770d3f3420a692c6eb`;
+unchanged4a closure is `d83ba1f5e7ce1056d82a924157aad617d64db84862e4be4005abf47fcf1a3e32`.
+Actual job/location/source/namespace/environment admission precedes framework imports. Exact record-driven network,
+owned sorted uniform initialization, explicit CPU SGD, seeded metadata-order streaming batches, all-example loss,
+selection-only checkpoints, finite guards, actual engineering memory/file/timeout limits and named float32 artifacts
+are source-complete. Start/end code/preprocessing/environment checks and namespace stability precede output.
+External expected descriptor/blob pins prevent a valid but different co-located weight package satisfying an
+unchanged admitted report. No unchanged-input/hostile-source attestation beyond the stated immutable-input scope.
+
+Coordinator confirmed purpose separation: unchanged4a reads/verifies all partition frames for bounded admission;
+4b preprocessing/fit/checkpoint computation reads fit/selection respectively. **No zero-held-out-I/O claim.**
+The genuine driver rebinds actual held-out bytes/labels/manifest/job, not just a fake wrapper, and must show identical
+fit order/epoch losses/checkpoint/named weights. Initial calibration/test byte integrity never selects model state.
+
+Checks actually performed:53 tiny stdlib controls across four passes (33 initial admission/order/loss/weight/
+corruption/output/public-refusal checks,5 import-path/output-cleanup checks,11 genuine integration-fixture
+preparation/admission checks,4 external expected weight-pin checks). Actual source metadata only from the existing
+training identity/lock was read; no environment tree walk or framework import occurred. Final source/tests compile
+with compile()/AST without bytecode; current whitespace diff and unchanged4a source comparison pass. One new
+allowlist probe initially omitted stdlib from its simulated sys.path and failed while sysconfig imported its own
+stdlib data; the fixture was corrected, and the5-control successor passed. No production fallback was added.
+
+Written but **not run**: owning pytest suite and genuine driver (three successful fresh isolated fits plus one
+nonfinite refusal). Actual two-head torch construction, uniform/SGD APIs and updates, peak resource feasibility,
+pinned import-tree stability, fresh-process bit identity, genuine held-out invariance and refusal behavior are
+unverified runtime hypotheses pending the coordinator's queue. Source checks are not those results. No training,
+NumPy image execution, export/ONNX/ORT import, download, factory/C1/live operation, acceptance, merge or4c work.
+
+Next gates: parent4a suite/acceptance; independent4b source review; coordinator-admitted genuine worker driver and
+owning suite; then separate reviewed4c export/raw-logit worker.4d/4e/#5/#7/AD27 and real scientific choices remain
+open. Keep this exact candidate pinned for review; no running queue is silently retargeted.
