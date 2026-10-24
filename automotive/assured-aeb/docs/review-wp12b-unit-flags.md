@@ -93,3 +93,106 @@ None of the last three has happened yet.
 5. **Out of scope.** No unit, simulator, Maestro run or live run; no download; the Phase 7/S1 units are not changed
    (a declared 1.0 limit until after the soak); the unit modules `assured_aeb.units.*` still do not exist (WP-13 to
    WP-17); no protocol value is introduced.
+
+## Finding 2: implementation result (2026-10-24 16:05:32; commit `7b92e22`; report `docs/evidence/wp12b-check-7b92e22.json`)
+
+1. **What changed** (`7b92e22`, on `e68a514`).
+   - `topology.py`: constants `INTERPRETER_FLAGS = ("-S", "-s", "-B")`, `FIXED_ENVIRONMENT =
+     {"PYTHONDONTWRITEBYTECODE": "1"}`, `INFERENCE_UNIT = "adas-hpc"` and `INFERENCE_ENVIRONMENT` (the template's three
+     settings); functions `unit_module`, `unit_arguments`, `fixed_environment`, `unit_environment(unit, site_packages,
+     *, home, extra_paths=())` and `environment_names`. `deployment()` now emits `unit_arguments(unit)` and
+     `environment_names(unit)`, and adds one evidence limitation stating the flags and the `PYTHONPATH` composition.
+     Standard library only; nothing is imported from the WP-08b branch.
+   - `check_topology.py`: `REQUIRED_FLAGS`, `REQUIRED_NAMES` and `INFERENCE_NAMES` stated as literals, independently
+     of the generator; `check_unit_command(docs)` and the new check `unit-commands` (8 arm/form cases and the 7-unit
+     variant), run after `drift`. No existing check changed.
+   - `xdl/<arm>/<form>/deployment.json` (all 8) regenerated with the **recorded** pins (`T.write(T.read_pins())`), so
+     `xdl/pins.json` is unchanged. The base `pins` check showed no host drift. No other document changed.
+   - `tests/test_topology.py`: 112 new test cases:
+     - the argv and names test over every unit of the generated documents (4 arms × 2 forms, plus the 7-unit
+       variant) and of the committed documents;
+     - a coverage test (every unit of every arm, including `chassis-brake`, is seen);
+     - `unit_environment` for each of the 7 units (site-packages first, names equal to the keys, inference settings
+       only on `adas-hpc`);
+     - no default `home`;
+     - 4 negative cases of the check (`-B` only, missing `PYTHONDONTWRITEBYTECODE`, an extra name, reordered flags).
+2. **Results (offline; host load 5.7 to 7.8).**
+   - Blueprint suite: `XVERSE_PLATFORM_PROFILES=<scratch rc.1 export of 64ff9d3eb>/xdl/profiles
+     /dev/shm/compat-p6-venv/bin/python -I -m pytest -q -p no:cacheprovider tests`: **399 passed** (287 at base,
+     plus 112). `__pycache__` was removed afterwards, and none remains.
+   - `check_topology.py`: exit 0 with **59 checks** passed (50 at base, plus 9 `unit-commands`).
+   - Mutation probes (each restored byte-for-byte afterwards, checked with `cmp`), over the new tests and the drift
+     test:
+
+     | Probe | Result |
+     | --- | --- |
+     | P1 `INTERPRETER_FLAGS = ("-B",)` | 54 failed |
+     | P2 `FIXED_ENVIRONMENT = {}` | 61 failed |
+     | P3 site-packages last in `PYTHONPATH` | 7 failed |
+     | P4 inference settings on every unit | 51 failed |
+     | P5 checker `REQUIRED_FLAGS = ["-B"]` | 4 failed (the negative cases) |
+     | P6 a default `home` | 1 failed |
+
+3. **Old and new values.**
+   - Plan digests (V01, deterministic over two compilations in both runs):
+
+     | Arm | Form | `18201fe` | `7b92e22` |
+     | --- | --- | --- | --- |
+     | comparator | topology | `1ee2a677a8f0…` | `4b278fad86c7…` |
+     | comparator | maestro | `3035c05ab0da…` | `5c42cb216c93…` |
+     | mloc | topology | `4932d1c5dbe4…` | `351920ca9c50…` |
+     | mloc | maestro | `555991157a9b…` | `4e8bee49df0d…` |
+     | authorization-bypass | topology | `815f7c5d0015…` | `43cca03b749a…` |
+     | authorization-bypass | maestro | `d49c237656b0…` | `cf47983619c0…` |
+     | verification-bypass | topology | `d940d9d55d9c…` | `59e5ed8af8a7…` |
+     | verification-bypass | maestro | `c00a4e2e8de0…` | `66ed5c00dafc…` |
+
+     The full values are in the base report (scratch) and in `docs/evidence/wp12b-check-7b92e22.json`.
+   - `deployment.json` sha256, base → new: comparator topology `22c6bd8d…` → `a8d35b8a…`, maestro `58bee16f…` →
+     `9dce82ab…`; mloc topology `a134b38c…` → `509181fd…`, maestro `b748acfb…` → `0a7d6fdf…`;
+     authorization-bypass topology `f1eb6585…` → `32302328…`, maestro `51d3d292…` → `30b1ec15…`;
+     verification-bypass topology `edc7ccbd…` → `ca34314d…`, maestro `9143823c…` → `e275d4f8…`.
+   - Encoded persistence-configuration bytes (full Maestro form, admission dry run):
+
+     | Arm (units) | op | `18201fe` | `7b92e22` | Δ |
+     | --- | --- | --- | --- | --- |
+     | comparator (5) | 0.29 | 150 053 | 151 263 | +1 210 |
+     | mloc (6) | 0.29 | 174 586 | 176 025 | +1 439 |
+     | mloc-7unit (7) | 0.25 | 186 358 | 188 026 | +1 668 |
+     | slim, 5 / 6 / 7 | 0.29 / 0.29 / 0.25 | 65 951 / 75 605 / 87 866 | 67 161 / 77 044 / 89 534 | |
+
+     The growth is about 240 B per unit, mostly the new limitation string. **Observation:** the dry-run size varies by
+     a few bytes between runs of the same commit (7 units at op 0.2 s: 188 049 and then 188 051), because the
+     synthetic permit nonce contains `time.time_ns()`. The values above are from the committed report.
+   - Against C1's proposed 262 144 B bound, the 7-unit full form leaves a margin of **1.394×** (1.407× at `18201fe`).
+4. **Downstream records that pin the old values** (none is edited here; each needs its owner's update):
+   - thesis `decisions.md` row "WP-12 forms and C1 sizing" (146 458 / 170 503 / 182 302 B; "about 1.44× margin").
+     These figures were already out of date at `5e53a54` (186 358 B, 1.407×). Recommended update: 151 263 / 176 025 /
+     188 026 B at `7b92e22`, margin 1.394×, citing this finding.
+   - `docs/review-wp12.md` findings 5 and 6 and `docs/evidence/wp12-check-5e53a54.json`. These are historical evidence
+     of `5e53a54` and stay as they are.
+   - platform `review-c1.md` finding 1: its `phase8` stand-in declares three environment names and the Phase 7
+     argument vector. The real form now declares four names (seven on U4) and two more arguments. This is inside the
+     "longer Phase 8 names and arguments" that its margin covers, and the measured 188 026 B is the input C1 should
+     cite.
+   - thesis `design/wp10-fault-relay.md` cites blueprints main `5f71cde` for the fault-admission code. It does not
+     cite a form digest, so no pin breaks. WP-10 #5 (wiring) should cite the forms after WP-12b merges.
+   - Nothing else pins a WP-12 plan digest or `deployment.json` digest: a search of thesis `specs/002-assured-aeb`
+     and of this blueprint's docs found only the records above.
+5. **Correction to finding 1 D-3.** The reason given there, "no other unit loads ONNX Runtime or a BLAS (WP-11
+   §4.1)", overstates its source. WP-11 §4.1 allocates modules, not packages. The supporting evidence is an import
+   scan:
+   - the current `assured_aeb/*.py` modules import only the standard library;
+   - the compat sources import `numpy` or `onnxruntime` only in `xverse_compat/inference/` (the U4 code).
+
+   The design is unchanged: the three inference settings stay on U4 only, as in the template. **Residual R-1:** if a
+   later unit imports `numpy` (for example the U1 CARLA client or the U2 imaging stage), whether its thread settings
+   are fixed must be decided in that unit's increment.
+6. **Residuals.**
+   - **R-2.** The unit modules `assured_aeb.units.*` and their venvs do not exist yet (WP-13 to WP-17). The harness that
+     calls `unit_environment` comes with them. No `-S` launch of a Phase 8 unit has been exercised.
+   - **R-3.** `-S` also removes `site`'s `.pth` processing for the unit venv itself. A venv whose packages need
+     `.pth` files (namespace or editable installs) will not import under `-S`. Each unit venv must be checked for
+     this when it is built (as WP-08 and WP-09 #3 did for U4).
+   - **R-4.** The Phase 7/S1 units are unchanged (a declared 1.0 limit; S1e after the soak).
+7. **Status.** This is ready for an independent read-only review. It has not been reviewed, accepted or merged.
