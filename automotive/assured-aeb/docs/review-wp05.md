@@ -380,3 +380,72 @@ example, 20 ms becomes 50 ms on a 50 ms step), and the declaration states both v
 5. **Time-base split:** absolute stamps on messages; episode-relative grid and noise.
 
 The next step is a focused re-review of `7a8d8cd`, then acceptance and merge. Neither has happened.
+
+## Finding 6: independent re-review of findings 4 and 5 (2026-10-24 12:00:37)
+
+**Reviewer and method.**
+- The finding 3 reviewer, read-only. Read `a896477`, `7a8d8cd` and `14a988b` against `28c7b5c`, with the
+  thesis `decisions.md` row "AD-30 delivery rule" (284).
+- Commands:
+  - `tests/test_motion_sensor.py`: 49 passed;
+  - the whole suite with the rc.1 profiles: 123 passed;
+  - `check_topology.py`: exit 0.
+- Probes ran in a scratch directory, never in the worktree:
+  - the pre-fix module (`git show 329eaf4:…/motion_sensor.py`) and the repaired one, run on the PAIR-1
+    trajectory;
+  - 20 000 noise draws;
+  - quantisation edge cases.
+- Nothing in the worktree changed except this entry. No CARLA, no live run.
+
+### Verdict: **PASS WITH NOTES. Nothing blocks the merge.**
+
+### Items
+- **HIGH-1: closed.**
+  - `slot = (originNs − episodeOriginNs) // samplingPeriodNs` (motion_sensor.py 190), and the noise is
+    keyed by that slot. The absolute `originNs` and `deliverAtNs` are kept.
+  - `bind_origin` (149) binds once: the same value is idempotent, and a different value, a non-integer,
+    a negative or a bool is refused.
+  - Before binding, every item is refused (`origin-unbound`, 180), and an item before the origin is
+    refused (`before-episode`, 183).
+  - Probe with the test's trajectory (100 ms grid, world epochs 1000 s and 1600.03 s): **pre-fix pair
+    equal: False; post-fix pair equal: True**. `test_pair1_with_two_different_world_epochs` therefore
+    detects the defect.
+  - Note that, run as written against `329eaf4`, that test fails at `bind_origin`, before its assertion.
+    The probe above shows that the substantive assertion fails too.
+- **LOW-1: closed.**
+  - The noise uses Box–Muller, cosine branch, over `u1 = 1 − random()` ∈ (0, 1] and `u2 = random()` (111)
+    from a fresh integer-seeded `random.Random`. `gauss` and `normalvariate` are absent (AST test).
+  - The stability argument is correct for the generator: CPython keeps the `random()` sequence stable
+    for an integer seed. See LOW-A for the transcendental functions.
+  - Probe of 20 000 draws at σ 1: mean 0.003, standard deviation 1.008, max |x| 4.22. This is
+    consistent with N(0, 1).
+- **LOW-2: closed.**
+  - The wording "the first frame in each slot" is corrected in place, and a test pins the frames sampled
+    on a 100 ms grid.
+  - `quantise` (115) rounds to an integer number of quanta (ties-to-even), then to the quantum's
+    decimal places. For example, 9.95 at 0.01 gives exactly `9.95`, and 0.125 at 0.25 gives `0.0`.
+- **LOW-3 and LOW-4: closed** against the AD-30 delivery rule.
+  - The row requires delivery at the first step boundary at or after `deliverAtNs`, a declaration of
+    each latency "together with its delivered, rounded value", episode-relative keying with the origin
+    bound late and no default, and absolute stamps kept for joins.
+  - Finding 5 and the module docstring state each of these, and `latencyNs` covers the element's WP-12
+    `computeLatency`, so the delay is declared once.
+- **Residuals 1–5** are accurate. Residual 3 correctly names `bind_origin(episode_ns)`.
+
+### New notes (LOW, not blocking)
+- **LOW-A: bit-exactness still depends on libm.** `math.log`, `math.sqrt` and `math.cos` come from the
+  platform C library. The `random()` stream is version-stable, but a different libm (glibc version) may
+  differ in the last ulp. Quantisation hides this except when a value sits at a rounding boundary.
+  Record the pinned host libm (glibc 2.35 on loop10, as WP-08's identity record does) as a
+  reproducibility condition.
+- **LOW-B: quantisation of near-ties follows the binary value.** `quantise(9.95, 0.1)` gives `9.9`,
+  because `9.95 / 0.1` is 99.4999… in binary. That is deterministic and correct for the binary input,
+  but "no float artefacts" applies to the output digits, not to decimal rounding of the input. A
+  wording note only.
+- **LOW-C: same derivation as WP-04 finding 9, LOW-B.** Bind from `episode_ns`, or in `on_motion` from
+  `motion["originNs"] − round(sim_s·1e9)`, never from the first motion item seen by the sensor. If the
+  first frame carries no motion item, the grid would otherwise start late.
+
+### Recommendation
+Ready for acceptance and merge. Record LOW-A as a reproducibility condition, and LOW-C in the WP-10
+wiring item.
