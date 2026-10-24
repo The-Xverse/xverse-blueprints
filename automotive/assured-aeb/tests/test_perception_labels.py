@@ -235,7 +235,12 @@ def test_provenance_and_no_pixels():
     provenance = label["provenance"]
     assert provenance["observerSha256"] == hashlib.sha256(data).hexdigest()
     assert data.decode().splitlines()[provenance["observerLine"] - 1].startswith('{"frame": 5')
-    assert provenance["labelCodeSha256"] == hashlib.sha256((HERE / "assured_aeb/perception/labels.py").read_bytes()).hexdigest()
+    closure_files = ("labels.py", "scenario.py")  # delegated LOW-2: named, ordered source closure
+    assert L.LABEL_CODE_FILES == closure_files
+    closure = [{"file": name, "sha256": hashlib.sha256((HERE / "assured_aeb/perception" / name).read_bytes()).hexdigest()}
+               for name in closure_files]
+    expected_code = hashlib.sha256(json.dumps(closure, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    assert provenance["labelCodeSha256"] == expected_code
     assert provenance["labelParamsDigest"] == params().digest
     assert label["rawSha256"] == items([5])[0]["rawSha256"]
     assert all(not isinstance(v, (bytes, bytearray)) for v in label.values())

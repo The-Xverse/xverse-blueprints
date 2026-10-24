@@ -846,3 +846,12 @@ closure membership/order as well; do not merely compare the value to the product
 hash helper. Keep the observer, parameter, frame and no-pixel assertions. No product, parameter, manifest or original
 snapshot change is needed. Run the corrected tiny direct test and syntax/diff checks only; the coordinator retains
 the heavy execution slot and must repeat the full owning suite on the new exact revision before acceptance.
+
+## Finding 12: narrow provenance test repair completed; full rerun pending (2026-10-24)
+
+The sole stale expectation now independently hashes the explicitly named two-file source closure and checks its
+membership/order. No product file or scientific value changed. The genuine `label_run`-backed
+`test_provenance_and_no_pixels` passes when called directly; the changed test module compiles and
+`git diff --check` passes. No pytest runner or framework inference/training was run. The previous **526 passed**
+result belongs to `92dfe5a`, not this repair; repeat the complete owning suite on the new candidate. Independent
+review, acceptance and merge remain outstanding, with all recorder #6 and training-consumer notes preserved.
