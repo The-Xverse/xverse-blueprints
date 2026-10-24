@@ -350,3 +350,70 @@ author's review.
 | LOW-1 | Repair and record | The reader-side future-origin guard (HIGH-1). State the end-to-end delay: about two simulator steps from the arbiter's decision to actuation, plus `computeLatencyNs` |
 | LOW-2 | Record | A WP-10 item: a start-up deadline for the first F17 command, after which the hub calls `mark_lost` |
 | LOW-3 | Record | Residual 2 is decided: `decisions.md` "WP-04 fault status" (`injected-fault` is evidence-only; any brake-path fault is injected at the U2 hub relay) |
+
+## Finding 5: result of the finding 4 repairs (2026-10-24 11:45:31; repair commit `f19407f`)
+
+**Commands.** `tests/test_brake_esc.py`: 46 passed (42 before). Whole blueprint suite with
+`XVERSE_PLATFORM_PROFILES`: 120 passed. `check_topology.py`: exit 0. Host load 5.0. No live run, no CARLA;
+the loop10 worktrees and the pinned live environment were not touched.
+
+**HIGH-1, repaired.**
+- **One time base.** Every `*Ns` stamp of the node, the chassis zone and F17 is the absolute CARLA world
+  simulation clock in integer nanoseconds (as the compat items). WP-03's `sim_s` is episode-relative.
+- **The reader.** `BrakeCommandReader(params, *, episode_origin_ns)` requires the world time of the
+  episode's first ticked frame, set by the U2 loop. It has no default and refuses `None`, non-integer,
+  negative or bool values. The age is `episode_origin_ns + round(sim_s·1e9) − originNs`.
+- **Future origin.** A negative age returns `None`: not deliverable, so WP-03 cuts throttle and holds
+  the brake.
+- **Tests.**
+  - Construction is refused without an origin.
+  - With the world at 1000 s, a command 50 ms old gives 1.0 and a command 10 s old gives `None`. The
+    pre-fix module (`862c5eb`), run in scratch, **returned `1.0` for the 10 s-old command**, so this test
+    fails before the fix.
+  - A future origin gives `None`.
+  - The chain at a 1000 s epoch still gives `[0.0, 0.0, 0.0, 1.0, 1.0]`, and after U5 falls silent the
+    reader returns `None` one window later, not a stale 0.0.
+- **WP-10 obligation.** The U2 loop must know the episode origin before the first driver call, and
+  construct the reader with it.
+
+**MEDIUM-1, recorded.**
+- Finding 1's "second line" sentence is corrected in place, with a marker and the original text. No
+  value above 1 reaches WP-03 through F17.
+- **WP-13/WP-14 obligation.** The functional arbiter's output contract is a value in [0, 1], clamped at
+  the source with a recorded flag. The node's `out-of-range` rejection is then a detector, not a path.
+- **Two-way hold.** A rejected apply keeps an earlier release in force, and a rejected release keeps an
+  earlier brake. The node's `rejected` statuses (reason, sequence, `atNs`) are evidence the oracle needs
+  to explain a held brake, or a missed one, that no arbiter request explains (V34).
+
+**LOW-1.**
+- The reader-side future-origin guard is in place (HIGH-1).
+- **End-to-end delay.** The arbiter's request at simulator step *k* is accepted at *k* (intra-unit). F17
+  reaches the reader at *k + 1* (one hub step). WP-03 decides with the previous frame and the command is
+  applied over the next step. The request therefore first acts about **two simulator steps** after it
+  is decided, plus `computeLatencyNs`. This enters the AD-30 latency declaration and the AD-07 deadline
+  table.
+
+**LOW-2, recorded for WP-10.** A start-up deadline for the first F17 command: if none arrives in time,
+the hub calls `mark_lost`, so the reader returns `None` instead of 0.0 indefinitely (FR-041 requires a
+request every cycle). Its value is a protocol value (AD-07).
+
+**LOW-3.** Residual 2 is decided: `decisions.md` "WP-04 fault status" (11:38) makes `injected-fault`
+evidence-only and places any brake-path fault at the U2 hub relay.
+
+**Residuals (replaces finding 2's list).**
+1. **Protocol values:** the node's and the reader's `stalenessWindowNs` (AD-06, AD-07), `computeLatencyNs`
+   (AD-30) and the first-F17 start-up deadline (AD-07), from the frozen AD-27 record.
+2. **Decided:** "WP-04 fault status". There is no hook in Phase 8.
+3. **Wiring (WP-10, WP-13, WP-14):**
+   - the hub's F17 delivery, `mark_lost`, the start-up deadline, and the episode origin passed to the
+     reader before the first driver call;
+   - the U5 program, with a request every decision cycle (FR-041);
+   - the run command (WP-03 B-4).
+4. **Arbiter output contract:** [0, 1] clamped at the source (WP-13/WP-14).
+5. **Two-way hold:** a rejected apply keeps a release, and a rejected release keeps a brake. The node's
+   rejections are oracle evidence (V34). Their Argus emission belongs to ED-12.
+6. **End-to-end delay:** about two simulator steps plus `computeLatencyNs`, declared under AD-30 and
+   AD-07.
+7. **No acknowledgement to the arbiter.** If WP-13 needs one, it is a topology change.
+
+The next step is a focused re-review of `f19407f`, then acceptance and merge.
