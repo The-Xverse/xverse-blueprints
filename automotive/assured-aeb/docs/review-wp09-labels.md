@@ -150,3 +150,52 @@ evidence only.
 3. The WP-02b lateral-offset target for the negatives.
 4. The planar model: pitch and roll are ignored, and the pinhole vertical field of view.
 5. The installed maps (P-2).
+
+## Finding 2: implementation result (2026-10-24 15:28:57; commit `f095817`)
+
+**What was added (standard library only).**
+- `assured_aeb/perception/labels.py`: `LabelParams`, `parse_observer`, `geometry` (with the separating-axis
+  `rectangles_intersect`), `distance_bin` and `label_run`.
+- `assured_aeb/perception/manifest.py`: `build_manifest`, `check_manifest` and `manifest_digest`.
+- `assured_aeb/perception/store.py`: `FrameStore`.
+- **Tests:** `tests/test_perception_labels.py`, `tests/test_perception_manifest.py` and
+  `tests/test_perception_store.py`: 56 tests.
+
+**Commands.**
+- The three new files: 56 passed.
+- The whole blueprint suite with the rc.1 profiles: 227 passed.
+- `check_topology.py`: exit 0. The WP-12 documents are unchanged.
+- Host load 8.9, from other work on the host. No download, no CARLA, no live run. The frame store ran only on
+  pytest temporary directories; the loop10 paths and the pinned live environment were not touched.
+
+**Results against the design (finding 1).**
+
+| Item | Result |
+| --- | --- |
+| Parameters §1.1 | The corridor, the bin edges and the camera come from an exact record with no defaults. Eight malformed variants are refused. The camera values are asserted equal to the configured ones (`CAMERA_MOUNT` (1.5, 0, 2.4); 800 × 600 at 90°). `label_run` refuses unvalidated parameters |
+| Distance §1.2 | For an aligned target 30 m ahead: `(30 + 0.1 − 2.2) − (0 + 2.4) = 25.5` m, both bounding-box offsets as in WP-02 R-2. A target yawed by 90° uses its half-width as the longitudinal half-size (26.7 m). With ego and target both facing +y, the frame rotates correctly (25.5 m) |
+| Corridor and visibility §1.2 | A lateral offset of 4 m is outside the corridor but visible, so it is not an obstacle: the WP-02b negative, with the two fields disagreeing measurably. A footprint touching the 1.5 m half-width counts. A target behind is neither in the corridor nor visible. A target 60 m below the camera is in the corridor but not visible (vertical field of view). A target at 120 m is beyond the corridor range |
+| Bins §1.2 | `overlap` at d ≤ 0, then `bin-0` to `bin-2` at the edges, with the edge in the upper bin, and `beyond` from the last edge. `no-obstacle` whenever the obstacle flag is false |
+| Join and exclusions §1.3 | A run without a target gives `no-obstacle` negatives. Ambiguous, non-finite and absent declared targets, a missing observer record, an unobserved ego and a missing bounding box are excluded and counted by reason. A header that is not evaluation-only v2 is refused |
+| Provenance §1.4 | Each label carries the observer file's SHA-256, the 1-based line of its frame record (verified against the file), the SHA-256 of `labels.py` itself, the parameter-record digest and the joined `rawSha256`. No bytes |
+| Offline only | An AST scan of every module outside `assured_aeb/perception/` and `tests/` (at least five modules) finds no import of the perception or label code |
+| Manifest §1.5 | A good manifest is admissible. Its digest is the dataset identity: deterministic and sensitive to one frame digest. Refused: spawn point 1, an evaluation seed, a seed in two splits, a frame digest in two runs, a duplicate run id, an unknown split, missing run members, a frame with its own split member, a malformed digest, and an empty or altered evaluation block. A shared segment is reported, not refused. No pixels |
+| Frame store §1.6 | Round trip under `<root>/<sha[:2]>/<sha>.zlib`, with no temporary file left behind, and idempotent. The digest and the declared length are verified on `put`, and the digest again on `get` (a tampered entry fails). The free-space floor refuses and nothing is written. Bad parameters and a relative root are refused. Records carry digests and sizes only |
+
+All extents, corridor values, bin edges, seeds and floors in the tests are labelled test values.
+
+**Residuals.**
+1. **Protocol values (AD-27, P-4).** The corridor half-width and range, the bin edges (after D-1/D-2), the
+   free-space floor, and the evaluation seed list. The P-4 training, calibration and test seed lists are
+   recorded before their first run.
+2. **Live data** (D-3 under E8-3a; increment #6): real observer v2 files and recorded frames. The recorder that
+   feeds `FrameStore` from verified WP-06 frames belongs to increment #6.
+3. **WP-02b**, the lateral-offset target, is needed for real out-of-corridor negatives. The labels already
+   handle it.
+4. **Declared model limits:** planar geometry (pitch and roll ignored, flat AD-04 road); visibility judged on the
+   nearest footprint corner with a pinhole vertical field of view; no occlusion test (one target).
+5. **Installed maps and segments** for training (P-2; engineering verification).
+6. **The loop10 dataset root** (design §2) is given by the caller and is never defaulted. Its first use is a
+   live D-3 activity.
+
+The next step is an independent read-only review of `f095817`, then acceptance and merge. Neither has happened.
