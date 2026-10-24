@@ -388,3 +388,83 @@ review.
 | LOW-2 | Repair | The radar plausibility tolerance adds the descriptor's rounding half-unit (6 decimals for altitude and azimuth, 3 for depth and velocity; compat `sensors.py` 62). Test at a 35° field of view |
 | LOW-3 | Record | Complete the fidelity limits: the first and last pixels take zeros; two flooring passes bias the blur by up to −(w − 1)/2w levels per pass; the inverse-CDF noise is truncated at about ±2.9σ |
 | LOW-4 | Record | The host libm (`math.log`, `math.sqrt` in `NormalDist.inv_cdf`) is a reproducibility condition, beside the interpreter pin |
+
+## Finding 5: result of the finding 4 repairs (2026-10-24 15:19:30; repair commit `f1eb4cf`)
+
+**Commands.** The three module test files: 82 passed (64 before). Whole suite with the rc.1 profiles: 253
+passed. `check_topology.py`: exit 0. Host load 5.5. No CARLA, no live run; the loop10 paths and the pinned live
+environment were not touched.
+
+**MEDIUM-1, recorded and repaired.**
+- **Tool limit.** `imageops.MAX_BOX_LOG2 = 4` applies to the stage's `boxLog2` and the camera's
+  `sharpnessBoxLog2`. It is enforced in `box_blur` and in both records, and recorded as a tool limit, not a
+  protocol value.
+- **Re-measured on 800 × 600 BGRA** (engineering observation only, at load about 5): blur 2^2 took 38 ms,
+  blur 2^4 70 ms, and the smart-camera statistics 50 ms. Even at the limit, blur takes longer than the
+  50 ms step. The per-frame budget is therefore a D-4c measurement, and numpy for U2/U3 may become
+  necessary (residual 4).
+- **Obligations stated in `camera_chain.py`** (WP-10/WP-13):
+  - the hub delivers F05 at a simulation time independent of the stage's processing duration;
+  - no role unit derives an indicator from host time.
+
+**MEDIUM-2, repaired.**
+- The high-frequency variance is computed on the interior only (`imageops.interior`), excluding the
+  2^(s−1) margin, where the box has no wrapped or zero contribution.
+- A uniform frame now gives exactly 0, with `stdLuma` 0, at levels 0, 1, 37, 128, 200 and 255 and at
+  sharpness boxes 2^1 and 2^2 (test).
+- The stage-side blur darkening (zero edges) is declared in the `box_blur` docstring.
+
+**MEDIUM-3, repaired.**
+- New upper bounds `maxStdLuma` and `maxHighFrequencyVariance` (class (iii), D-3; no defaults). The
+  statistical names are now `std-luma-low`/`std-luma-high` and `high-frequency-low`/`high-frequency-high`.
+- **Each AD-31 kind is tested against its check:**
+
+  | Kind | Check it trips |
+  | --- | --- |
+  | blur (2^3) | `high-frequency-low` |
+  | darkening exposure | `mean-luma` |
+  | occlusion | `dark-fraction` |
+  | brightening exposure | `bright-fraction` |
+  | noise (σ 60) | `std-luma-high` and `high-frequency-high` |
+  | dropout | the logical `sequence-gap` (existing test) |
+
+**LOW-1, repaired.**
+- The camera record refuses min ≥ max for mean luma, the luma spread and the high-frequency variance, and
+  fraction thresholds outside [0, 1]. The radar record refuses `minCount ≥ maxCount`.
+- `maxAgeNs` is removed from both sensors' checks. The age bound is the front zone's AD-06 freshness window.
+  The age stays an indicator and a logical check (future origin), and a test asserts that no age threshold
+  remains in the camera checks.
+
+**LOW-2, repaired.**
+- Radar class (ii) adds the adapter's rounding half-unit: 0.5e-6 rad for altitude and azimuth, 0.5e-3 for
+  depth and velocity (compat `sensors.py` 62).
+- At a 35° field of view, the raw azimuth 0.30543261 rounds to 0.305433, above the raw bound plus
+  `ANGLE_TOLERANCE`. It is now plausible; before the repair it gave a false `detection-out-of-specification`.
+  0.3060 is still refused (test).
+
+**LOW-3 and LOW-4, recorded** in the `imageops` docstrings.
+- The first and last pixels of the frame, and the rows beyond the top and bottom, take zeros.
+- Two flooring passes bias the blur by up to −(w − 1)/2w levels per pass.
+- The noise is truncated at about ±2.9σ (`inv_cdf(0.5/256)`) and rounded to whole levels.
+- Reproducibility depends on the interpreter pin and the host libm (`math.log` and `math.sqrt` in
+  `NormalDist.inv_cdf`).
+
+**Residuals (replaces finding 2's list).**
+1. **Protocol values** (AD-27): the corruption severities, event times and seed; the camera statistics
+   parameters and class (iii) bounds, now including `maxStdLuma` and `maxHighFrequencyVariance`; the radar
+   count bounds; the front-zone AD-06 windows; the frame format.
+2. **Wiring (WP-10, WP-13):**
+   - frames by reference;
+   - F05 to F09 delivery under the AD-30 delivery rule, at a simulation time independent of processing
+     duration;
+   - no host-time indicator in any role unit;
+   - `bind_origin`;
+   - the choice of adapter radar flow.
+3. **Fidelity limits:** the box approximation with its edge wrap, zero edges and darkening; the flooring
+   bias; the noise truncation and rounding; the luma stride; radar class (ii) as a second check.
+4. **Host budget:** the per-frame budget of the stage and the smart camera (D-4c). numpy for U2/U3 may be
+   needed: blur at the tool limit (70 ms) exceeds the step.
+5. **Reproducibility:** the interpreter pin (`randbytes`/`getrandbits`) and the host libm.
+6. **Evidence emission:** ED-12.
+
+The next step is acceptance and a merge. Neither has happened.
