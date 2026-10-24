@@ -390,3 +390,17 @@ exercise a valid frame, but those named malformed-input regression cases need a 
 Recommend `_spool_file(tmp_path)` in the contradictory-class, extra-class, front-integrity and earlier invalid-input
 setups, then demonstrate that the pre-repair diagnostic logic fails them. This is a TEST-ONLY setup repair; do not
 change production diagnostics, thresholds or methods to make a test pass. Coordinator disposition is pending.
+
+## Finding 10: coordinator-approved TEST-ONLY non-vacuity repair design, before code
+
+The coordinator approved supplying valid frames in malformed-input regression setups. Also replace the earlier
+invalid-input test's raising-only inference stub with a call-recording, otherwise valid result: production deliberately
+converts inference exceptions into unknown evidence, so a swallowed assertion alone cannot prove inference was never
+called. Assert an empty call list explicitly. No production module or threshold changes.
+
+After repair, re-run the exact seven direct named controls plus the earlier malformed-input parameter cases. For a
+cheap negative control, load the historical pre-R13ML-1 camera module from `8eda0f8` into an isolated in-memory module;
+run the decisive malformed-check cases with valid spool frames and require assertions to fail. Keep the current
+source untouched, restore any test namespace/module aliases afterwards, and import no pytest/numerical framework.
+This proves the new regression setup detects the independent finding, rather than merely reaching a later missing
+frame or catching an inference-stub exception. Full owning/numerical suites remain separately pending.
