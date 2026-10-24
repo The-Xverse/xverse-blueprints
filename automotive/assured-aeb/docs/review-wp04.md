@@ -417,3 +417,70 @@ evidence-only and places any brake-path fault at the U2 hub relay.
 7. **No acknowledgement to the arbiter.** If WP-13 needs one, it is a topology change.
 
 The next step is a focused re-review of `f19407f`, then acceptance and merge.
+
+## Finding 6: independent re-review of findings 4 and 5 (2026-10-24 11:48:04)
+
+**Reviewer and method.**
+- The finding 3 reviewer, read-only. Read `3b645b4`, `f19407f` and `3674c6b` against `583bc72`, with
+  compat `live/loop.py` 83–129 at `855878a` for the caller's order.
+- Commands:
+  - `tests/test_brake_esc.py`: 46 passed;
+  - the whole suite with the rc.1 profiles: 120 passed;
+  - `check_topology.py`: exit 0.
+- One in-memory probe: the conversion at a 600 s episode with a 1000 s world epoch. Nothing in the
+  worktree changed except this entry. No CARLA, no live run.
+
+### Verdict: **PASS WITH NOTES. Nothing blocks the merge.**
+
+HIGH-1 is repaired, and MEDIUM-1 and LOW-1 to LOW-3 are recorded as disposed. One wiring point
+(MEDIUM-A) must be settled in WP-10 before the reader is used. The merge still awaits acceptance.
+
+### Items of finding 3
+- **HIGH-1: closed.**
+  - `BrakeCommandReader(params, *, episode_origin_ns)` (brake_esc.py 243) requires an integer,
+    non-negative, non-bool origin and has no default.
+  - The age is `episode_origin_ns + round(sim_s·1e9) − originNs` (279), and a negative age returns
+    `None` (280).
+  - Probe at a 600 s episode on a 1000 s world: with `sim_s` computed as `loop.py` 115 does, a command
+    50 ms old is served. The window edge (100 ms) is fresh, and the edge plus 1 ns is `None`, so the
+    float round trip is exact at this scale.
+  - The new tests cover the refused constructions, stale versus fresh at the 1000 s epoch, a future
+    origin, and the chain at that epoch (`[0.0, 0.0, 0.0, 1.0, 1.0]`, then `None` one window after U5
+    falls silent).
+  - Finding 5 records that the pre-fix module returned 1.0 for the 10 s-old command.
+- **MEDIUM-1: closed (recorded).**
+  - Finding 1's sentence is corrected in place with a marker and the original text (line 76–78).
+  - The arbiter's [0, 1] output contract is a WP-13/WP-14 obligation (residual 4).
+  - The two-way hold is residual 5, with the node's rejections as V34 oracle evidence.
+- **LOW-1: closed.** The future-origin guard is in the reader, and the end-to-end delay (about two
+  simulator steps plus `computeLatencyNs`) is residual 6, for AD-30 and AD-07.
+- **LOW-2: closed (recorded for WP-10).** The start-up deadline for the first F17, with `mark_lost`, is a
+  protocol value (AD-07), in residuals 1 and 3.
+- **LOW-3: closed.** Residual 2 cites the "WP-04 fault status" decision.
+
+### New notes (none blocking)
+- **MEDIUM-A: the WP-10 obligation "construct the reader with the episode origin before the first driver
+  call" cannot be met as stated.**
+  - In `LiteVehicleLoop.run` the first `command_source(sim_s, last_motion)` call is at tick 0 (loop.py
+    94), *before* the first `link.tick()` (98). `episode_ns` is set only from that first frame (114).
+  - `ArbitratedDriver(params, brake_request)` is built before `run()` starts, so the reader must exist
+    before the origin is known.
+  - The reader does not need the origin until it holds a command: it returns 0.0 before the first one.
+    The cleanest fix is therefore a late binding:
+    - `set_episode_origin(ns)`, settable once;
+    - `__call__` returns `None` if a command is held while the origin is unset (fail-closed);
+    - the hub sets the origin from the first frame's `originNs`, which is the loop's `episode_ns`.
+  - Alternatively, WP-10 must obtain the world time of the first frame by another declared path before
+    the loop starts.
+  - Record this in residual 3, or repair it now. It does not block, because nothing wires the reader yet.
+- **LOW-A: a future-origin command displaces an older, still-fresh one.**
+  - `deliver` replaces `newest` with any newer-sequence command, even one whose `originNs` lies in the
+    reader's future. The reader then returns `None` (throttle cut, brake held) until that origin is
+    reached, instead of serving the previous fresh value.
+  - This is fail-closed, but it perturbs the driver whenever `computeLatencyNs` exceeds the hub delay.
+  - Optional: keep the previous command until the new one's origin is reached. Otherwise state in
+    residual 6 that the hub delivers F17 only at or after `originNs`.
+
+### Recommendation
+Ready for acceptance. Record MEDIUM-A in residual 3 (or adopt the late binding), and decide LOW-A or
+state it.
