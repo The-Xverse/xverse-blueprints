@@ -122,6 +122,9 @@ REAL_STOP = run_soak.stop_server
 
 @pytest.mark.parametrize("kw, status", [
     (dict(carla=True, healthy_before=True, after={"healthy": False, "synchronousMode": True}, audit_pass=True, script_exit=0, load_max=1), "FAIL"),
+    # DR-21: a synchronous world after the cleanup is a restore failure even when the server answers
+    (dict(carla=True, healthy_before=True, after={"healthy": True, "synchronousMode": True}, audit_pass=True, script_exit=0, load_max=1), "FAIL"),
+    (dict(carla=True, healthy_before=True, after={"healthy": True, "synchronousMode": False}, audit_pass=True, script_exit=0, load_max=1), "PASS"),
     (dict(carla=True, healthy_before=True, after={"healthy": False}, audit_pass=True, script_exit=0, load_max=1), "INVALID"),
     (dict(carla=True, healthy_before=False, after={"healthy": True}, audit_pass=False, script_exit=1, load_max=1), "INVALID"),
     (dict(carla=True, healthy_before=True, after={"healthy": True}, audit_pass=True, script_exit=1, load_max=1), "FAIL"),

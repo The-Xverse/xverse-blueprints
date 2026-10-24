@@ -106,10 +106,12 @@ def _audit(script_dir: Path, run_dir: Path) -> dict:
 
 def classify(*, carla: bool, healthy_before: bool, after: dict | None, audit_pass: bool, script_exit: int,
              load_max: float) -> str:
-    """A run's soak status (DR-12): a restore failure and any failed verdict are FAIL; a server-side health failure is
-    INVALID; a passing run above the load limit is an OBSERVATION."""
+    """A run's soak status (DR-12, DR-21): a restore failure (a synchronous world after the cleanup) and any failed
+    verdict are FAIL; a server-side health failure is INVALID; a passing run above the load limit is an OBSERVATION."""
     after = after or {}
-    restore_failure = carla and not after.get("healthy") and after.get("synchronousMode") is True
+    # DR-21 (stricter than DR-12): the guard always ends asynchronous, so a synchronous world after the cleanup is a
+    # restore failure whether or not the (non-ticking) health check found the server answering
+    restore_failure = carla and after.get("synchronousMode") is True
     if restore_failure:
         return "FAIL"
     if carla and not (healthy_before and after.get("healthy")):
