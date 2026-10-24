@@ -208,3 +208,130 @@ protocol value is set.
 
 The next step is an independent read-only review of `9e9b15b`, then acceptance and merge. Neither has
 happened.
+
+## Finding 3: independent review of findings 1 and 2 (2026-10-24 11:41:26)
+
+**Reviewer and method.**
+- An independent, read-only reviewer who did not write this increment.
+- Read `574207b`, `9e9b15b` and `862c5eb` against base `7851c47`, and checked them against:
+  - thesis FR-033, FR-041, V26 and V34, AD-17 B, AD-14 E2, §J and §K, the `decisions.md` row "WP-04 fault
+    status" (283), and `design/wp12-xdl-topology.md`;
+  - compat `driver_profile.py` and `live/loop.py` at main `855878a`, and review-wp03 B-3.
+- Commands (`/dev/shm/compat-p6-venv/bin/python -I`, rc.1 profiles from a scratch `git archive` export):
+  - `tests/test_brake_esc.py`: 42 passed;
+  - the whole blueprint suite: 116 passed;
+  - `check_topology.py`: exit 0.
+- Two in-memory probes: a non-zero simulation epoch, and an out-of-range apply request. Nothing in the
+  worktree changed except this entry. No CARLA, no live run, no unit process.
+
+### Verdict: **FAIL: one HIGH issue blocks the merge** (a small repair)
+
+The node, the chassis zone and the vocabulary are sound. The reader's staleness rule does not work
+against the time base of its declared caller.
+
+### Confirmed
+- **State machine** (brake_esc.py 164–223).
+  - Every delivered request gives `received`, then either `rejected` with exactly one reason, or
+    `accepted` followed by `forwarded` and one F17 command.
+  - Rule order: malformed (including bool, NaN and non-integer stamps), wrong-source (source or route),
+    out-of-range, stale (age above the window, or a future origin; the boundary itself is fresh), and
+    replayed (sequence ≤ the last accepted).
+  - A rejection never advances `last_accepted_sequence`, and a zero request is accepted and forwarded as a
+    release.
+- **V26.** Only the declared status and command members exist. `check_vocabulary` rejects a wheel-speed
+  member, an `applied` member, an `applied` status, or a foreign node. `injected-fault` is never emitted,
+  which matches the evidence-only decision of `decisions.md` 283.
+- **Forwarding.** The module imports only `dataclasses`, `math` and `typing`, writes nothing to CARLA,
+  and emits only F17. A test binds it to the WP-12 element outputs, F17 and its hub delay.
+- **No defaults.** Both parameter records are exact-member records. The window is a positive int, the
+  latency a non-negative int, and a bool is refused. Both constructors require a validated record.
+- **Chassis zone.** It routes only the arbiter's well-formed request and re-stamps source, route and
+  `receivedNs`. It refuses others with `route-refused`, forwards motion evidence unchanged, and records
+  status. It has no authority.
+- **Reader against B-3.** It returns 0.0 before the first command and for a fresh release, the fresh value
+  otherwise, and `None` after `mark_lost` or when the newest command is older than the window. Each of
+  these holds *in one time base*; see HIGH-1.
+
+### Issues
+
+**HIGH-1: the reader compares an episode-relative time with an absolute command origin, so staleness
+never fires in the real chain.** This blocks the merge.
+- Where: brake_esc.py 260–269; compat `live/loop.py` 83 and 114–115 at `855878a`.
+- `ArbitratedDriver` calls `brake_request(sim_s)` with the loop's `sim_s`, which is
+  `(frame_ns − episode_ns) / 1e9`: seconds since the episode's first ticked frame.
+- The node stamps F17 `originNs` in "integer nanoseconds as in the compat items" (finding 1 §1.1). Those
+  are `seconds_to_ns(elapsed_seconds)`, the absolute CARLA world clock, which is far from 0 at episode
+  start on a running server.
+- The reader computes `age = round(sim_s·1e9) − originNs`, which is then hugely negative, and it has no
+  `age < 0` guard.
+- Probe, with the world at 1000 s at the episode's first frame: a command forwarded at 1000.05 s is
+  returned as `1.0` at relative 0.1 s, **and still `1.0` at relative 10.1 s, when it is 10 s old**.
+- The only time-based path to WP-03's invalid-request behaviour (throttle 0, hold the last brake) is
+  therefore dead. Examples:
+  - after a release, a frozen or silent U5 (the CC-1 freeze) leaves the reader returning a stale 0.0
+    indefinitely, so the driver keeps accelerating;
+  - a stale brake value is held as if it were fresh.
+- The offline chain test (test_brake_esc.py 221–237) starts both clocks at 0, which hides the mismatch.
+- Repair:
+  - declare one time base on F17 and in the reader: episode-relative ns as WP-03 uses, or absolute with
+    the reader given the episode origin;
+  - treat `age < 0` as stale (`None`) or as not yet deliverable, not as fresh, which also covers R-5;
+  - add the chain test with a non-zero epoch.
+
+**MEDIUM-1: a rejected out-of-range *apply* leaves the release in force. The WP-03 clamp is not a second
+line on this path.** Not blocking.
+- Where: brake_esc.py 184–185 and 212–214; finding 1 §1.3.
+- The node rejects instead of clamping, which is defensible for a status node: the `rejected` status is
+  in the FR-033 vocabulary. But a rejected request forwards nothing, so the last forwarded command stands.
+- Finding 1 records only the safe direction ("a rejected release holds the brake").
+- Probe: a 0.0 request, then `1.0000001` (a float overshoot) every cycle. Every apply is rejected
+  `out-of-range`, and the reader returns 0.0 for one window and then `None`. The vehicle therefore keeps
+  the driver throttle for a window, then coasts with brake 0, and it never brakes.
+- WP-03 clamps values above 1, but no value above 1 ever reaches it through F17. Finding 1's "WP-03
+  still clamps a value above 1, as a second line" is therefore not true for the brake path. The two rules
+  are consistent only if the arbiter never emits a value above 1.
+- FR-041 will count such cycles as missing acceptances, so the offline measure sees the failure. The
+  physical outcome is still a missed brake.
+- Repair or record:
+  - WP-13 or WP-14 make the functional arbiter's output contract [0, 1] (clamp at the source, with a
+    recorded flag), and the node's rejection becomes a detector;
+  - correct the "second line" sentence;
+  - state the asymmetric hold in the residuals: a rejected apply keeps a release, and a rejected release
+    keeps a brake.
+- The rejected-release-holds-brake rule is conservative in the AD-04 family, which has no following
+  traffic. The braking it holds is attributed to no arbiter request, so the oracle needs the node's
+  rejections as evidence to explain it (V34).
+
+**LOW-1: R-5, delivery timing.**
+- The future-origin case is better closed in the reader than delegated to the hub (part of the HIGH-1
+  repair).
+- The end-to-end timing should be stated once for AD-30 and AD-07:
+  - the arbiter's request at step *k* is accepted at *k* (intra-unit);
+  - F17 reaches the reader at *k + 1* (hub delay);
+  - WP-03 decides with the previous frame (its R-5);
+  - the command is applied over the next step.
+
+  So a request first acts about two simulator steps after it is decided, plus `computeLatencyNs`. The
+  chain test shows only the hub step.
+
+**LOW-2: no first command within a startup bound is not detected.** As B-3 requires, the reader returns
+0.0 indefinitely before the first command. If U5 never produces F17 (for example, it is frozen or never
+started), the driver approaches with no AEB and no invalid signal. Because FR-041 requires a request on
+every cycle, WP-10 could declare a startup deadline for the first F17 and call `mark_lost` when it
+passes. Record it for WP-10.
+
+**LOW-3: residual 2 is now decided.** `decisions.md` 283 (11:38) makes `injected-fault` evidence-only and
+places any brake-path fault at the U2 hub relay. Residual 2 should cite that decision instead of
+"DECISION NEEDED".
+
+### Residuals 1 to 6
+- Residuals 1, 3, 4 and 6 are accurate.
+- Residual 2 is superseded (LOW-3). Residual 5 is incomplete (LOW-1).
+- Missing: the time-base contract of HIGH-1 and the asymmetric hold of MEDIUM-1.
+
+### Recommendation
+- Repair HIGH-1 with a non-zero-epoch chain test and an `age < 0` rule.
+- Record MEDIUM-1: the arbiter range contract for WP-13/WP-14, the corrected "second line" sentence and
+  the asymmetric-hold residual.
+- Record LOW-1 to LOW-3.
+- Then a focused re-review, followed by acceptance and merge.
