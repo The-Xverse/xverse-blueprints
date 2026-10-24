@@ -39,7 +39,7 @@ def projection(threshold=0.5):
               "fusion.associationToleranceM": 1.0, "aeb.distanceUncertaintyM": 0.5, "aeb.speedUncertaintyMps": 0.5,
               "aeb.latencyNs": 100, "aeb.decelerationMps2": 6.0, "aeb.marginM": 1.0, "aeb.brakeLevel": 1.0,
               "aeb.releaseSpeedMps": 0.5, "aeb.releaseAbsentCycles": 3,
-              "arbiter.requestFreshnessNs": 1000, "arbiter.holdWindowNs": 1000, "arbiter.mrcSource": "none"}
+              "arbiter.requestFreshnessNs": 1000, "arbiter.holdWindowNs": 1000}
     return P.Projection(dict(schema=P.PROJECTION,protocolRecordSha256="d"*64,unit="adas-hpc",entries=values))
 
 
