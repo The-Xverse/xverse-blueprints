@@ -258,3 +258,33 @@ directly and passed: `test_genuine_typed_chain_has_only_nominal_candidate_and_ac
 `test_runtime_import_and_authority_boundary`. Source/test AST checks and `git diff --check` also passed.
 No pytest, numerical framework, durable Argus store, simulator/socket, download, factory or live run was executed.
 The full suite remains deferred to the coordinator's recorded command/scheduler. No acceptance/merge is performed.
+
+## Finding 5: R14e-1/R14e-2 repair design before code (2026-10-24)
+
+Repair independent finding4 from `5c30d49009b298a1249440edd896cf42592ca214`, original source `947af51`.
+The coordinator disposition requires one complete call per canonical simulator cycle for **each** role: both
+`now_ns` and `step` must strictly advance after the first accepted call. A duplicate time, duplicate step or
+regression is a caller-clock ContractError before any role/stream/cache/watermark/decision/output/event effect.
+Invalid calls do not consume incoming IDs or advance a clock. An accepted call, including no-output/rejection,
+consumes that canonical cycle; source/goal/proposal IDs do not permit another same-cycle call. 14f must collect
+each role's whole inbox and invoke that role once per cycle. No new rate, interval, deadline or numeric parameter.
+
+For an admitted ambiguous objective batch, call the existing rejection path once per member. Every individually
+canonical Delivered payload retains its actual message ID, payload digest and available objective ID; noncanonical
+bytes retain only the existing small diagnostic digest, no invented binding/reference. Preserve the prior goal,
+stream acceptance state and output sequence. Every event still uses the existing RoleEvents rejection kind,
+local ownership/causation, explicit byte bound and append-failure poisoning; no schema or authority change.
+If a later append fails, propagate and leave the writer poisoned rather than claim a complete rejection package.
+
+Batch-count bounding proposal sent to the coordinator: reuse the existing admitted maximum_accepted_messages
+as a maximum objective-batch member count, refusing oversized caller batches before clock/effects. Its value stays
+explicit and is an engineering capacity, not a chosen number. Await that narrow disposition before implementing
+the count guard; per-member existing serialization bounds are already decided.
+
+Regressions: both roles called twice with distinct fresh actual IDs/sequences at the same step/time; one coordinate
+advancing while the other repeats; exact pre/post state/event equality for refused calls and successful next
+strictly advancing cycle using the unconsumed ID. An initially empty valid call also consumes the cycle. Use real
+typed objectives/configurations and genuine fusion/radar producers. Ambiguous valid and mixed noncanonical batches
+must preserve each real reference and prior goal; append failure must remain poisoned. Update old tests which
+expected repeated same-cycle no-output to assert caller refusal instead. Only stdlib direct probes/AST/diff checks;
+no pytest/framework/heavy work, acceptance or merge. Sol/high remains the recommended repair/re-review profile.
