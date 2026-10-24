@@ -55,8 +55,13 @@ def prepare(root, args, *, mutate_held_out=False, nonfinite_loss=False):
 
 
 def run(root, output, args, *, expect_success=True):
-    # The driver is the genuine parent seen by unshare's exec worker. Never synthesize a namespace number.
-    parent = os.readlink("/proc/self/ns/net")
+    # Actual original handles remain owned through capture/cleanup and close on every return/exception.
+    with W.captured_parent_namespaces() as (parent, descriptors, observe):
+        return _run_with_namespaces(root, output, args, expect_success=expect_success,
+                                    parent=parent, descriptors=descriptors, observe=observe)
+
+
+def _run_with_namespaces(root, output, args, *, expect_success, parent, descriptors, observe):
     site = json.loads(Path(args.identity).read_bytes())["sitePackages"]
     source = Path(__file__).resolve().parents[1]
     compat_source = Path(args.compat_source).resolve()
@@ -67,18 +72,21 @@ def run(root, output, args, *, expect_success=True):
            "TORCHINDUCTOR_CACHE_DIR": str(args.scratch / "cache/inductor"), "TRITON_CACHE_DIR": str(args.scratch / "cache/triton")}
     command = ["unshare", "-rn", args.python, "-S", "-s", "-B", "-m", "assured_aeb.perception.training_worker",
                "--job", str(root / "job.json"), "--locations", str(root / "locations.json"), "--stage", str(root / "stage.json"),
-               "--identity", args.identity, "--lock", args.lock, "--parent-netns", parent, "--output", str(output), "--max-record-bytes", "1000000"]
+               "--identity", args.identity, "--lock", args.lock, "--parent-namespace-proof", canonical(parent).decode(),
+               "--output", str(output), "--max-record-bytes", "1000000"]
     def identity():
         paths = {name: root / name for name in ('job.json', 'locations.json', 'stage.json')}
         paths.update(identity=Path(args.identity), lock=Path(args.lock), driver=Path(__file__))
+        observed = observe()
+        assert observed == parent, "original parent namespace proof changed during worker capture"
         return dict(files={name: sha(path.read_bytes()) for name, path in paths.items()},
                     stageSourceClosureSha256=W.code_digest(), admissionSourceClosureSha256=T.code_digest(),
-                    parentNetns=os.readlink('/proc/self/ns/net'))
+                    parentNamespaceProof=observed)
     completed = capture_attempt(command, environment=env, cwd=source, directory=root,
                                 timeout_seconds=args.timeout, term_seconds=args.cleanup_term_seconds,
-                                kill_seconds=args.cleanup_kill_seconds, identity_reader=identity,
+                                kill_seconds=args.cleanup_kill_seconds, identity_reader=identity, pass_fds=descriptors,
                                 context=dict(purpose='TEST-ONLY-synthetic-training4b', expected_success=expect_success,
-                                             output=str(output), parent_netns=parent))
+                                             output=str(output), parent_namespace_proof=parent))
     assert completed['capture_complete'], f"worker capture failed; inspect {root / 'worker-execution.json'}"
     with (root / 'worker.stderr').open('rb') as stream:
         stream.seek(0, os.SEEK_END)

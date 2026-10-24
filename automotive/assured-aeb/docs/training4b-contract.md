@@ -10,10 +10,27 @@ job/location/stage bytes, validates the fresh worker/paths, enforces explicit en
 the genuine dataset and verifies the environment before numpy/torch imports. It is a one-shot fresh worker API:
 limits/thread settings are process-wide. Do not call it in a test runner, runtime process or ORT interpreter.
 The owned launcher must start actual `unshare -rn` with the admitted real interpreter, `-S -s -B`, explicit training
-site plus owned blueprint/compat import roots and actual parent netns reference captured before exec. No namespace
+site plus owned blueprint/compat import roots and actual parent net/user namespace proof captured before exec. No namespace
 facility means refusal, never a plain-process fallback. `TMPDIR` and all four cache environment roots
 `XDG_CACHE_HOME,TORCH_HOME,TORCHINDUCTOR_CACHE_DIR,TRITON_CACHE_DIR` must explicitly exist under that scratch root.
 All new invocation artifacts/cache/scratch must be on the author's admitted external storage.
+
+Finding12 accepts `training4b-namespace-proof-design.md` as the namespace repair design. The genuine launcher owns
+read-only non-inheritable original net/user namespace handles across capture/cleanup and explicitly passes exactly
+those two with close_fds=True/pass_fds. Required --parent-namespace-proof is the closed canonical operational record
+with original parentPid and net/user fd/device/inode/actual-reference fields. Child NS_GET_NSTYPE and fstat compare
+actual inherited identities with observations and with its own typed net/user identities, requiring both differ,
+original parent, UID0 and loopback. No parent-proc traversal, network-owner=user-parent inference, guessed text,
+plain-process/-cn fallback or optional successful proof. Unsupported reviewed Linux/x86_64 ABI/ioctl refuses.
+
+Only declared actual typed namespace descriptors are adopted; unrelated file/pipe/socket/std descriptors are never
+blindly closed. Every adopted child handle closes on success/refusal before environment verification/framework
+imports; the outer CLI context closes them on bad file/job/stage admission. Unvalidated descriptors stay with their
+caller, and an early failed CLI process exit closes its inherited copies at the kernel boundary. Idempotent owned
+file-object close cannot close a later reused descriptor number. Own net/user/UID0/loopback stability is rechecked
+before output. Generic supervisor controls may use empty pass_fds, but genuine driver/worker proof is mandatory.
+FD/PID/ns observations are operational-receipt data only; no learned report/weight field is added. The actual
+four-module4b closure rotates with this worker change; no existing stage/failure is silently repinned.
 
 4a is byte-unchanged. Its TrainingJob/1 closure still names training_record/training_io/dataset_consumer only.
 Separate canonical stage record is exactly:

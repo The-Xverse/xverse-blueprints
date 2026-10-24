@@ -5,6 +5,8 @@ Later launcher must use real unshare -rn, explicit sites and -S -s -B; never run
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
+import fcntl
 import hashlib
 import importlib.util
 import os
@@ -13,6 +15,7 @@ from pathlib import Path
 import re
 import resource
 import signal
+import stat
 import sys
 import sysconfig
 
@@ -22,6 +25,134 @@ from .training_record import TrainingJob, code_digest as admission_code_digest
 
 STAGE_SCHEMA = "assured-aeb.training-stage4b/1"
 CODE_FILES = ("training_network.py", "training_weights.py", "training_loop.py", "training_worker.py")
+PARENT_NAMESPACE_SCHEMA = "assured-aeb.parent-namespace-proof/1"
+# Reviewed Linux x86_64 UAPI: nsfs.h _IO(0xb7,3), asm-generic/ioctl.h and sched.h.
+NS_GET_NSTYPE = 0xB703
+NAMESPACE_TYPES = {"net": 0x40000000, "user": 0x10000000}
+
+
+def _namespace_abi():
+    require(sys.platform == "linux" and platform.machine() == "x86_64", "reviewed Linux x86_64 namespace ABI required")
+
+
+def namespace_identity(fd):
+    """Typed kernel namespace identity, never a supplied namespace string or parent proc lookup."""
+    _namespace_abi()
+    require(type(fd) is int and fd >= 3, "nonstandard namespace descriptor required")
+    info = os.fstat(fd)
+    require(stat.S_ISREG(info.st_mode) and fcntl.fcntl(fd, fcntl.F_GETFL) & os.O_ACCMODE == os.O_RDONLY,
+            "read-only namespace descriptor required")
+    kind = fcntl.ioctl(fd, NS_GET_NSTYPE)
+    require(kind in NAMESPACE_TYPES.values(), "network/user namespace descriptor required")
+    return kind, info.st_dev, info.st_ino
+
+
+@contextmanager
+def captured_parent_namespaces():
+    """Original launcher owns both pre-unshare handles through capture/cleanup/identity receipt."""
+    _namespace_abi()
+    # Follow these genuine own procfs magic links intentionally; owned FileIO closes partial acquisition.
+    with open("/proc/self/ns/net", "rb", buffering=0) as net, open("/proc/self/ns/user", "rb", buffering=0) as user:
+        handles = {"net": net, "user": user}
+
+        def observe():
+            result = {"schema": PARENT_NAMESPACE_SCHEMA, "parentPid": os.getpid()}
+            for name, handle in handles.items():
+                fd = handle.fileno()
+                kind, device, inode = namespace_identity(fd)
+                reference = os.readlink("/proc/self/ns/" + name)
+                require(kind == NAMESPACE_TYPES[name] and reference == f"{name}:[{inode}]"
+                        and not os.get_inheritable(fd), "original parent namespace changed or fd inheritable")
+                result[name] = dict(fd=fd, device=device, inode=inode, reference=reference)
+            return result
+
+        original = observe()
+        yield original, (net.fileno(), user.fileno()), observe
+
+
+class ParentNamespaceProof:
+    """Owning child copies of exactly the declared typed namespace descriptors; no arbitrary-range cleanup."""
+
+    def __init__(self):
+        raise TypeError("namespace proof must come from descriptor adoption")
+
+    @classmethod
+    def adopt(cls, data, *, max_record_bytes):
+        record = parse_json(data, max_bytes=max_record_bytes, canonical_required=True)
+        exact(record, {"schema", "parentPid", "net", "user"}, "parent namespace proof")
+        require(record["schema"] == PARENT_NAMESPACE_SCHEMA and type(record["parentPid"]) is int
+                and record["parentPid"] > 0, "actual original parent PID required")
+        for name in NAMESPACE_TYPES:
+            value = record[name]
+            exact(value, {"fd", "device", "inode", "reference"}, name + " namespace proof")
+            require(type(value["fd"]) is int and value["fd"] >= 3, "nonstandard proof fd required")
+            require(type(value["device"]) is int and value["device"] >= 0
+                    and type(value["inode"]) is int and value["inode"] > 0, "actual namespace identity required")
+            require(value["reference"] == f"{name}:[{value['inode']}]", "actual namespace reference required")
+        require(record["net"]["fd"] != record["user"]["fd"], "distinct namespace descriptors required")
+        proof = cls.__new__(cls)
+        proof._record, proof._handles, proof._closed = record, {}, False
+        errors = []
+        try:
+            # Inspect/adopt both before opening any self fd: closed proof numbers can never be recycled/closed.
+            for name in NAMESPACE_TYPES:
+                value = record[name]
+                try:
+                    identity = namespace_identity(value["fd"])
+                    # Only a real typed namespace is adopted. Arbitrary file/pipe/std sentinels remain caller-owned.
+                    handle = os.fdopen(value["fd"], "rb", buffering=0)
+                    proof._handles[name] = handle
+                    os.set_inheritable(handle.fileno(), False)
+                    require(identity == (NAMESPACE_TYPES[name], value["device"], value["inode"]),
+                            "inherited namespace differs from original parent observation")
+                except (OSError, ValueError) as error:
+                    errors.append(error)
+            if errors:
+                raise ValueError("parent namespace descriptor admission failed") from errors[0]
+            return proof
+        except BaseException:
+            proof.close()
+            raise
+
+    def validate(self):
+        require(not self._closed and set(self._handles) == set(NAMESPACE_TYPES), "live adopted namespace proof required")
+        require(os.getppid() == self._record["parentPid"], "original no-fork launcher parent changed")
+        for name, handle in self._handles.items():
+            value = self._record[name]
+            require(namespace_identity(handle.fileno()) == (NAMESPACE_TYPES[name], value["device"], value["inode"])
+                    and not os.get_inheritable(handle.fileno()), "adopted namespace proof changed")
+
+    def close(self):
+        if not self._closed:
+            self._closed = True
+            handles, self._handles = self._handles, {}
+            errors = []
+            for handle in handles.values():
+                try:
+                    handle.close()
+                except OSError as error:
+                    errors.append(error)
+            if errors:
+                raise errors[0]
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        self.close()
+
+
+def _self_namespace_snapshot():
+    identities = []
+    for name in NAMESPACE_TYPES:
+        with open("/proc/self/ns/" + name, "rb", buffering=0) as handle:
+            identity = namespace_identity(handle.fileno())
+            require(identity[0] == NAMESPACE_TYPES[name] and not os.get_inheritable(handle.fileno()), "self namespace type changed")
+            identities.append(identity)
+    require(os.getuid() == 0, "fresh unshare -r user namespace required")
+    interfaces = [line.split(":", 1)[0].strip() for line in Path("/proc/self/net/dev").read_text().splitlines()[2:]]
+    require(interfaces == ["lo"], "training worker network is not isolated to loopback")
+    return tuple(identities)
 
 
 def code_digest():
@@ -60,26 +191,28 @@ def _tree(root, *, skip=()):
     return {"sha256": h.hexdigest(), "entries": count}
 
 
-def check_worker_isolation(parent_netns):
-    """Require actual parent/self namespace distinction, not equality of supplied integer labels."""
-    require(sys.platform == "linux", "training worker requires reviewed Linux namespace facility")
-    require(sys.flags.no_site == 1 and sys.flags.no_user_site == 1 and sys.flags.dont_write_bytecode == 1,
-            "fresh worker requires -S -s -B")
-    require(not any(name.split(".")[0] in {"torch", "numpy", "onnxruntime"} for name in sys.modules),
-            "framework already imported before admission")
-    require(type(parent_netns) is str and re.fullmatch(r"net:\[[0-9]+\]", parent_netns) is not None, "actual parent netns required")
-    parent = Path("/proc") / str(os.getppid()) / "ns"
-    require(os.readlink(parent / "net") == parent_netns != os.readlink("/proc/self/ns/net"),
-            "fresh unshare network namespace and genuine parent observation required")
-    require(os.getuid() == 0 and os.readlink(parent / "user") != os.readlink("/proc/self/ns/user"),
-            "fresh unshare -r user namespace required")
-    scratch = Path(absolute(os.environ.get("TMPDIR"), "explicit TMPDIR")).resolve()
-    require(scratch.is_dir(), "existing explicit scratch directory required")
-    for key in ("XDG_CACHE_HOME", "TORCH_HOME", "TORCHINDUCTOR_CACHE_DIR", "TRITON_CACHE_DIR"):
-        cache = Path(absolute(os.environ.get(key), key)).resolve()
-        require(cache.is_dir() and cache.is_relative_to(scratch), "explicit cache must exist within worker scratch")
-    interfaces = [line.split(":", 1)[0].strip() for line in Path("/proc/self/net/dev").read_text().splitlines()[2:]]
-    require(interfaces == ["lo"], "training worker network is not isolated to loopback")
+def check_worker_isolation(parent_namespace_proof):
+    """Require genuine typed parent/self distinction and close proof copies before frameworks, even on refusal."""
+    require(type(parent_namespace_proof) is ParentNamespaceProof, "mandatory adopted parent namespace proof required")
+    try:
+        _namespace_abi()
+        require(sys.flags.no_site == 1 and sys.flags.no_user_site == 1 and sys.flags.dont_write_bytecode == 1,
+                "fresh worker requires -S -s -B")
+        require(not any(name.split(".")[0] in {"torch", "numpy", "onnxruntime"} for name in sys.modules),
+                "framework already imported before admission")
+        parent_namespace_proof.validate()
+        own = _self_namespace_snapshot()
+        for name, identity in zip(NAMESPACE_TYPES, own):
+            value = parent_namespace_proof._record[name]
+            require(identity[1:] != (value["device"], value["inode"]), "fresh unshare net AND user namespaces required")
+        scratch = Path(absolute(os.environ.get("TMPDIR"), "explicit TMPDIR")).resolve()
+        require(scratch.is_dir(), "existing explicit scratch directory required")
+        for key in ("XDG_CACHE_HOME", "TORCH_HOME", "TORCHINDUCTOR_CACHE_DIR", "TRITON_CACHE_DIR"):
+            cache = Path(absolute(os.environ.get(key), key)).resolve()
+            require(cache.is_dir() and cache.is_relative_to(scratch), "explicit cache must exist within worker scratch")
+        return own
+    finally:
+        parent_namespace_proof.close()
 
 
 def check_import_paths(sites):
@@ -183,15 +316,14 @@ def _write_outputs(directory, files, *, maximum, disk_limit):
         raise
 
 
-def run_training(job_bytes, locations_bytes, stage_bytes, *, max_record_bytes, identity_path, lock_path, parent_netns, output_directory):
+def run_training(job_bytes, locations_bytes, stage_bytes, *, max_record_bytes, identity_path, lock_path, parent_namespace_proof, output_directory):
     """One fresh-process stage; failures never emit candidate publication or resume state."""
     job = TrainingJob.from_bytes(job_bytes, max_record_bytes=max_record_bytes)
     stage = admit_stage(stage_bytes, job, max_record_bytes=max_record_bytes)
     locations = SourceLocations.from_bytes(locations_bytes, max_record_bytes=max_record_bytes)
-    check_worker_isolation(parent_netns)
+    namespace = check_worker_isolation(parent_namespace_proof)
     output = Path(absolute(str(output_directory), "output directory"))
     require(output.parent.is_dir() and not output.exists() and not output.is_symlink(), "fresh output directory with existing parent required")
-    namespace = os.readlink("/proc/self/ns/net")
     limits = job.record()["environments"]["limits"]
     _limit(resource.RLIMIT_AS, limits["memoryBytes"])
     _limit(resource.RLIMIT_FSIZE, limits["outputBytes"])
@@ -227,7 +359,7 @@ def run_training(job_bytes, locations_bytes, stage_bytes, *, max_record_bytes, i
                 and admission_code_digest() == job.record()["identity"]["codeClosureSha256"]
                 and shared.code_sha256() == job.record()["preprocessing"]["codeSha256"], "source changed during training")
         require(verify_environment(job, identity_path, lock_path) == environment, "environment changed during training")
-        require(os.readlink("/proc/self/ns/net") == namespace
+        require(_self_namespace_snapshot() == namespace
                 and not any(name.split(".")[0] == "onnxruntime" for name in sys.modules), "training isolation changed")
         files = {"weights.f32": blob, "weights.json": descriptor, "training-report.json": canonical(report)}
         _write_outputs(output_directory, files, maximum=limits["outputBytes"], disk_limit=limits["diskBytes"])
@@ -238,13 +370,14 @@ def run_training(job_bytes, locations_bytes, stage_bytes, *, max_record_bytes, i
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    for option in ("job", "locations", "stage", "identity", "lock", "parent-netns", "output"):
+    for option in ("job", "locations", "stage", "identity", "lock", "parent-namespace-proof", "output"):
         parser.add_argument("--" + option, required=True)
     parser.add_argument("--max-record-bytes", required=True, type=int)
     args = parser.parse_args(argv)
-    report = run_training(read_regular(args.job, args.max_record_bytes), read_regular(args.locations, args.max_record_bytes),
-                          read_regular(args.stage, args.max_record_bytes), max_record_bytes=args.max_record_bytes,
-                          identity_path=args.identity, lock_path=args.lock, parent_netns=args.parent_netns, output_directory=args.output)
+    with ParentNamespaceProof.adopt(args.parent_namespace_proof.encode(), max_record_bytes=args.max_record_bytes) as proof:
+        report = run_training(read_regular(args.job, args.max_record_bytes), read_regular(args.locations, args.max_record_bytes),
+                              read_regular(args.stage, args.max_record_bytes), max_record_bytes=args.max_record_bytes,
+                              identity_path=args.identity, lock_path=args.lock, parent_namespace_proof=proof, output_directory=args.output)
     print(canonical(report).decode())
     return 0
 

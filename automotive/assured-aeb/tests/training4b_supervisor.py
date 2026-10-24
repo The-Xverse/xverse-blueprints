@@ -77,7 +77,7 @@ def _sha(path):
 
 
 def capture_attempt(command, *, environment, cwd, directory, timeout_seconds, term_seconds,
-                    kill_seconds, identity_reader, context):
+                    kill_seconds, identity_reader, context, pass_fds=()):
     """Capture a real child outcome. Nonzero exit can be complete capture; caller judges its meaning.
 
     Only the owned group is supervised. Deliberately escaped sessions are outside this trusted-worker claim.
@@ -86,6 +86,11 @@ def capture_attempt(command, *, environment, cwd, directory, timeout_seconds, te
     for value in (timeout_seconds, term_seconds, kill_seconds):
         if type(value) not in (int, float) or not math.isfinite(value) or value <= 0:
             raise ValueError('explicit positive finite engineering timeout required')
+    if (type(pass_fds) is not tuple or any(type(fd) is not int or fd < 3 for fd in pass_fds)
+            or len(set(pass_fds)) != len(pass_fds)):
+        raise ValueError('explicit distinct nonstandard owned descriptors required')
+    for fd in pass_fds:
+        os.fstat(fd)  # fail before capture/spawn for an unavailable declared descriptor
     directory = Path(directory)
     stdout = directory / 'worker.stdout'
     stderr = directory / 'worker.stderr'
@@ -125,7 +130,7 @@ def capture_attempt(command, *, environment, cwd, directory, timeout_seconds, te
                     spawning = True
                     try:
                         process = subprocess.Popen(command, cwd=cwd, env=environment, stdout=out, stderr=err,
-                                                   start_new_session=True)
+                                                   start_new_session=True, close_fds=True, pass_fds=pass_fds)
                     finally:
                         spawning = False
                     if pending_signal is not None:
@@ -149,6 +154,7 @@ def capture_attempt(command, *, environment, cwd, directory, timeout_seconds, te
             complete = (type(returncode) is int and not timed_out and failure is None and before == after
                         and cleanup['complete'] is True and not cleanup['term_sent'])
             result = dict(schema='TEST-ONLY-training4b-worker-execution/1', command=list(command),
+                          passed_fds=list(pass_fds),
                           cwd=str(cwd), environment=dict(environment), context=context,
                           inputs_before=before, inputs_after=after, returncode=returncode,
                           timed_out=timed_out, failure=failure, cleanup=cleanup, capture_complete=complete,

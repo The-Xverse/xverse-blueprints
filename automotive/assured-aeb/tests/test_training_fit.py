@@ -47,7 +47,7 @@ def test_bad_job_and_stage_refuse_before_any_worker_effect_or_framework(tmp_path
     monkeypatch.setattr(W, "check_worker_isolation", unexpected)
     before = set(sys.modules)
     args = dict(max_record_bytes=1_000_000, identity_path="/TEST-ONLY/identity", lock_path="/TEST-ONLY/lock",
-                parent_netns="net:[0]", output_directory=tmp_path / "never-created")
+                parent_namespace_proof=None, output_directory=tmp_path / "never-created")
     for bad_job, bad_stage in ((b'{"schema":1}', canonical(stage)),
                                 (canonical(fixture[0]), canonical({**stage, "jobSha256": "0" * 64}))):
         with pytest.raises(ValueError):
@@ -127,10 +127,10 @@ def test_output_total_limit_and_existing_directory_never_overwrite(tmp_path):
     assert (path / "sentinel").read_bytes() == b"preserve"
 
 
-def test_unsafe_namespace_and_preloaded_framework_refuse_without_framework_import(monkeypatch):
+def test_unadopted_namespace_proof_refuses_without_framework_import():
     with pytest.raises(ValueError): W.check_worker_isolation("invented")
-    monkeypatch.setitem(sys.modules, "torch", object())
-    with pytest.raises(ValueError): W.check_worker_isolation("net:[0]")
+    with pytest.raises(ValueError): W.check_worker_isolation(None)
+    with pytest.raises(TypeError): W.ParentNamespaceProof()
 
 
 def test_only_offline_worker_imports_frameworks_and_no_pickle_format_is_used():
