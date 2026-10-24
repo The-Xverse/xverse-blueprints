@@ -340,3 +340,20 @@ Actual verification (small stdlib-only probes, no pytest/NumPy/torch/ORT):
 
 The exact deferred command remains the finding-3 command (now 19 test methods). Schedule it through the root queue,
 then independently re-review this successor. WP-17a is still unaccepted; no acceptance/merge/freeze/live action here.
+
+## Finding 7: independent coordinator re-review of R17d-1/R17d-2 successor (2026-10-24), PASS for full verification
+
+Reviewed exact9a20288b25efb8311403ec34f2ad13f2a8c8bfe0, prior independent finding4 and repair designf35aec4.
+The unchanged exact algebra/sign/rounding/ODD-speed boundary remains consistent with the recorded derivation.
+The successor now includes all applicable retained-path absolute evidence expiries in transition, confirmation,
+fallback and MRC-request completion contracts and explicitly prohibits rebasing validity. Confirmation carries its
+retainedValidity provenance and both overlapping event-relative clocks, with no T+C sum. Zero-speed comparisons
+now identify metres independently of their nullable nanosecond bound. This is an offline symbolic obligation, not
+a runtime enforcement proof. Declared route/latency completeness and actual scientific inputs remain review gates.
+
+Independently executed the exact new aged-evidence and typed-unit controls plus independent-fraction/sign,
+conservative-nanosecond-rounding and ODD-speed-separation controls using pinned-S-s-B and stdlib only:5passed.
+Verified no pytest, torch, numpy or onnxruntime import. No additional source blocker found. Full owning suite and
+assembly remain pending before engineering acceptance or merge; no protocol value or live/scientific claim.
+The older Protocol dependency is now accepted under delegation in the reviewed integration assembly; prior
+'unaccepted17a' statements describe their historical review time, not a new blocker.
