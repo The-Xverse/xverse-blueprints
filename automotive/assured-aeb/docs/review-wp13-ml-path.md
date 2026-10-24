@@ -311,3 +311,19 @@ there is no training/update entry; unsupported ONNX constructs are explicitly re
 source inspection only. All nine genuine-loader/NumPy reference probes, fixture regeneration, actual provider/schema
 and owner/assembled-suite checks remain mandatory and unrun. Scope/architecture limits and pending AD-03/AD-27
 choices remain as finding 3 records. No acceptance or merge is made.
+
+## Finding 5: R13ML-1 repair design before code (Codex, 2026-10-24)
+
+Input is independent finding 4, now at branch `db99b8d` after #1 reconciliation `8eda0f8`.
+Make the sensor-self-check map exactly `{logical, plausibility, statistical}`. Each check keeps exactly
+`{verdict, failed}`; `failed` is a list of non-empty string codes, `pass` and `not-evaluated` require an empty list,
+and `fail` requires at least one code. Unknown/contradictory forms return unknown check evidence, never a passing
+classification. Apply the same verdict-consistency helper to front-zone integrity. No threshold, timing, class
+meaning, calibration or OOD method changes.
+
+The public CameraInference consumer must return `UNCERTAIN` with null inference fields and must not call its
+inference function on an inconsistent check or a fourth self-check class. Preserve source-conforming statistical
+`fail` with actual failed codes as `DEGRADED`. Correct the synthetic failure fixture accordingly and add regression
+cases per class/form, the undeclared class and a genuine SmartCamera -> FrontZone positive/failure control.
+Heavy verification remains deferred until the coordinator releases the host. After implementation the parent
+will independently re-review this narrow repair before acceptance; no pytest or numerical framework is run here.
