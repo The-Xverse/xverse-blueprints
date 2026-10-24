@@ -167,3 +167,64 @@ paths are not touched. This is engineering evidence only.
 2. Frame transport U2 → U3 → U4 by reference, and the F05 to F09 delivery (WP-10, WP-13).
 3. The box-blur approximation and its edge effects, declared.
 4. numpy for U2/U3: not used, and adding it is a separate venv decision.
+
+## Finding 2: implementation result (2026-10-24 12:15:10; commit `98d6b25`)
+
+**What was added (standard library only).**
+- `assured_aeb/imageops.py`: lane-packed operations: exposure table, inverse-CDF noise, occlusion, box blur,
+  luma and histogram statistics.
+- `assured_aeb/checks.py`: exact records, AD-36 verdicts and sequence status.
+- `assured_aeb/camera_chain.py`: `CorruptionSchedule`, `CorruptionStage` (U2), `SmartCameraParams` and
+  `SmartCamera` (U3).
+- `assured_aeb/radar_zone.py`: `SmartRadarParams`, `SmartRadar`, `FrontZoneParams` and `FrontZone` (U3).
+- **Tests:** `tests/test_imageops.py` (14), `tests/test_camera_chain.py` (32) and
+  `tests/test_radar_zone.py` (18): 64 new.
+
+**Commands.**
+- The three new files: 64 passed.
+- The whole blueprint suite with the rc.1 profiles: 235 passed.
+- `check_topology.py`: exit 0. The WP-12 documents are unchanged.
+- Host load 4.4. No CARLA, no live run; the loop10 paths and the pinned live environment were not
+  touched.
+
+**Results against the design (finding 1).**
+
+| Item | Result |
+| --- | --- |
+| Dependencies §1.1 | Standard library only. Every transform equals a direct per-pixel reference on a 9 × 7 frame: exposure (3 settings), noise (σ 1, 20 and 200 levels), box blur (widths 2, 4 and 8, including the declared edges), occlusion and luma. Alpha is preserved. Host-time probe (engineering observation only): on 800 × 600 BGRA, noise plus blur 4 in the stage took 68 ms, and the smart camera 47 ms at stride 4 |
+| Corruption §1.2 | All five AD-31 kinds. The records are exact, with no defaults; each malformed variant is refused (13 cases). The schedule is active on `[startNs, endNs)` of episode-relative time. The origin binds once, and nothing is processed before it. The input bytes must match the camera item's `rawSha256`. Noise is reproducible for a seed and differs for another seed. Two world epochs (1000 s and 1600.03 s) give identical delivered frames (PAIR-1). Dropout delivers nothing, and the smart camera reports the gap |
+| No leak §1.2 | The F05 item has exactly the declared members: no event, kind, seed or "corrupt" word, and no adapter digest. Its digest is that of the delivered bytes. The applied events appear only in the stage's evidence (frame, ids, kinds), with no bytes |
+| Smart camera §1.3 | (i): sequence (gap, duplicate, regression), frame increase, digest and length, future origin. (ii): geometry against the configured format. (iii): age, luma mean bounds, minimum standard deviation, dark and bright fractions, and the high-frequency variance. The self-checks see the corruption: blur fails `high-frequency`, darkening exposure fails `mean-luma`, occlusion fails `dark-fraction`, brightening exposure fails `bright-fraction`, and noise raises `stdLuma`. A clean frame passes every class. A digest or length failure leaves class (iii) `not-evaluated`. No pixels are in the output |
+| Smart radar §1.4 | (i): count consistency, sequence, frame, future origin. (ii): the configured specification, with values equal to `carla-sensors.json` (range, half fields of view, velocity, maximum detections). (iii): the count bounds and age. The accepted flow ids are the adapter's `radar-adas` and `radar-vc` |
+| Front zone §1.5 | Assigns `receivedNs` and checks `ageNs` against the window per sensor (a future origin is not fresh). Checks integrity on the exact members and a well-formed digest, and sequence per sensor. Carries the sensor's class (ii) verdict forward. Routes camera evidence to F07, and radar evidence to F08 and F09 as separate deep copies, bound to the WP-12 flows (front-zone producer; consumers `fusion-risk-aeb` and `vc-ingress`). No pixels |
+
+All formats, schedules, statistics parameters, thresholds and windows in the tests are labelled test values.
+The radar specification is the configured descriptor, as AD-36 class (ii) requires.
+
+**Residuals.**
+1. **Protocol values (AD-27).**
+   - The corruption severities, event times and seed (AD-31 after the AD-02 characterisation; P-4).
+   - The camera statistics parameters and class (iii) thresholds (D-2, D-3).
+   - The radar count and age thresholds (D-2).
+   - The front-zone freshness windows (AD-06).
+   - The frame format (AD-02).
+2. **Transport and wiring** (WP-10, WP-13):
+   - frames U2 → U3 → U4 by reference (`frameSha256`), and F05 to F09 delivery under the AD-30
+     delivery rule;
+   - `bind_origin` at the first frame;
+   - which adapter radar flow feeds the smart radar (both ids are accepted). The adapter emits
+     `radar-adas` and `radar-vc` separately, and the front zone produces the two logical streams.
+3. **Declared fidelity limits.**
+   - The blur is a box approximation, with its edge wrap and zeros.
+   - The noise is a 256-level inverse-CDF quantisation, clamped to ±255.
+   - The statistics use luma subsampled by a stride.
+   - Radar class (ii) duplicates the adapter's own refusal and fires only on content changed after the
+     adapter.
+4. **numpy for U2/U3:** not used. Adding it would be a separate pinned-venv decision.
+5. **Reproducibility condition.** The noise relies on CPython's Mersenne Twister `getrandbits`
+   (through `randbytes`) and on the pure-Python `NormalDist.inv_cdf`, both pinned with the U2 interpreter.
+6. **Evidence emission.** The stage's evidence and the self-check items become Argus records through
+   ED-12, and are never on a runtime flow except as the declared self-check items.
+
+The next step is an independent read-only review of `98d6b25`, then acceptance and merge. Neither has
+happened.
