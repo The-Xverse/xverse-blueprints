@@ -460,3 +460,179 @@ accept or merge anything.
 - Residuals 1, 2, 3, 5 and 6 are unchanged.
 
 **Status.** These are repairs on the candidate only. Acceptance and the merge are still pending.
+
+## Finding 6: independent review of findings 4 and 5 (2026-10-24 16:01:28)
+
+**Reviewer and method.**
+- An independent, read-only reviewer who wrote neither the increment nor its repairs.
+- Read `7456784` (finding 4) and `8f5a042` (repairs, finding 5) against `1b71480`, and checked them against:
+  - thesis `decisions.md` rows "WP-09 training pipeline" (288), "WP-02b scope" (290) and "WP-09 data separation"
+    (291), and `implementation-plan.md` P-2 (163) and K-9 (44);
+  - `design/wp09-training-pipeline.md` §3 and its alignment note of 15:34;
+  - compat main `34b514d`, read-only: `xverse_compat_carla/scenario.py` `target_of`, `_transform` and
+    `CAMERA_MOUNT`, and `xdl/descriptors/aeb-sim/carla-sensors.json` (camera 800 × 600 at 90°).
+- Thesis repository: branch `agent/synchronize-thesis-obsidian-notes`, HEAD `d97fdd1` equal to its upstream after
+  `git fetch --prune`, with no incoming change to the canonical note.
+- Commands (`/dev/shm/compat-p6-venv/bin/python -I`; rc.1 profiles from a scratch `git archive` export of
+  `xverse-lite-v1.0.0-rc.1` = `64ff9d3eb`):
+  - the whole suite, `-p no:cacheprovider`: **258 passed**;
+  - `check_topology.py --platform-profiles <export>/xdl/profiles`: exit 0, 50 checks, all PASS;
+  - `__pycache__` removed afterwards. The worktree is clean except for this entry.
+- Probes, run from scratch scripts with no bytecode written:
+  - a brute-force visibility oracle over 4 000 random targets (position, yaw, extents, offsets and heights);
+  - edge cases;
+  - the pre-repair `labels.py` from `7456784`;
+  - a second `FrameStore` opened during a `put`.
+- No CARLA, no live run, no download. The loop10 dataset and soak paths were not touched.
+
+### Verdict: **PASS WITH NOTES. Nothing blocks the merge of increment #1.**
+
+The dispositions of finding 3 are implemented as planned in finding 4. MEDIUM-1 below must be repaired or decided on
+the thesis side before increment #6 records any frame, like the MEDIUM items of finding 3. The LOW items can be
+repaired or recorded as residuals. The merge still awaits acceptance.
+
+### Dispositions of finding 3, verified
+- **MEDIUM-1 (visibility): closed.**
+  - The wedge is the intersection of `tan(h)·dx − dy ≥ 0` and `tan(h)·dx + dy ≥ 0`, that is `|dy| ≤ tan(h)·dx`, which
+    implies `dx ≥ 0` because `0 < fov < 180` is enforced.
+  - `clip_half_plane` is a correct Sutherland–Hodgman step for a convex polygon. Its denominator cannot be zero on
+    either crossing branch.
+  - The vertical test at the clipped region's largest depth is exact for the pinhole model:
+    - the aperture `|dz| ≤ dx·tan(v)` grows with depth;
+    - the horizontal and vertical conditions are independent for a vertical prism;
+    - `tan(v) = tan(h)·height/width` holds for square pixels;
+    - the camera is mounted with zero rotation (compat `_transform`).
+  - **Probes:**
+    - The oracle agrees with `geometry` in all 4 000 random cases.
+    - Edge cases agree with it:
+      - a target straddling the camera plane beside the ego, outside the wedge and partly inside it;
+      - a target wholly behind the camera;
+      - a corner exactly on the wedge edge;
+      - a footprint touching the wedge apex;
+      - a target 50 m above;
+      - an ego yawed 30°.
+    - The reviewer's probe (yawed 90° at (5.5, 3.0)) gives 2.2 m, in the corridor and visible. The pre-repair
+      `labels.py` of `7456784` gives `visible: False`, which confirms the regression check of finding 5.
+- **MEDIUM-2 and LOW-1 (scenario and placement): closed within WP-09.**
+  - `verified_scenario` checks the SHA-256 before it parses anything.
+  - Its placement members mirror compat `target_of`. It is looser on the other members, as residual 9 declares.
+  - `target_declared` is gone.
+  - `check_manifest` requires the mapping and refuses each of these cases:
+    - a missing file;
+    - a digest mismatch;
+    - a placement mismatch or a malformed placement;
+    - a spawn-point mismatch;
+    - a map mismatch.
+  - The evaluation-run refusal is recorded as an obligation of WP-10 #5 and WP-16 in residual 8 and in both module
+    docstrings, as row 291 (1) says.
+- **MEDIUM-3 (evaluation segment): implemented as decided, with a gap; see MEDIUM-1 below.**
+  - The schema is `/2`, and the segment is `{map, roadId, sectionId}` with integer ids.
+  - `evaluation.segment` is required, has no default and is a marked test value in the tests.
+  - Training and calibration on it are refused whatever the spawn point.
+  - A test-split run on it is reported. Spawn point 1 is still refused for every split.
+- **MEDIUM-4 (identity): implemented.**
+  - `labelCodeSha256` (top level) and `labelsSha256` (per run) are in the canonical manifest, so they enter the
+    identity.
+  - "Label code" is the SHA-256 of the bytes of `labels.py` alone; see LOW-2.
+  - The test monkeypatches `LABEL_CODE_SHA256`. It shows that the constant flows into the labels digest and the
+    identity. It does not show which code is hashed.
+- **LOW-2 (store durability): implemented, with one gap and one side effect; see LOW-4.**
+  - The shard directory is fsynced after `os.replace`.
+  - The sweep stays inside the store:
+    - it visits only two-hex, non-symlink subdirectories of the root;
+    - it removes only regular, non-symlink `.tmp-*.zlib` files;
+    - a stored entry `<sha>.zlib` can never match.
+- **No invented protocol value.**
+  - The modules hold no numeric protocol value. `EVALUATION_SPAWN_POINT = 1` is sourced (P-2, K-9), and the camera
+    values equal compat `CAMERA_MOUNT` and the descriptor.
+  - The store's floor, compression level and frame length are required arguments.
+- **No pixels.**
+  - Labels, the manifest and store records carry digests, sizes and geometry only.
+  - `FrameStore.get` returns bytes in process only, and no host path enters the manifest.
+
+### Issues
+
+**MEDIUM-1: P-2 by segment is judged only at the spawn waypoint.**
+- **What the rule requires.**
+  - Row 291 (2) refuses "any training or calibration run on the evaluation road segment".
+  - `implementation-plan.md` P-2 adds: "No evaluation-segment frame enters training".
+- **What the code checks.** A run's `segment` is the road and lane section of its *spawn* waypoint (finding 4
+  item 3), and `evaluation.segment` is a single `{map, roadId, sectionId}`.
+- **Two cases the rule misses:**
+  - A training run spawned in an upstream section that drives into the evaluation section, or whose target is
+    placed there, passes. Its frames show the evaluation segment.
+  - If the evaluation lane ahead of spawn point 1 (about 120 m, K-9) spans more than one OpenDRIVE lane section,
+    only its first section is protected.
+- **Repair, or a thesis-side decision, before increment #6:**
+  - record per run the set of `{road, section}` traversed by the ego, and occupied by the target, over the recorded
+    frames, read from the live waypoints by the increment #6 recorder;
+  - declare the evaluation segment as the set of sections that the evaluation trajectory covers
+    (`TODO: engineering verification`);
+  - refuse any intersection for training and calibration.
+
+  Alternatively, record a decision that spawn-section equality is sufficient, with the limit stated in the data
+  card.
+
+**LOW-1: the label binding in the manifest is declarative.**
+- `check_manifest` only checks that four members are 64-hex: `labelsSha256`, `labelCodeSha256`, `labelParamsDigest`
+  and `observerSha256`. It verifies none of them.
+- It does not recompute `labelsSha256` from a run's label records.
+- It does not check that each label's provenance (`labelCodeSha256`, `labelParamsDigest`, `observerSha256`) equals
+  the manifest's.
+- It does not check that the labelled `rawSha256` set is contained in the run's `frames`.
+- The MEDIUM-4 test therefore holds only when the producer computes these digests correctly. Finding 3 MEDIUM-2
+  raised the same pattern for `scenarioSha256`.
+- Repair: add a verifier that takes each run's label list, as `scenarios` now does, or record it as an obligation
+  of increment #6.
+
+**LOW-2: the label-code hash covers `labels.py` only.**
+- `label_run` depends on `scenario.verified_scenario`: the placement kind decides whether a target is declared.
+  `scenario.py` is not in `LABEL_CODE_SHA256`.
+- The identity is not weakened, because `labelsSha256` binds the label content. The provenance member
+  `labelCodeSha256` does not, however, identify the whole label code.
+- Repair: hash the label-code closure (`labels.py` and `scenario.py`, named and ordered), or state the limit.
+
+**LOW-3: the map comparison binds declared strings only.**
+- Compat checks only that the scenario's `map` is a non-empty string. Nothing in compat `src/` compares it with the
+  loaded world. Only the observer header records `world.get_map().name` (`observe.py` 89, 181).
+- `check_manifest` compares the scenario's `map` with the run segment's `map`, and both are declared.
+- A schema-1 file with a stray `map` member also passes, because `verified_scenario` returns it.
+- Increment #6 should:
+  - take the map from the evaluation-only observer header, that is from the actual world;
+  - state how CARLA's reported name is compared with the scenario's `Town10HD_Opt` (`TODO: engineering
+    verification`);
+  - refuse a schema-1 `map`.
+
+**LOW-4: the sweep runs on every open, and a new shard directory is not made durable.**
+- **The sweep.** The single-writer assumption is documented but not enforced.
+  - Any `FrameStore` opened while the recorder writes deletes the writer's in-flight temporary file. This includes
+    an opener that only reads, such as a later loader.
+  - Probe: a second open during `put` makes the writer's `os.replace` fail with `FileNotFoundError`.
+  - Nothing is left behind, nothing outside the shard directories is touched, and nothing is corrupted. The failure
+    is loud.
+  - The sweep also scans every shard on each open.
+- **Durability.** After `mkdir` of a new shard, the root directory is not fsynced, so the new shard entry may not
+  survive a crash.
+- **Repair options:**
+  - an advisory lock (`fcntl.flock` on a lock file in the root), held by the writer, with the sweep done only under
+    it, or a separate writer mode;
+  - an fsync of the root after creating a shard.
+
+**LOW-5 (editorial): some test fixture values are not marked.**
+- `test_perception_labels.py` marks only its extents, corridor and bin edges as test values.
+- Its scenario fixture, and that of `test_perception_manifest.py`, also hold unmarked values: `spawnPointIndex` 7
+  and 3, `distanceAheadM` 30.0, and `egoBlueprint` `vehicle.test`.
+- Mark them as test values.
+
+**Note (no issue).** The distance is the minimum over the *whole* footprint, not over its in-corridor part. It
+belongs with the in-corridor visibility option of finding 5 residual 4, and is for one AD-27 decision.
+
+### Residuals
+- Residuals 7 to 9 of finding 5 are accurate.
+- Add MEDIUM-1 (the segment traversal and the multi-section evaluation segment) and LOW-1 to LOW-4.
+
+### Recommendation
+- Before increment #6: decide or repair MEDIUM-1 on the thesis side (row 291 (2)), and repair LOW-1 or record it as
+  an increment #6 obligation.
+- Repair LOW-2 to LOW-5 or record them.
+- Then acceptance and the merge of increment #1. Neither has happened.
