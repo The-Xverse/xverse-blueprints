@@ -142,3 +142,23 @@ rule/value/check and original source metadata. Assert no runtime unit imports th
 
 No pytest/heavy work while the platform regression is active. Syntax/tiny standard-library checks are allowed.
 Independent review, acceptance, integration and scientific protocol freeze remain later gates.
+
+## Finding 2: coordinator dispositions before implementation (2026-10-24)
+
+The parent coordinator confirmed D17d-1 to D17d-5 under the recorded delegation:
+- Use the AD-05 boundary and the margin-preserving `>=` side for the available-delay bound; document that `<=`
+  remains the braking-trigger predicate. This supplies no new physical-safety claim.
+- Transition T is total from request through confirmation; C is from selector application through confirmation.
+  Runtime completion obeys the earlier expiry. Check `C <= T <= V_retained`, not an unsupported sum T+C.
+- Rational arithmetic operates on `str(decoded finite int/float)` via exact decimal interpretation. Preserve existing
+  numeric parameter semantics; do not require scientific values to become strings. Do not claim arbitrary-precision
+  preservation of the original JSON numeric token, which WP-17a has already decoded.
+- v=0 may be `unbounded-by-this-model`, never Infinity or a selected default. Constant margin violation is
+  `no-solution`; a zero finite bound refuses a positive declared E2E deadline. Declared deadlines remain positive
+  when the model supplies no physical upper bound.
+- Validity growth uses the physical declared ODD maximum closing speed, explicitly distinct from the conservative
+  measured v_c used by the envelope.
+
+The implementation will keep integer-nanosecond quantities exact, report upper bounds with floor and reserve/lower
+bounds with ceil, and leave every numeric protocol entry unset until supplied by an admitted Protocol. No code or
+verification result is accepted by this disposition. WP-17a remains an unaccepted dependency at d2baa8b.
