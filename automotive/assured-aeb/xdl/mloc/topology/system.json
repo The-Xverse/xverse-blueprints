@@ -2185,7 +2185,7 @@
         "compatibility": "exact",
         "direction": "bidirectional",
         "id": "adas-cycle",
-        "payloadSchema": "urn:xverse:assured-aeb:adas-cycle:v1",
+        "payloadSchema": "urn:xverse:assured-aeb:adas-cycle:v2",
         "unitSemantics": "evidence-item"
       },
       {
@@ -2332,7 +2332,7 @@
         "compatibility": "exact",
         "direction": "bidirectional",
         "id": "proposal-basis",
-        "payloadSchema": "urn:xverse:assured-aeb:proposal-basis:v1",
+        "payloadSchema": "urn:xverse:assured-aeb:proposal-basis:v2",
         "unitSemantics": "evidence-item"
       },
       {

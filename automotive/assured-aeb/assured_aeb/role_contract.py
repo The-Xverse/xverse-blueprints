@@ -12,6 +12,8 @@ import math
 import re
 from typing import Any
 
+from . import adas_contract as AC
+
 STATES = ("NOMINAL", "DEGRADED", "UNCERTAIN", "UNSAFE")
 CONFIGURATIONS = ("C_NOMINAL", "C_DEGRADED_RADAR", "S_MRC_REQUESTED")
 DIGEST = re.compile(r"[0-9a-f]{64}\Z")
@@ -66,11 +68,18 @@ LEGACY_SCHEMAS = {
     "smart-camera-evidence": "assured-aeb.camera-selfcheck/1", "smart-radar-evidence": "assured-aeb.radar-selfcheck/1",
     "camera-evidence": "assured-aeb.camera-evidence/1", "radar-evidence": "assured-aeb.radar-evidence/1",
     "motion-evidence": "assured-aeb.motion-evidence/1", "perception-output": "assured-aeb.perception-output/1",
-    "proposal-basis": "assured-aeb.adas-cycle/1", "adas-cycle": "assured-aeb.adas-cycle/1", "fallback-request": "assured-aeb.fallback-request/1",
+    "proposal-basis": AC.SCHEMA, "adas-cycle": AC.SCHEMA, "fallback-request": "assured-aeb.fallback-request/1",
     "brake-request": "assured-aeb.brake-request/1", "brake-command": "assured-aeb.brake-command/1", "brake-status": "assured-aeb.brake-status/1",
 }
+HISTORICAL_WIRE_SCHEMAS = {"adas-cycle": AC.HISTORICAL_SCHEMA, "proposal-basis": AC.HISTORICAL_SCHEMA}
 WIRE_SCHEMAS = {name: "assured-aeb." + name + "/1" for name in BODIES} | LEGACY_SCHEMAS
-URN_TO_SCHEMAS = {"urn:xverse:assured-aeb:" + name + ":v1": (schema,) for name, schema in WIRE_SCHEMAS.items() if name != "gate-state"}
+def interface_urn(interface):
+    return AC.interface_urn(interface) if interface in AC.INTERFACES else "urn:xverse:assured-aeb:" + interface + ":v1"
+
+
+HISTORICAL_URN_TO_SCHEMAS = {"urn:xverse:assured-aeb:" + name + ":v1": (schema,)
+                             for name, schema in HISTORICAL_WIRE_SCHEMAS.items()}
+URN_TO_SCHEMAS = {interface_urn(name): (schema,) for name, schema in WIRE_SCHEMAS.items() if name != "gate-state"}
 URN_TO_SCHEMAS["urn:xverse:assured-aeb:authorization:v1"] = (WIRE_SCHEMAS["authorization"], WIRE_SCHEMAS["gate-state"])
 EVIDENCE_ITEM = {"id": "text", "source": "text", "originNs": "uint", "receptionNs": "uint", "ageNs": "int", "validityWindowId": "text", "synchronizationQuality": "text", "integrity": "text", "modelConfidence": "nullable-number", "monitorConfidence": "nullable-number", "state": "state", "provenance": "digests", "payloadSha256": "digest"}
 
@@ -161,7 +170,7 @@ class EndpointBinding:
     consumer: str
 
     def __post_init__(self):
-        if not all(isinstance(value, str) and value for value in (self.interface, self.producer, self.consumer)) or "urn:xverse:assured-aeb:" + self.interface + ":v1" not in URN_TO_SCHEMAS:
+        if not all(isinstance(value, str) and value for value in (self.interface, self.producer, self.consumer)) or interface_urn(self.interface) not in URN_TO_SCHEMAS:
             raise ContractError("a known interface and explicit endpoint identities are required")
 
     @classmethod
@@ -187,6 +196,17 @@ def _legacy(binding: EndpointBinding, record: Any) -> dict[str, Any]:
     interface = binding.interface
     if interface not in LEGACY_SCHEMAS or not isinstance(record, dict) or record.get("schema") != LEGACY_SCHEMAS[interface]:
         raise ContractError("unknown productive schema")
+    if interface in ("adas-cycle", "proposal-basis"):
+        allowed = {("proposal-basis", "fusion-risk-aeb", "proposer"),
+                   ("adas-cycle", "fusion-risk-aeb", "vc-ingress"),
+                   ("adas-cycle", "vc-ingress", "functional-arbiter"),
+                   ("adas-cycle", "vc-ingress", "evidence-validator")}
+        if (interface, binding.producer, binding.consumer) not in allowed:
+            raise ContractError("undeclared productive F11 endpoint pair")
+        try:
+            return AC.validate(record)
+        except ValueError as error:
+            raise ContractError("invalid active F11 /2 owner vocabulary") from error
     if interface in ("brake-request", "brake-command", "brake-status"):
         from . import brake_esc as B
         if interface == "brake-request":
@@ -221,6 +241,8 @@ def _legacy(binding: EndpointBinding, record: Any) -> dict[str, Any]:
 
 def schema_document(interface: str) -> dict[str, Any]:
     """Machine-readable closed schema for the new role/binding record(s)."""
+    if interface in ("adas-cycle", "proposal-basis"):
+        return AC.schema_document(interface)
     def field(kind):
         if kind.startswith("nullable-"):
             return {"anyOf": [field(kind[9:]), {"type": "null"}]}

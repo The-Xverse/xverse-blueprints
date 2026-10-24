@@ -1,0 +1,12 @@
+[
+  {
+    "id": "blueprints-combined",
+    "state": "passed",
+    "receipt": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/repositories/distributed_safety_critical_thesis/specs/002-assured-aeb/review/codex-second-assembly-verification-20261024/blueprints-combined/receipt.json"
+  },
+  {
+    "id": "compiled-role-plans",
+    "state": "passed",
+    "receipt": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/repositories/distributed_safety_critical_thesis/specs/002-assured-aeb/review/codex-second-assembly-verification-20261024/compiled-role-plans/receipt.json"
+  }
+]

@@ -8,6 +8,8 @@ D-1, D-2) and have no default. Radar messages are produced by the real U3 ``Smar
 
 from __future__ import annotations
 
+from model_output_fixture import model_binding
+
 import ast
 import copy
 import hashlib
@@ -41,7 +43,7 @@ TEST_ONLY_ENTRIES = {
     "fallback.distanceUncertaintyM": 0.5, "fallback.speedUncertaintyMps": 0.5, "fallback.latencyNs": 100 * MS,
     "fallback.decelerationMps2": 6.0, "fallback.marginM": 1.0, "fallback.brakeLevel": 1.0, "fallback.releaseSpeedMps": 0.5,
     "fallback.releaseAbsentCycles": 3,
-    "arbiter.requestFreshnessNs": 80 * MS, "arbiter.holdWindowNs": 100 * MS, "arbiter.mrcSource": "fallback-request",
+    "arbiter.requestFreshnessNs": 80 * MS, "arbiter.holdWindowNs": 100 * MS,
 }
 RADAR_RECORD = {"schema": R.RADAR_CHECKS, "spec": {"rangeM": 100.0, "horizontalFovDeg": 30.0, "verticalFovDeg": 10.0,
                                                     "maxVelocityMps": 100.0, "maxDetections": 500},
@@ -80,7 +82,8 @@ def perception(now_ns, probability=0.9, predicted="bin-0", ood=False, state="NOM
     return {"schema": F.PERCEPTION_OUTPUT, "source": "perception", "frame": 7, "frameSha256": "a" * 64, "originNs": now_ns,
             "occupancyProbability": probability, "binProbabilities": [0.7, 0.1, 0.1, 0.1], "predictedBin": predicted,
             "oodScore": 0.1, "oodFlag": ood, "inputQuality": {"logical": "pass"},
-            "provenance": {"modelDigest": "b" * 64, "preprocessParamsSha256": "c" * 64, "postprocessSha256": "d" * 64},
+            "provenance": {"modelDigest": "b" * 64, "preprocessParamsSha256": "c" * 64,
+                           "postprocessSha256": model_binding().postprocess_sha256},
             "state": state, "reason": None}
 
 
@@ -91,9 +94,9 @@ FAR = [[0.0, 0.0, 40.0, -10.0]]   # d = 39.6 m, v = 10 m/s: does not fire
 # ---- projection ----------------------------------------------------------------------------------------------
 
 def test_projection_reads_by_identifier_without_default():
-    assert F.FusionRiskAeb(projection()).values["aeb.marginM"] == 1.0
+    assert F.FusionRiskAeb(projection(), model_output_binding=model_binding()).values["aeb.marginM"] == 1.0
     with pytest.raises(ValueError, match="aeb.marginM: missing"):
-        F.FusionRiskAeb(projection(aeb__marginM=None))
+        F.FusionRiskAeb(projection(aeb__marginM=None), model_output_binding=model_binding())
 
 
 @pytest.mark.parametrize("key, value", [("aeb.brakeLevel", 0.0), ("aeb.brakeLevel", 1.5), ("radar.closingSpeedSign", 0),
@@ -101,21 +104,21 @@ def test_projection_reads_by_identifier_without_default():
                                         ("radar.mountM", [2.0]), ("aeb.decelerationMps2", 0.0), ("aeb.latencyNs", -1)])
 def test_projection_refuses_wrong_kinds(key, value):
     with pytest.raises(ValueError, match=key.replace(".", r"\.")):
-        F.FusionRiskAeb(projection(**{key.replace(".", "__"): value}))
+        F.FusionRiskAeb(projection(**{key.replace(".", "__"): value}), model_output_binding=model_binding())
 
 
 def test_projection_refuses_non_finite_and_unconsumed_entries():
     with pytest.raises(ValueError):
         projection(aeb__marginM=math.nan)
     with pytest.raises(ValueError):
-        V.FunctionalArbiter(projection(arbiter__mrcSource="adas"))
+        V.FunctionalArbiter(projection(arbiter__requestFreshnessNs=0))
     p = projection()
     consumed = set(F.DECLARATION) | set(V.FALLBACK_DECLARATION) | set(V.ARBITER_DECLARATION)
     p.check_exact(consumed)
     with pytest.raises(ValueError, match="not consumed"):
         p.check_exact(F.DECLARATION)  # a U4-only consumer does not consume the U5 entries
     with pytest.raises(TypeError):
-        F.FusionRiskAeb(dict(TEST_ONLY_ENTRIES))
+        F.FusionRiskAeb(dict(TEST_ONLY_ENTRIES), model_output_binding=model_binding())
 
 
 # ---- states, radar qualification, corridor -------------------------------------------------------------------
@@ -189,7 +192,7 @@ def test_latch_sets_holds_and_releases():
 # ---- U4 fusion (R-1, R-6) ------------------------------------------------------------------------------------
 
 def test_fusion_agree_fires_and_records():
-    fusion, radar = F.FusionRiskAeb(projection()), Radar()
+    fusion, radar = F.FusionRiskAeb(projection(), model_output_binding=model_binding()), Radar()
     out = fusion.step(WORLD, radar=radar.at(WORLD, NEAR), perception=perception(WORLD))
     assert out["hypothesis"]["present"] and out["hypothesis"]["agreement"] == "agree" and out["fired"]
     assert out["brakeRequest"] == 1.0 and out["latched"] and out["state"] == "NOMINAL" and out["reason"] is None
@@ -206,7 +209,7 @@ def test_fusion_agree_fires_and_records():
     (dict(probability=0.2), [[0.0, 0.2, 30.0, 0.0]], "none", "NOMINAL"),  # in the radar FOV, y = 5.96 m: outside the corridor
 ])
 def test_fusion_outcomes(camera, detections, agreement, state):
-    fusion, radar = F.FusionRiskAeb(projection()), Radar()
+    fusion, radar = F.FusionRiskAeb(projection(), model_output_binding=model_binding()), Radar()
     out = fusion.step(WORLD, radar=radar.at(WORLD, detections), perception=perception(WORLD, **camera))
     assert out["hypothesis"]["agreement"] == agreement and not out["hypothesis"]["present"]
     assert out["brakeRequest"] == 0.0
@@ -215,30 +218,30 @@ def test_fusion_outcomes(camera, detections, agreement, state):
 
 
 def test_association_tolerance_at_the_bin_edge():
-    fusion, radar = F.FusionRiskAeb(projection()), Radar()
+    fusion, radar = F.FusionRiskAeb(projection(), model_output_binding=model_binding()), Radar()
     edge = [[0.0, 0.0, 10.0 + 2.4 - 2.0 + 0.99, -1.0]]  # d = 10.99: bin-0 [0, 10) widened by 1.0
     assert fusion.step(WORLD, radar=radar.at(WORLD, edge), perception=perception(WORLD))["hypothesis"]["agreement"] == "agree"
-    fusion, radar = F.FusionRiskAeb(projection()), Radar()
+    fusion, radar = F.FusionRiskAeb(projection(), model_output_binding=model_binding()), Radar()
     beyond = [[0.0, 0.0, 10.0 + 2.4 - 2.0 + 1.01, -1.0]]
     assert fusion.step(WORLD, radar=radar.at(WORLD, beyond), perception=perception(WORLD))["hypothesis"]["agreement"] == "camera-only"
 
 
 def test_fusion_unusable_sources():
-    fusion = F.FusionRiskAeb(projection())
+    fusion = F.FusionRiskAeb(projection(), model_output_binding=model_binding())
     out = fusion.step(WORLD, radar=Radar().at(WORLD, NEAR))
     assert out["reason"] == "camera-unusable" and out["state"] == "UNCERTAIN" and out["brakeRequest"] == 0.0
-    out = F.FusionRiskAeb(projection()).step(WORLD, perception=perception(WORLD))
+    out = F.FusionRiskAeb(projection(), model_output_binding=model_binding()).step(WORLD, perception=perception(WORLD))
     assert out["reason"] == "radar-unusable" and out["state"] == "UNCERTAIN"
-    out = F.FusionRiskAeb(projection()).step(WORLD, radar=Radar().at(WORLD, NEAR), perception=perception(WORLD, state="UNCERTAIN"))
+    out = F.FusionRiskAeb(projection(), model_output_binding=model_binding()).step(WORLD, radar=Radar().at(WORLD, NEAR), perception=perception(WORLD, state="UNCERTAIN"))
     assert out["reason"] == "camera-unusable"
     bad = perception(WORLD)
     bad["extra"] = 1
-    out = F.FusionRiskAeb(projection()).step(WORLD, radar=Radar().at(WORLD, NEAR), perception=bad)
+    out = F.FusionRiskAeb(projection(), model_output_binding=model_binding()).step(WORLD, radar=Radar().at(WORLD, NEAR), perception=bad)
     assert out["reason"] == "camera-unusable" and out["sources"]["camera"]["failures"] == ["perception-output-malformed"]
 
 
 def test_fusion_pairs_adjacent_steps_within_freshness_and_not_beyond():
-    fusion, radar = F.FusionRiskAeb(projection()), Radar()
+    fusion, radar = F.FusionRiskAeb(projection(), model_output_binding=model_binding()), Radar()
     fusion.step(WORLD, perception=perception(WORLD))
     out = fusion.step(WORLD + 50 * MS, radar=radar.at(WORLD + 50 * MS, NEAR))
     assert out["hypothesis"]["agreement"] == "agree" and out["cycle"] == 2
@@ -247,17 +250,17 @@ def test_fusion_pairs_adjacent_steps_within_freshness_and_not_beyond():
 
 
 def test_no_input_step_keeps_the_brake_and_does_not_count():
-    fusion, radar = F.FusionRiskAeb(projection()), Radar()
+    fusion, radar = F.FusionRiskAeb(projection(), model_output_binding=model_binding()), Radar()
     fusion.step(WORLD, radar=radar.at(WORLD, NEAR), perception=perception(WORLD))
     out = fusion.step(WORLD + 50 * MS)
     assert out["reason"] == "no-input" and out["state"] == "UNCERTAIN" and out["brakeRequest"] == 1.0 and out["cycle"] == 1
     assert fusion.latch.absent == 0 and out["sequence"] == 2
-    idle = F.FusionRiskAeb(projection()).step(WORLD)
+    idle = F.FusionRiskAeb(projection(), model_output_binding=model_binding()).step(WORLD)
     assert idle["brakeRequest"] == 0.0 and idle["reason"] == "no-input" and idle["cycle"] == 0
 
 
 def test_fusion_latch_released_by_absence():
-    fusion, radar = F.FusionRiskAeb(projection()), Radar()
+    fusion, radar = F.FusionRiskAeb(projection(), model_output_binding=model_binding()), Radar()
     fusion.step(WORLD, radar=radar.at(WORLD, NEAR), perception=perception(WORLD))
     values = []
     for k in range(1, 4):
@@ -309,8 +312,9 @@ def selector(sequence, configuration, now_ns=WORLD, source="configuration-manage
 
 
 def adas(sequence, now_ns, value, state="NOMINAL", reason=None):
-    return {"schema": F.ADAS_CYCLE, "source": "fusion-risk-aeb", "sequence": sequence, "originNs": now_ns, "brakeRequest": value,
-            "state": state, "reason": reason}
+    # A complete genuine /2 owner envelope; individual tests then alter only their request/state stimulus.
+    record = F.FusionRiskAeb(projection(), model_output_binding=model_binding()).step(now_ns, radar=Radar().at(now_ns, FAR), perception=perception(now_ns))
+    return dict(record, sequence=sequence, brakeRequest=value, state=state, reason=reason)
 
 
 def fallback(sequence, now_ns, value, state="NOMINAL"):
@@ -404,12 +408,13 @@ def test_arbiter_hold_is_per_source_after_a_switch():
     assert request["value"] == 1.0 and arbiter.evidence[-1]["selectedInterface"] == "fallback-request"
 
 
-@pytest.mark.parametrize("mrc, expected", [("fallback-request", 0.6), ("adas-cycle", 0.2), ("none", 0.0)])
-def test_arbiter_mrc_follows_the_declared_source(mrc, expected):
-    arbiter = V.FunctionalArbiter(projection(arbiter__mrcSource=mrc))
+def test_arbiter_terminal_first_never_follows_a_same_inbox_live_source():
+    arbiter = V.FunctionalArbiter(projection())
     request = arbiter.step(WORLD, [("selector-command", selector(1, "S_MRC_REQUESTED")),
                                    ("adas-cycle", adas(1, WORLD, 0.2)), ("fallback-request", fallback(1, WORLD, 0.6))])
-    assert request["value"] == expected
+    assert request["value"] == 0.0
+    assert arbiter.evidence[-1]["kind"] == "terminal-entry-value-hold"
+    assert arbiter.evidence[-1]["terminalHoldProvenance"] == "initial-neutral-no-prior-emission"
 
 
 def test_arbiter_counts_qualified_evidence_and_refuses_undeclared_interfaces():
@@ -421,7 +426,7 @@ def test_arbiter_counts_qualified_evidence_and_refuses_undeclared_interfaces():
 # ---- determinism (T-9) and isolation ---------------------------------------------------------------------------
 
 def _stream(world):
-    fusion, fb, arbiter, radar_u4, radar_u5 = (F.FusionRiskAeb(projection()), V.RadarFallback(projection()),
+    fusion, fb, arbiter, radar_u4, radar_u5 = (F.FusionRiskAeb(projection(), model_output_binding=model_binding()), V.RadarFallback(projection()),
                                                V.FunctionalArbiter(projection()), Radar(), Radar())
     out = []
     for k in range(8):
@@ -470,7 +475,7 @@ def test_logic_modules_import_no_ml_and_u4_u5_stay_apart():
 # Independent-review regressions R13-1 to R13-4; all values are the existing TEST-ONLY fixture values.
 
 def test_stale_camera_with_positive_radar_cannot_release_a_fired_latch():
-    fusion, radar = F.FusionRiskAeb(projection()), Radar()
+    fusion, radar = F.FusionRiskAeb(projection(), model_output_binding=model_binding()), Radar()
     first = fusion.step(WORLD, radar=radar.at(WORLD, NEAR), perception=perception(WORLD))
     assert first["brakeRequest"] == 1.0
     for cycle in range(1, 5):
@@ -520,7 +525,7 @@ def test_uncertainty_breaks_consecutive_observed_absence():
 def test_malformed_perception_fields_are_unusable_without_crashing(key, value):
     record = perception(WORLD)
     record[key] = value
-    result = F.FusionRiskAeb(projection()).step(WORLD, radar=Radar().at(WORLD, NEAR), perception=record)
+    result = F.FusionRiskAeb(projection(), model_output_binding=model_binding()).step(WORLD, radar=Radar().at(WORLD, NEAR), perception=record)
     assert result["state"] == "UNCERTAIN" and result["reason"] == "camera-unusable"
     assert result["brakeRequest"] == 0.0
 
@@ -529,7 +534,7 @@ def test_malformed_perception_fields_are_unusable_without_crashing(key, value):
 def test_each_perception_provenance_digest_is_checked(key):
     record = perception(WORLD)
     record["provenance"][key] = "not-a-digest"
-    result = F.FusionRiskAeb(projection()).step(WORLD, radar=Radar().at(WORLD, NEAR), perception=record)
+    result = F.FusionRiskAeb(projection(), model_output_binding=model_binding()).step(WORLD, radar=Radar().at(WORLD, NEAR), perception=record)
     assert result["state"] == "UNCERTAIN" and result["reason"] == "camera-unusable"
 
 
@@ -560,7 +565,7 @@ LARGE_JSON_INTS = (json.loads("1" + "0" * 1000), json.loads("-1" + "0" * 1000))
 @pytest.mark.parametrize("value", LARGE_JSON_INTS, ids=("large-positive", "large-negative"))
 @pytest.mark.parametrize("field", ("occupancyProbability", "binProbabilities", "oodScore"))
 def test_oversized_perception_number_is_uncertain_and_keeps_an_active_latch(value, field):
-    fusion, radar = F.FusionRiskAeb(projection()), Radar()
+    fusion, radar = F.FusionRiskAeb(projection(), model_output_binding=model_binding()), Radar()
     assert fusion.step(WORLD, radar=radar.at(WORLD, NEAR), perception=perception(WORLD))["brakeRequest"] == 1.0
     now = WORLD + 50 * MS
     record = perception(now)
@@ -618,10 +623,10 @@ def test_oversized_numeric_parameter_is_a_named_projection_refusal(value, identi
         value = [value]
     params = projection(**{identifier.replace(".", "__"): value})
     with pytest.raises(ValueError, match=identifier.replace(".", r"\.")):
-        F.FusionRiskAeb(params)
+        F.FusionRiskAeb(params, model_output_binding=model_binding())
 
 
 def test_numeric_projection_preserves_finite_values_and_bool_refusal():
-    assert F.FusionRiskAeb(projection(fusion__occupancyThreshold=0.5)).values["fusion.occupancyThreshold"] == 0.5
+    assert F.FusionRiskAeb(projection(fusion__occupancyThreshold=0.5), model_output_binding=model_binding()).values["fusion.occupancyThreshold"] == 0.5
     with pytest.raises(ValueError, match=r"fusion\.occupancyThreshold"):
-        F.FusionRiskAeb(projection(fusion__occupancyThreshold=True))
+        F.FusionRiskAeb(projection(fusion__occupancyThreshold=True), model_output_binding=model_binding())

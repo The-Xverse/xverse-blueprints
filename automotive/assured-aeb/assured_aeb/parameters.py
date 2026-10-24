@@ -21,7 +21,7 @@ IDENTIFIER = re.compile(r"[a-z][A-Za-z0-9]*(?:\.[A-Za-z][A-Za-z0-9_]*)+\Z")
 HEX64 = re.compile(r"[0-9a-f]{64}\Z")
 #: Kinds a parameter can declare. Each is a validation of the projected value, never a default.
 KINDS = ("positive-number", "non-negative-number", "probability", "unit-interval-open-low", "positive-int",
-         "non-negative-int", "sign", "xy", "increasing-positive-list", "enum")
+         "non-negative-int", "sign", "xy", "increasing-positive-list", "enum", "digest", "finite-number")
 
 
 def _number(value: Any) -> bool:
@@ -29,6 +29,10 @@ def _number(value: Any) -> bool:
 
 
 def _valid(kind: str, value: Any, choices: tuple[str, ...] | None) -> bool:
+    if kind == "digest":
+        return type(value) is str and HEX64.fullmatch(value) is not None
+    if kind == "finite-number":
+        return _number(value)
     if kind == "positive-number":
         return _number(value) and value > 0
     if kind == "non-negative-number":

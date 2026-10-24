@@ -12,6 +12,10 @@ WP-14 validator supplies.
 - ``UNCERTAIN`` and ``UNSAFE`` are forwarded in the arbiter-cycle evidence, keyed by the request sequence, and not acted
   on.
 
+WP-15 DN-1 supersedes the terminal live-source alternatives: terminal entry snapshots the last emitted clamped
+request, including zero, and irreversibly holds it. With no prior emission only the existing neutral initial zero
+is held, explicitly identified in evidence. No external MRC is executed and no availability credit is implied.
+
 The ``brake-request`` keeps exactly the five WP-04 members, so the chassis zone accepts it.
 """
 
@@ -20,6 +24,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
+from . import adas_contract as AC
 from .aeb_rule import (SHARED_DECLARATION, Latch, corridor_from, nearest_in_corridor, qualify_radar, rule_declaration,
                        rule_from, weakest)
 from .brake_esc import BRAKE_MAX, BRAKE_MIN, brake_request
@@ -27,7 +32,7 @@ from .checks import is_int, is_number
 from .parameters import Projection, params_digest
 
 FALLBACK_REQUEST = "assured-aeb.fallback-request/1"
-ADAS_CYCLE = "assured-aeb.adas-cycle/1"
+ADAS_CYCLE = AC.SCHEMA
 SELECTOR = "assured-aeb.selector-command/1"
 ARBITER_CYCLE = "assured-aeb.arbiter-cycle/1"
 RADAR_STREAM = "f09-radar-vc"
@@ -47,7 +52,6 @@ FALLBACK_DECLARATION: dict[str, tuple] = {
 }
 ARBITER_DECLARATION: dict[str, tuple] = {
     "arbiter.requestFreshnessNs": ("positive-int",), "arbiter.holdWindowNs": ("non-negative-int",),
-    "arbiter.mrcSource": ("enum", ("adas-cycle", "fallback-request", "none")),
 }
 
 
@@ -137,24 +141,23 @@ class FunctionalArbiter:
     def __init__(self, projection: Projection) -> None:
         if type(projection) is not Projection:
             raise TypeError("a validated Projection is required (no default parameters)")
+        if "arbiter.mrcSource" in projection.entries:
+            raise ValueError("arbiter.mrcSource: obsolete terminal live-source parameter; WP-15 DN-1 requires entry-value hold")
         self.values = projection.take(ARBITER_DECLARATION)
         self.params_sha256 = params_digest(self.values)
         self.configuration: str | None = None
         self.selector_sequence: int | None = None
         self.last_used: dict[str, int] = {}  # per source: the last request sequence used
         self.last_valid: dict[str, dict[str, Any]] = {}  # per source: the last valid request (R-3 hold, per source)
+        self.last_emitted_value: float | None = None
+        self.terminal_value: float | None = None
+        self.terminal_hold_provenance: str | None = None
         self.sequence = 0
         self.qualified_seen = 0
         self.evidence: list[dict[str, Any]] = []
 
     def _selected(self) -> str | None:
-        if self.configuration is None:
-            return None
-        source = SOURCE_OF.get(self.configuration)
-        if source is None:  # S_MRC_REQUESTED: the declared terminal behaviour (WP-15)
-            mrc = self.values["arbiter.mrcSource"]
-            return None if mrc == "none" else mrc
-        return source
+        return SOURCE_OF.get(self.configuration)
 
     def _accept_selector(self, message: Any, refusals: list[str]) -> None:
         if not (isinstance(message, dict) and set(message) == {"schema", "source", "sequence", "originNs", "configuration"}
@@ -166,8 +169,15 @@ class FunctionalArbiter:
             refusals.append("selector-unknown-configuration")
         elif self.selector_sequence is not None and message["sequence"] <= self.selector_sequence:
             refusals.append("selector-replayed")
+        elif self.configuration == "S_MRC_REQUESTED":
+            refusals.append("selector-terminal-already-entered" if message["configuration"] == "S_MRC_REQUESTED"
+                            else "selector-terminal-lockout")
         else:
             self.configuration, self.selector_sequence = message["configuration"], message["sequence"]
+            if self.configuration == "S_MRC_REQUESTED":
+                self.terminal_value = self.last_emitted_value if self.last_emitted_value is not None else 0.0
+                self.terminal_hold_provenance = ("last-emitted-request" if self.last_emitted_value is not None
+                                                 else "initial-neutral-no-prior-emission")
 
     def step(self, now_ns: int, inbox: list[tuple[str, Any]]) -> dict[str, Any]:
         """One decision cycle: return exactly one WP-04 ``brake-request``; append one arbiter-cycle evidence record."""
@@ -187,12 +197,18 @@ class FunctionalArbiter:
                 refusals.append(f"undeclared-interface-{interface}")
         selected = self._selected()
         kind, value, raw, clamped, chosen, flags = "no-selector", 0.0, None, False, None, []
-        if self.configuration is not None and selected is None:
-            kind = "no-valid-source"
+        if self.configuration == "S_MRC_REQUESTED":
+            kind, value = "terminal-entry-value-hold", self.terminal_value
         if selected is not None:
             fresh = None
             for message in sorted((m for m in requests[selected] if isinstance(m, dict) and is_int(m.get("sequence"))),
                                   key=lambda m: m["sequence"]):
+                if selected == "adas-cycle":
+                    try:
+                        message = AC.validate(message, check_request=False)
+                    except ValueError:
+                        flags.append("request-refused")
+                        continue
                 ok = (message.get("schema") == SCHEMA_OF[selected] and message.get("source") == SOURCE_ELEMENT[selected]
                       and is_int(message.get("originNs")) and message["sequence"] > self.last_used.get(selected, -1))
                 if not ok:
@@ -222,6 +238,7 @@ class FunctionalArbiter:
             value, kind = 0.0, "no-valid-source"
         self.sequence += 1
         request = brake_request(self.sequence, now_ns, value)
+        self.last_emitted_value = request["value"]
         self.evidence.append({"schema": ARBITER_CYCLE, "sequence": self.sequence, "originNs": now_ns,
                               "configuration": self.configuration, "selectorSequence": self.selector_sequence,
                               "selectedInterface": selected, "kind": kind, "value": value, "rawValue": raw, "clamped": clamped,
@@ -229,5 +246,6 @@ class FunctionalArbiter:
                               "sourceOriginNs": chosen["originNs"] if chosen else None,
                               "forwardedState": chosen.get("state") if chosen else None,
                               "forwardedReason": chosen.get("reason") if chosen else None,
+                              "terminalHoldProvenance": self.terminal_hold_provenance,
                               "flags": sorted(set(flags)), "refusals": refusals, "paramsSha256": self.params_sha256})
         return request

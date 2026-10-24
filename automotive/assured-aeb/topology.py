@@ -23,6 +23,8 @@ Engineering design only: no unit program exists yet (WP-13 to WP-17), and nothin
 
 from __future__ import annotations
 
+from assured_aeb import adas_contract as F11
+
 import argparse
 import copy
 import hashlib
@@ -200,7 +202,7 @@ ELEMENTS: dict[str, tuple[str, str, str, tuple[str, ...], tuple[str, ...]]] = {
     "safety-gate": ("gate", "vc-assurance", "vehicle-control-hpc", MLOC_ARMS, ("authorization",)),
 }
 
-#: Interfaces: id -> unit semantics. payloadSchema is urn:xverse:assured-aeb:<id>:v1 (contract in WP-13/WP-14).
+#: Interfaces: id -> unit semantics. F11/basis payloads are v2; other logical payload contracts remain v1.
 INTERFACES = {
     "camera-raw": "camera-frame-metadata", "radar-raw": "radar-detections", "motion-raw": "vehicle-motion",
     "actuation-command": "pedal-command", "throttle-command": "pedal-command",
@@ -426,6 +428,10 @@ def contract_owner(interface: str, arm: str) -> str | None:
     return producers[0][1] if producers else None
 
 
+def payload_schema(interface: str) -> str:
+    return F11.interface_urn(interface) if interface in F11.INTERFACES else f"urn:xverse:assured-aeb:{interface}:v1"
+
+
 def component(element: str, arm: str) -> dict[str, Any]:
     """Return the Component of ``element``: interfaces, endpoints and the authority payload."""
 
@@ -434,21 +440,21 @@ def component(element: str, arm: str) -> dict[str, Any]:
     inputs = sorted(_inputs(arm).get(element, set()) | _inputs("mloc").get(element, set()))
     interfaces, endpoints = [], []
     for interface in sorted(outputs):
-        row = {"id": interface, "direction": "output", "payloadSchema": f"urn:xverse:assured-aeb:{interface}:v1",
+        row = {"id": interface, "direction": "output", "payloadSchema": payload_schema(interface),
                "unitSemantics": INTERFACES[interface], "compatibility": "exact"}
         if contract_owner(interface, arm) == element:
             # One X-COM contract per message type: a contract id is the interface id, so only one Component (the first
             # producer in name order) carries the interface-policy (xcom_plan XCOM-PLAN-DUPLICATE otherwise); the
             # X-COM profile admits no System attachment.
             row["extensions"] = {XCOM: _xcom("interface-policy", _ref("Component", name), {
-                "interactionKind": "message", "schemaId": f"{interface}-schema", "schemaVersion": "1.0.0",
+                "interactionKind": "message", "schemaId": f"{interface}-schema", "schemaVersion": "2.0.0" if interface in F11.INTERFACES else "1.0.0",
                 "encoding": "json", "semanticCompatibility": "exact"})}
         interfaces.append(row)
         endpoints.append({"id": f"{interface}-out", "ownerId": name, "interfaceId": interface, "direction": "output"})
     for interface in inputs:
         if interface in outputs:
             continue
-        interfaces.append({"id": interface, "direction": "input", "payloadSchema": f"urn:xverse:assured-aeb:{interface}:v1",
+        interfaces.append({"id": interface, "direction": "input", "payloadSchema": payload_schema(interface),
                            "unitSemantics": INTERFACES[interface], "compatibility": "exact"})
         endpoints.append({"id": f"{interface}-in", "ownerId": name, "interfaceId": interface, "direction": "input"})
     doc = {
@@ -544,7 +550,7 @@ def system(arm: str, form: str = "topology") -> dict[str, Any]:
         "spec": {
             "nodes": nodes,
             "componentInstances": instances,
-            "interfaces": [{"id": i, "direction": "bidirectional", "payloadSchema": f"urn:xverse:assured-aeb:{i}:v1",
+            "interfaces": [{"id": i, "direction": "bidirectional", "payloadSchema": payload_schema(i),
                             "unitSemantics": s, "compatibility": "exact"} for i, s in sorted(INTERFACES.items())],
             "endpoints": [endpoints[k] for k in sorted(endpoints)],
             "flows": system_flows,
