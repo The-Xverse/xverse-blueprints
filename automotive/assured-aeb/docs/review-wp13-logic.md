@@ -449,3 +449,29 @@ terminal policy, protocol value, unit wiring or unrelated source change.
   boolean refusal control. Use existing TEST-ONLY projections; do not invent a protocol range or tolerance.
 - While the full platform regression is running, perform only small deterministic probes and source syntax checks.
   The owning blueprint suite and fresh independent re-review remain queued before acceptance or merge.
+
+## Finding 8: R13-6 repair result and bounded checks (2026-10-24; full suite/re-review pending)
+
+The independent reviewer switched to a separate repair-author pass after finding 6 and committed finding 7's design
+as `dd54fd5` before these source changes. `checks.is_number` now rejects unsupported exact numeric types and catches
+float-conversion overflow, returning false. `parameters._number` delegates to this shared predicate; its duplicate
+unchecked conversion and unused `math` import are removed. No other productive logic or terminal policy changed.
+The shared predicate also preserves the existing bool/subclass rejection and finite float semantics.
+
+Added **25 regression cases** through public consumer paths, using 1001-digit positive and negative JSON integers:
+- six perception cases keep an already active fusion latch and report unusable camera evidence;
+- two fallback ego-speed cases report uncertain evidence and retain an active latch;
+- two radar-detection cases report malformed detections with an empty qualified detection set;
+- two arbiter cases use only the existing selected-source bounded hold, then return `no-valid-source` after it;
+- twelve numeric parameter cases cover scalar, coordinate and bin-edge kinds and obtain a named `ValueError`;
+- one public projection control preserves an ordinary finite value and bool refusal.
+
+**Checks performed now:** a small direct probe called all 25 new cases without starting pytest; all passed.
+It also called four existing R13-1/R13-4 regression functions directly; all passed. Syntax compilation in memory
+passed for `checks.py`, `parameters.py` and `tests/test_aeb_logic.py`; `git diff --check` passed. These checks took
+under a second and launched no simulation, inference, heavy suite or platform process.
+
+**Still required:** the full owning blueprint suite, including the pre-existing camera/radar users of the shared
+predicate, and a fresh review independent of this R13-6 repair. The 365-test result of finding 5 predates this repair
+and is not a full-regression result for it. R13-5 and all other carried composition/freeze obligations are unchanged.
+This candidate is not accepted or merged. No protocol bound, tolerance, live execution or scientific result is set.

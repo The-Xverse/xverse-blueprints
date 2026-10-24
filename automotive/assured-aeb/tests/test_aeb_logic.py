@@ -550,3 +550,78 @@ def test_negative_ego_speed_cannot_satisfy_the_degraded_odd():
         ego_speed={"speedMps": -100.0, "originNs": WORLD, "state": "NOMINAL"})
     assert result["state"] == "UNCERTAIN" and result["reason"] == "ego-speed-unknown"
     assert result["fired"] is False and result["brakeRequest"] == 0.0
+
+
+# R13-6: oversized JSON integers are rejected at public consumer boundaries.
+# The 1001-digit fixture is below the existing wire limit; it is not a protocol value.
+LARGE_JSON_INTS = (json.loads("1" + "0" * 1000), json.loads("-1" + "0" * 1000))
+
+
+@pytest.mark.parametrize("value", LARGE_JSON_INTS, ids=("large-positive", "large-negative"))
+@pytest.mark.parametrize("field", ("occupancyProbability", "binProbabilities", "oodScore"))
+def test_oversized_perception_number_is_uncertain_and_keeps_an_active_latch(value, field):
+    fusion, radar = F.FusionRiskAeb(projection()), Radar()
+    assert fusion.step(WORLD, radar=radar.at(WORLD, NEAR), perception=perception(WORLD))["brakeRequest"] == 1.0
+    now = WORLD + 50 * MS
+    record = perception(now)
+    record[field] = [value] if field == "binProbabilities" else value
+    result = fusion.step(now, radar=radar.at(now, NEAR), perception=record)
+    assert result["state"] == "UNCERTAIN" and result["reason"] == "camera-unusable"
+    assert result["brakeRequest"] == 1.0 and result["latched"] is True
+    assert fusion.latch.absent == 0
+
+
+@pytest.mark.parametrize("value", LARGE_JSON_INTS, ids=("large-positive", "large-negative"))
+def test_oversized_ego_speed_is_uncertain_and_keeps_an_active_fallback_latch(value):
+    fb, radar = V.RadarFallback(projection()), Radar()
+    assert fb.step(WORLD, radar=radar.at(WORLD, NEAR, V.RADAR_STREAM), ego_speed=speed(WORLD, 12.0))["brakeRequest"] == 1.0
+    now = WORLD + 50 * MS
+    result = fb.step(now, radar=radar.at(now, NEAR, V.RADAR_STREAM), ego_speed=speed(now, value))
+    assert result["state"] == "UNCERTAIN" and result["reason"] == "ego-speed-unknown"
+    assert result["brakeRequest"] == 1.0 and result["fired"] is False and result["latched"] is True
+    assert fb.latch.absent == 0
+
+
+@pytest.mark.parametrize("value", LARGE_JSON_INTS, ids=("large-positive", "large-negative"))
+def test_oversized_radar_detection_is_uncertain(value):
+    record = Radar().at(WORLD, NEAR)
+    record["payload"]["detections"][0][3] = value
+    view = A.qualify_radar(record, F.RADAR_STREAM, WORLD, 80 * MS)
+    assert view.state == "UNCERTAIN" and "malformed-detections" in view.failures
+    assert view.detections == ()
+
+
+@pytest.mark.parametrize("value", LARGE_JSON_INTS, ids=("large-positive", "large-negative"))
+def test_oversized_arbiter_request_uses_only_the_existing_bounded_hold(value):
+    arbiter = V.FunctionalArbiter(projection())
+    first = arbiter.step(WORLD, [("selector-command", selector(1, "C_NOMINAL")), ("adas-cycle", adas(1, WORLD, 1.0))])
+    assert first["value"] == 1.0
+    now = WORLD + 50 * MS
+    result = arbiter.step(now, [("adas-cycle", adas(2, now, value))])
+    assert result["value"] == 1.0 and arbiter.evidence[-1]["kind"] == "held"
+    assert "non-finite" in arbiter.evidence[-1]["flags"]
+    now = WORLD + 101 * MS
+    result = arbiter.step(now, [("adas-cycle", adas(3, now, value))])
+    assert result["value"] == 0.0 and arbiter.evidence[-1]["kind"] == "no-valid-source"
+
+
+@pytest.mark.parametrize("value", LARGE_JSON_INTS, ids=("large-positive", "large-negative"))
+@pytest.mark.parametrize("identifier,shape", [
+    ("aeb.decelerationMps2", "scalar"), ("aeb.marginM", "scalar"),
+    ("fusion.occupancyThreshold", "scalar"), ("aeb.brakeLevel", "scalar"),
+    ("radar.mountM", "xy"), ("fusion.distanceBinEdgesM", "list"),
+])
+def test_oversized_numeric_parameter_is_a_named_projection_refusal(value, identifier, shape):
+    if shape == "xy":
+        value = [value, 0.0]
+    elif shape == "list":
+        value = [value]
+    params = projection(**{identifier.replace(".", "__"): value})
+    with pytest.raises(ValueError, match=identifier.replace(".", r"\.")):
+        F.FusionRiskAeb(params)
+
+
+def test_numeric_projection_preserves_finite_values_and_bool_refusal():
+    assert F.FusionRiskAeb(projection(fusion__occupancyThreshold=0.5)).values["fusion.occupancyThreshold"] == 0.5
+    with pytest.raises(ValueError, match=r"fusion\.occupancyThreshold"):
+        F.FusionRiskAeb(projection(fusion__occupancyThreshold=True))
