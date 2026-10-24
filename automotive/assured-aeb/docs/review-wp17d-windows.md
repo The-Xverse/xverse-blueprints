@@ -213,3 +213,74 @@ env PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 \
 Then run the assembled blueprint suite after reconciling the accepted Protocol dependency, review both API and
 report formulas independently, and exercise a genuinely frozen/admitted author record only when authorized.
 No acceptance, merge, protocol freeze, principal run or factory action is included in this candidate.
+
+## Finding 4: independent read-only review, CHANGES REQUESTED (2026-10-24)
+
+Reviewed exact candidate `a417541b2a2b942d5a24f9ced942517e156f6b95`, findings 1–3, accepted thesis
+`decisions.md` §“WP-17d derivation semantics”, O-5 and the full generator/tests plus its public Protocol dependency.
+The reviewer did not author this implementation and makes **no source/test repair** in this pass. Thesis upstream
+fetch succeeded at HEAD/upstream `d97fdd1`; the canonical working-note blob remains `ba244ddb`, with no incoming
+note change. Sol at high reasoning is appropriate for the next scope-preserving formula/report repair and review;
+no model switch or measured comparative result is claimed.
+
+### R17d-1, MEDIUM: the explicit completion obligation omits retained-evidence expiry
+
+`window_tables.py:239` emits:
+`confirm by min(requestTime + totalTransitionDeadline, selectorTime + confirmationDeadline)`.
+The accepted disposition explicitly subjects **both** clocks to retained-evidence validity as well. Checking
+`C <= T <= V_retained` does not cover evidence already aged at request; nor does it supply the evidence's absolute
+expiry. The table correctly defers runtime enforcement, but the explicit rule handed to that enforcement is
+incomplete. The transition-row text also omits the evidence-expiry intersection.
+
+Concrete independently reproduced timeline, all **TEST-ONLY integer ns**: retained evidence originates at 0 with
+validity 200; request at 150; selector at 170; total T=100; confirmation C=40. The generated table is valid after
+setting the other recovery deadlines to consistent TEST-ONLY values. A completion at 205 satisfies its emitted
+`min(150+100,170+40)=210` rule but exceeds retained-evidence expiry 200. This counterexample changes no scientific
+parameter and does not claim the runtime currently accepts such a completion.
+
+**Required disposition before repair:** preserve the accepted clock definitions and table inequalities; make the
+explicit runtime obligation the minimum of total-transition expiry, post-selector confirmation expiry and **all
+applicable retained-evidence absolute expiries**, including the fact that evidence can predate the request. Do not
+invent T+C, a new origin, an evidence age of zero, or a static default deadline. This table lacks event-time inputs,
+so it should state that complete composition obligation and require runtime verification, not pretend to compute an
+absolute expiry. Add a decisive TEST-ONLY aged-evidence regression of the described contract.
+
+### R17d-2, LOW: the zero-speed check's comparison unit is misreported
+
+In `window_tables.py:198–203`, when conservative speed is zero the envelope row's `value` is null and its declared
+row `unit` remains `ns`, but `check.left` is the constant **distance** budget and the check is `budget_m >= 0`.
+A genuine zero-speed fixture produces left `94/1` with row unit `ns`; that value represents metres. The acceptance
+logic and unbounded/no-solution classification are mathematically correct, but a consumer cannot correctly type the
+comparison from the serialized unit. Input units do not make the reported comparison unit unambiguous.
+
+**Required disposition before repair:** explicitly type that comparison as metres (a separately typed check or
+constant-condition row is sufficient), while retaining nanoseconds for the finite deadline bound and preserving
+null rather than Infinity for an absent time bound. Cover zero-speed unbounded and no-solution reports; no equation,
+protocol value or degeneracy policy needs changing.
+
+### Positive checks and carried boundaries
+
+- The conservative-distance/speed substitutions, trigger/budget sign distinction, exact Fraction arithmetic over
+  the adopted decoded-number representation, floor upper bounds and ceil reserve are consistent with the accepted
+  interpretation. Equality, positive-speed finite/zero/negative budgets and zero-speed constant-bound cases are
+  handled without upward clamping or fabricated deadlines. Decimal strings and boolean numeric values are refused.
+- AD-06 growth uses its separately declared physical ODD speed directly; envelope uncertainty is not added twice.
+  Monitor, transition, included confirmation and fallback/MRC request inequalities match the declared scopes.
+  Request-emission checks make no MRC execution claim.
+- Genuine Protocol admission/entry access retains record digest, kind, source/status/category/unit identities.
+  Unresolved consumed entries, forbidden oracle/fault/metric categories and wrong units refuse the table. Principal
+  finality remains the public Protocol dependency's responsibility; that dependency is still unaccepted.
+- Abstract route continuity/coverage is checked, but completeness and correctness of latency contributions remain
+  an explicit protocol review obligation. The code cannot infer omitted per-unit processing, rounding or hub-delay
+  contributions from the declared list, or establish actual topology/physical timing. No full retained-path/runtime
+  verification or clock-synchronization robustness is demonstrated. Keep these limits through downstream projection
+  and protocol freeze; a valid table is not proof that every real contribution was declared.
+
+**Checks actually performed:** 21 small independent direct assertions using genuine digest/chronology-admitted
+Protocol fixtures: four rational envelope/rounding cases, three zero-speed constant cases, the aged-evidence
+counterexample, the zero-speed unit mismatch and unit/status/category refusals. Two in-memory Python syntax checks
+and `git diff --check` passed. One initial counterexample setup left the fixture's old fallback/MRC deadlines above
+the newly shortened retained validity and was correctly refused; its related TEST-ONLY inputs were made consistent
+before the successful reproduction, with no source change. No pytest runner, framework import, socket exchange,
+full owning suite or scientific record was executed. The coordinator retains repairs/disposition and serialized
+owning verification; acceptance/merge/freeze remain outstanding.
