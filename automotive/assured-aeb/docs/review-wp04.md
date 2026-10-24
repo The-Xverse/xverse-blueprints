@@ -581,3 +581,11 @@ The next step is acceptance and a merge. Neither has happened.
 
 ### Recommendation
 Ready for acceptance and merge. Record LOW-B in the WP-10 obligation.
+
+## 10. Acceptance (written at 12:01:28 2026-10-24)
+
+- **Accepted** under the author's delegation of 2026-10-24 (thesis `specs/002-assured-aeb/decisions.md` §G and
+  the "AD-30 delivery rule" and "WP-04 fault status" rows). It is flagged for the author's review.
+- **Basis:** findings 3 and 6 (FAIL then repaired) and 9 (PASS WITH NOTES); suite 122 passed, checker exit 0.
+- LOW-B goes to WP-10: bind the reader origin from `episode_ns` (or in `on_motion` as `motion["originNs"] - round(sim_s*1e9)`), never from the first motion item.
+- **Merged** into blueprints main and pushed (see the merge commit).
