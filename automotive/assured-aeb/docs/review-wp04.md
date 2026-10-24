@@ -532,3 +532,52 @@ brake held). Under the AD-30 delivery rule the hub delivers at the first step bo
 obligation above, and with the AD-30 delivery rule as the latency rounding (residual 6).
 
 The next step is acceptance and a merge. Neither has happened.
+
+## Finding 9: independent re-review of findings 7 and 8 (2026-10-24 11:58:43)
+
+**Reviewer and method.**
+- The finding 3 and 6 reviewer, read-only. Read `264695d`, `2bd7683` and `d536c7e` against `2dad590`, with
+  the thesis `decisions.md` row "AD-30 delivery rule" (284), and compat `live/loop.py` 83–126 at `855878a`.
+- Commands:
+  - `tests/test_brake_esc.py`: 48 passed;
+  - the whole suite with the rc.1 profiles: 122 passed;
+  - `check_topology.py`: exit 0.
+- Nothing in the worktree changed except this entry. No CARLA, no live run.
+
+### Verdict: **PASS WITH NOTES. Nothing blocks the merge.**
+
+### Items
+- **`bind_origin` (brake_esc.py 268).** It refuses a non-integer, negative or bool value. Re-binding the
+  same value is idempotent, and a different value is refused (`test_origin_binds_once_…`).
+- **0.0 before any command, bound or not** (288). This holds B-3.
+- **`None` while a command is held and the origin is unbound** (289), the fail-closed rule. The value is
+  served once the origin is bound (`test_unbound_origin_serves_zero_…`).
+- **`LiteVehicleLoop` order at a 1000 s epoch** (`test_lite_vehicle_loop_order_driver_before_first_frame`).
+  It reproduces `loop.py`:
+  - the driver is called at tick 0 with `sim_s` 0.0 before the first frame;
+  - the first frame sets `episode_ns`, and the reader is bound from it;
+  - the next `sim_s` is `(frame_ns − episode_ns) / 1e9`.
+
+  The driver sees `[0.0, 0.0, 0.0, 1.0, 1.0, 1.0]` for `[0, 0, 1, 1, 1, 0]`, so the frame-*k* request
+  arrives at tick *k + 1*. That matches the hub step.
+- **LOW-A, declared.** A future-origin command displaces a fresh one, and the reader fails closed. Under
+  the AD-30 delivery rule ("the first simulator-step boundary at or after its `deliverAtNs`") this arises
+  only if a command is delivered early, which is consistent with the thesis row.
+- **Consistency with the AD-30 delivery rule.** Staleness is keyed to episode-relative time, the origin is
+  bound late from the first frame with no default, and the absolute stamps stay on F17. The rule is
+  applied as written.
+
+### New note (LOW, not blocking)
+- **LOW-B: bind from `episode_ns`, not from the first motion item.**
+  - Finding 8 offers `on_motion` as one way to bind. In `loop.py`, `episode_ns` is the first frame's
+    motion `originNs` if a motion item is present, and otherwise the largest other item origin (106,
+    114). `on_motion` fires only on a frame that carries motion (123–126).
+  - If the episode's first frame has no motion item, binding to the first `motion["originNs"]` would bind
+    a later instant than `episode_ns`. Every age would then be overestimated by that offset, which leads to
+    early staleness. That fails closed, but it is wrong.
+  - A safe derivation inside `on_motion(motion, sim_s)` is `motion["originNs"] − round(sim_s·1e9)`, which
+    equals `episode_ns` exactly.
+  - Record that in the WP-10 obligation, or bind right after `episode_ns` is set.
+
+### Recommendation
+Ready for acceptance and merge. Record LOW-B in the WP-10 obligation.
