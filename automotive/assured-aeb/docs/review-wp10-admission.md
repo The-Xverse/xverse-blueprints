@@ -84,3 +84,53 @@ runs the order of design §5. The **first refusing stage stops the run**, and no
 3. The faults in the Maestro form compile to tick conversion at rc.1 (L-8); real Maestro admission of
    simulation-time faults needs (A).
 4. Hub arming and the control channel (increments #3 and #4).
+
+## Finding 2: implementation result (2026-10-24 12:19:43; commit `f0ecf6e`)
+
+**What was added.**
+- `admission.py`:
+  - `admit_run`, the six-stage order;
+  - `SimTimeFreezeBound` and `sim_duration_ns`;
+  - `option_a_available`, the interim-gate capability probe;
+  - `AdmissionResult`;
+  - `ArmDescriptor` and `HubArmingRecheck`, the re-check plus the `arm` stub.
+- `check_topology.FreezeBound` now validates its inputs.
+- `tests/test_admission.py`: 27 tests.
+
+**Commands.**
+- `tests/test_admission.py` with the rc.1 profiles: 27 passed.
+- The whole blueprint suite: 198 passed. Without the profiles: 167 passed and 31 skipped.
+- `check_topology.py`: exit 0.
+- Host load 4.9. Offline only: no CARLA, no live run; the loop10 paths and the pinned live environment were not
+  touched.
+
+**Results against the design (finding 1).**
+
+| Item | Result |
+| --- | --- |
+| Order and stopping (§1.1) | Spies on `prepare_fn` and `admit_fn` prove that **`admit_schedule` is never reached after a refusal**, and that `stages_run` ends at the refusing stage. Four cases refuse at their own stage: a missing FreezeBound (`bound-inputs`), a missing simulation-time bound (`bound-inputs`), unknown D-4c values (`sim-duration`) and the interim gate (`fault-admission`). A rule refusal (a lone `vc-functional-unit` freeze) stops at `fault-admission` even with the (A) capability injected |
+| Simulation-time durations | Under an injected (A) capability, with test bounds (step 0.05 s, `max_step_host` 0.1 s, handshake 0.2 s, thaw 3.26 s), a 500 ms CC-1 pair passes: 10 × 0.1 + 0.4 = 1.4 s. A 1500 ms pair is refused: 3.4 s > 3.26 s. A tick-keyed freeze is refused because PAIR-1 needs simulation time. Unknown inputs refuse |
+| Interim position | The real rc.1 probe reports no (A) (`xverse.faults.SIMULATION_TIME_TRIGGERS` is absent, and a non-`True` value counts as absent). **Every fault schedule is refused with the interim message**: the CC-1 pair, freezes of the front zone, ADAS/AD and assurance units, `stale` and `loss` on F09, `proposal-unsafe` on F12, and `evidence-loss` on F13. Neither prepare nor admit is called |
+| Fault-free arm | Reaches prepare and `admit_schedule` on the rc.1 platform and is admitted at op 0.29 with 6 units. The thaw bound the caller derives from the admitted schedule is 3.26 s. Admission only: no run is authorized (E8-3) |
+| LOW-B | `FreezeBound` refuses zero, negative, NaN, infinite and bool values. `SimTimeFreezeBound.problems` reports each unknown or invalid input |
+| Hub re-check (§1.3) | `recheck` admits `stale` on F09 and an admitted freeze unit, and refuses `loss` on F07 and a freeze of `carla-adapter-unit`. CC-1 pairing stays the admission rule's job. `arm` raises `NotImplementedError` naming increment #4 |
+
+All bound values in the tests are labelled test values. None is a D-4c measurement or a protocol value.
+
+**Residuals.**
+1. **D-4c values.** `max_step_host_s` and `handshake_s` are unknown, so every freeze is refused at
+   `sim-duration` even after (A). The step `step_s` (K-10, 0.05 s) and the thaw bound (from the admitted
+   schedule) are the caller's inputs, never defaulted.
+2. **The capability probe** `xverse.faults.SIMULATION_TIME_TRIGGERS` is provisional. Increment #3's ADR
+   provides it or replaces the probe.
+3. **Simulation-time faults in the Maestro form.** They still compile through the rc.1 tick conversion (L-8).
+   Real Maestro admission of them, including `prepare` and `admit_schedule` with faults, needs (A). Under the
+   injected capability, these stages are spies in the tests.
+4. **Hub arming** and the control channel (increments #3 and #4). The re-check is implemented and `arm` is a
+   stub.
+5. **Message faults reach the hub** (topology form) and process faults reach Maestro (Maestro form). Under (A),
+   both move into the single-domain Maestro schedule (design §4 item 6). The admission path then needs no form
+   split for faults.
+6. **The run command** that calls `admit_run` is increment #5.
+
+The next step is an independent read-only review of `f0ecf6e`, then acceptance and merge. Neither has happened.
