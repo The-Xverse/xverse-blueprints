@@ -150,3 +150,91 @@ The external profile input must be the admitted pinned source; no interpreter/ar
 mutation is implied. Real confidence minima/scientific calibration support, AD27, later 14b/14c startup/deadline
 design and live gates remain open. The inherited FR007/FR024/FR028/V04 and public SADS allocations remain partial:
 this candidate supplies an interface prerequisite only and closes no parent or scientific assurance claim.
+
+## Finding 4: independent source review, CHANGES REQUESTED (Codex, 2026-10-24)
+
+Reviewed exact `c12cd036bb73b2b4aebb85701de3106c97888296`, source `bdcf5b2`, dispositions `076e96e`, designs
+`7e241a6`/`ab222af`, findings 1–3 and the genuine owner/consumer/schema/topology definitions. The reviewer did not
+author 14b0 and makes **no product/test repair or acceptance**. Sol/high is recommended for the narrow successor
+and independent review. The worktree's physical path is the verified loop10 location recorded in finding 3.
+All new temporary data used explicit loop10 TMPDIR under `scratch/review_wp15`, never internal /tmp.
+
+Thesis HEAD/upstream remain d97fdd1 and the working canonical-note blob remains ba244ddb from completely read
+context. The thesis still physically resides internally during coordinator relocation, so this interaction kept
+it read-only rather than fetch/write new internal Git data, as reported to the coordinator. No new fetch is claimed.
+The unchanged local governing dispositions were read; no canonical note or scientific decision is changed.
+
+### R14b0-1, MEDIUM: selected-bin confidence assumes a class order not enforced by its actual owner contract
+
+`FusionRiskAeb.__init__` reconstructs `self.bin_labels` as no-obstacle/overlap/bin-0..bin-(N-1)/beyond from its
+distance edges. `AC.confidences` then indexes the received vector by that reconstructed order. However the accepted
+`postprocess.parse_record`, `CameraInference.__init__` and `CameraInference.load` permit any explicit unique
+postprocess label order from the owned vocabulary. Load checks names/count against static model outputs, not
+equality to Fusion's reconstructed order. The perception-output wire contains probabilities/predictedBin and
+postprocess provenance, but does not carry the class order or an independently checked order assertion.
+
+The direct independent counterexample uses genuine SmartCamera/FrontZone input and `CameraInference.step`, a
+genuine accepted postprocess record and a deterministic TEST-ONLY inference callable (no model/framework claim):
+
+- Actual owner label order: `[no-obstacle, overlap, bin-2, bin-0, bin-1, beyond]`.
+- Finite normalized TEST-ONLY probabilities: `[0.05, 0.05, 0.7, 0.05, 0.05, 0.1]`; the actual first maximum selects
+  bin-2, so its selected-class probability is 0.7. Occupancy is 0.8, and the genuine perception owner emits NOMINAL.
+- Fusion's six-class canonical lookup takes bin-2 from position 4 and emits distanceClassConfidence=0.05.
+  The full F11 /2 owner validator accepts the result. No probability/type/length/selected-label check catches this.
+
+This violates the adopted **actual selected class probability** definition while preserving productive braking
+logic; it is an assurance-metadata binding gap, not a demonstrated actuation bypass or real-model quality result.
+The positive fixture always uses matching canonical order, so all ten existing interface methods pass without
+covering it. A known agreed training order does not by itself enforce the actual runtime postprocess binding.
+
+Required disposition before repair: make the actual order agreement an enforced owner/composition boundary before
+emitting this confidence. For example, explicitly bind and check the pinned postprocess class order against the
+Fusion configuration, or reject noncanonical order at the appropriate perception/model-admission boundary if that
+structural contract is chosen. The currently accepted arbitrary-order owner API must not silently disagree with
+the new F11 scalar. If order is unavailable/mismatched, it cannot produce a falsely attributed scalar. Add the
+same-size permutation regression using the real owner path and require refusal/unavailability or the correct actual
+selected probability. Do not silently reorder source probabilities, substitute max(p) as a different method, leak
+the vector into F11, add a scientific threshold or change the functional/latch algorithm. Any owner-contract
+restriction must be recorded before code and checked against existing ML fixtures. No repair is made here.
+
+### Positive source and limited verification findings
+
+The occupancy equation follows the actual admitted `>=` threshold, including p=0, equality and a non-half
+threshold, rather than p alone or max(p,1-p). The seven camera quality fields preserve exact bool/owned enum/null
+types; missing/wrong-native/unknown values never default to pass. An undeclared source quality shape becomes
+unavailable. Original closed F08 checks are detached and typed contradictions remain unchanged for later U5
+qualification; malformed/extra classes become unavailable. No probability vector, raw OODscore or raw image
+indicators enter the new F11 metadata. All three existing ML provenance fields remain unchanged.
+
+Active wire /2, both logical payload URNs v2 and X-COM2.0.0 policy versions are coherent. Historical v1 wire/URN
+aliases are separate and absent from active lookup; there is no upcast. Exact endpoint consumers preserve projected
+expected/received/payload source separation and refuse legacy/unknown/undeclared pairs. The 14e basis consumer uses
+the same closed owner and retains its independent source/goal/configuration/cycle guards. Digest and finite-number
+reader kinds are narrow, identifier-based and default-free; bool/nonfinite/unrepresentable values are refused.
+No new scientific identifier value, qualification rule, gate authority or runtime offline import is introduced.
+
+Independent producer equivalence: compiled the actual prechange Fusion owner from base b21824a and compared twelve
+paired current/prechange productive cycles after stripping only the new schema/metadata. All matched, including
+real SmartRadar/FrontZone inputs, firing, latch hold, cached/no-input, UNCERTAIN and release cases; observed TEST-ONLY
+requests were `[0,0,1,1,1,1,1,1,0,0,0,0]`. A separate six-control actual arbiter probe preserves nonfinite-request
+sequence consumption, replay refusal, finite out-of-range clamping, source hold/expiry and forwarded UNCERTAIN
+without state-driven braking. This does not prove future whole-unit wiring or timing behavior.
+
+Independent document comparison inspected all 301 existing topology/maestro JSON documents against base b21824a.
+Exactly 46 files differ; every recursive difference is one of the two payload URNs v1→v2 or its schemaId-owned
+policy schemaVersion 1.0.0→2.0.0. Every recorded before/after SHA256 in the generated receipt matches actual bytes.
+Artifact-pin bytes match the base exactly and reproduce SHA256
+`0e8ba373d5676f5d2f67bf9b8c27b93b3914e81b33b5f6ef5d851695b8187472`. No authority, route, allocation, endpoint,
+flow budget or other payload/policy version delta was found. This was stdlib source comparison, not compiled-plan
+or capacity verification; semantic digests and actual topology validation remain scheduled gates.
+
+**Actual checks:** ten existing interface stdlib methods called directly and passed, the class-order counterexample
+above reproduced, twelve independently paired productive cycles and six independent arbiter controls passed,
+301-document/version/hash/pin comparison passed, ten Python AST parses and whitespace diff check passed.
+No pytest runner, numpy/torch/ONNX/ORT import, actual model/calibration, durable Argus, topology compilation,
+environment-tree hashing, download, factory or live run occurred. All values/outputs above are TEST-ONLY.
+
+Verdict: CHANGES REQUESTED for R14b0-1. After a separately designed repair, obtain independent successor review and
+root-scheduled focused/owning/topology/compiled/capacity evidence, plus the 14e dependency acceptance and correct
+assembled integration. The original declared later 14b/14c/WP15 startup, timing, qualification and diagnostics work,
+actual projection/source attestation, confidence minima/calibration support, AD27 and live/scientific gates remain.
