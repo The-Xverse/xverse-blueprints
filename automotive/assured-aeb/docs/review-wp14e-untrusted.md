@@ -177,3 +177,84 @@ Deferred full-suite command, from `automotive/assured-aeb`, only when the coordi
 ```sh
 env PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 XVERSE_PLATFORM_PROFILES=/tmp/codex-xverse-review-20261024-q93eotxv/xdl/profiles XVERSE_AEB_SENSOR_SITE=/dev/shm/xverse-aeb-sensor-20261024/venv/lib/python3.13/site-packages XVERSE_COMPAT_SENSOR_ENV=/dev/shm/xverse-aeb-sensor-20261024 XVERSE_COMPAT_SRC=/home/jefferson/xverse-compat/src XVERSE_AEB_U4_SITE=/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/cache/xverse-aeb-inference-20261024/venv/lib/python3.13/site-packages /dev/shm/compat-p6-venv/bin/python -I -B -m pytest tests -q -ra -p no:cacheprovider --tb=short
 ```
+
+## Finding 4: independent source review, CHANGES REQUESTED (Codex, 2026-10-24)
+
+Reviewed source candidate `947af51ef70fa837d69377264c4335de7c3db753`, its design `329c020` and findings 1–3;
+accepted thesis WP-14 O-5/O-6, AD-10/AD-33, typed contracts, productive FusionRiskAeb/SmartRadar/FrontZone forms,
+projection/source and ED-12 boundaries. This reviewer did not author 14e and makes **no source or test repair**.
+Thesis freshness fetch succeeded, HEAD/upstream remains `d97fdd1`, no incoming note change, canonical working-note
+blob `ba244ddb` unchanged from completely read context. Sol/high is recommended for the narrow successor and review;
+this adds no approval gate or model-switch claim.
+
+### R14e-1, MEDIUM: repeated calls can exceed the designed per-step output boundary
+
+`u4_untrusted.py:115–121` accepts equal simulator time **and** equal step repeatedly. Neither goal creation at
+154–187 nor proposal emission at 258–309 bounds successful outputs per simulator step. The code correctly refuses
+reusing an accepted sequence, but a second advancing sequence delivered during a repeated call still creates another
+output. The direct counterexamples use actual typed objective/configuration records and genuine producer bases:
+
+- Call the same interpreter twice at TEST-ONLY `now_ns=1000, step=1`, with two distinct valid objective IDs/sequences
+  1 and 2. Both calls return distinct goals and the second replaces the first current goal at the same step.
+- Start the genuine positive chain at those same time/step values. Call its proposer again at `now_ns=1000, step=1`
+  with a new actual FusionRiskAeb basis at sequence 2. Both calls return distinct proposal IDs and create two genuine
+  `proposal-created` events with origin 1000. Goal/configuration/objective freshness remains valid throughout.
+
+Finding 1 explicitly specifies at most one accepted objective per step and says repeated step calls do not create
+retries; the existing repeat-call test only calls with no new delivery, so it does not test this case. This is a
+bounded cadence/ambiguity mismatch, **not** an unauthorized transition or direct actuation bypass: every proposal
+still needs the independent gate and manager.
+
+**Disposition needed before repair:** either enforce the stated role-level per-step output/admission boundary with
+explicit duplicate-call/taint behavior, or explicitly move that restriction to a proven once-per-step entry contract
+and revise this module's advertised guarantee. The former preserves the recorded design. Do not guess a timing
+interval, add a scientific default or silently allow a newer same-step objective to supersede an already processed
+one. A decisive regression needs two valid advancing records at the same time/step; checking reuse of one sequence
+or an empty repeated call is insufficient. Caller-clock rejection/stream watermark behavior must remain explicit.
+
+### R14e-2, MEDIUM: ambiguous objective rejections lose actual causal references
+
+`GoalInterpreter.step` at 162–164 rejects a multi-objective batch by calling `_reject` without any incoming record.
+`_reject` consequently emits one diagnostic digest with `bindings={}` and `sourceRefs=[]`, although the batch can
+contain two genuine finite typed Delivered objectives with distinct actual message IDs and objective IDs.
+The independent probe confirms exactly that empty-reference event and no goal/current state effect.
+
+This preserves rejection but fails the design's "reject all with records" / actual objective reference commitment:
+o retained rejection reference identifies which two real objective messages formed the ambiguous set. The fixed
+reason `objective-batch-ambiguous` and a digest of `{role,reason}` do not bind the actual batch. This prevents the
+promised causal join for those H3 objective cases. The noncanonical-payload diagnostic fallback remains appropriate
+for genuinely noncanonical bytes and should not be used to discard known canonical message references.
+
+**Disposition needed before repair:** retain actual message IDs/digests for every individually canonical delivered
+member of the rejected ambiguous batch, either as one bounded batch rejection with all actual references or separate
+per-member rejection events with the existing objectiveId binding. Preserve prior accepted goal/no configuration
+effect, exact event ownership and poisoned-writer semantics; do not label proposer creation as receipt, invent
+references for noncanonical data, or copy full objective/productive payloads into ED-12. The engineering serialization
+bound must remain explicit; a fixture should verify both canonical members plus mixed malformed members.
+
+### Positive checks, limits and exact verification performed
+
+The reviewed code preserves record-supplied objective tokens and nominal-return/hold-only targets, exact own-U4
+projection membership/no defaults, no arm/runKind/oracle/schedule input and no model/framework import. Expected
+binding, received producer and payload source are distinct. Existing typed schemas and productive WP-04 bytes are
+unchanged; neither role creates an authorization, forced command, selector or brake request. Independent gate/AD-08
+authority is not duplicated. Genuine Fusion/SmartRadar/FrontZone outputs are usable; the test perception object is
+explicitly synthetic, not claimed genuine ORT execution. Actual vocabulary, principal one-token admission, transport
+attestation, unit-wide projection slicing and run-unique prefixes remain honest downstream obligations.
+
+Aged objective freshness is intersected into goal lifetime; proposal expiry intersects its objective and declared
+input freshness. Bad/replayed/stale stream updates clear that stream's cache, and later accepted terminal receipt
+latches proposal suppression across contradictory manager updates. The source-ID collision guard refuses ambiguous
+current references. Valid proposal-created events bind the actual goal/configuration/basis/objective digests and use
+the actual shared RoleEvents adapter; local causation remains local and failed appends poison it. These are module
+checks, not proof of the later gate/manager guard, actual physical timing or durable Argus integration.
+
+**Actual checks:** three independent tiny counterexample probes above reproduced both findings (separate same-step
+goal and proposal probes, plus ambiguous-reference probe). Five exact existing stdlib test methods were called
+directly and passed: `test_genuine_typed_chain_has_only_nominal_candidate_and_actual_reference_events`,
+`test_future_stale_and_regressing_messages_invalidate_cache_without_reproposal`,
+`test_terminal_receipt_latches_even_if_a_later_manager_record_contradicts_it`,
+`test_colliding_actual_message_ids_cannot_make_an_ambiguous_basis_reference`,
+`test_runtime_import_and_authority_boundary`. Source/test AST checks and `git diff --check` also passed.
+No pytest, numerical framework, durable Argus store, simulator/socket, download, factory or live run was executed.
+The full suite remains deferred to the coordinator's recorded command/scheduler. No acceptance/merge is performed.
