@@ -130,3 +130,48 @@ This is temporary engineering validation storage, not an output/candidate direct
 source/store is written and no manifest evidence or source identity is substituted: snapshots are byte-identical
 to the verified actual inputs. Bound each and the total snapshot sizes by admitted source/disk limits. Every
 observer/label/run-parameter record is likewise consumed from a private bounded byte snapshot in memory.
+
+## Finding 3: implementation candidate and bounded verification (2026-10-24)
+
+Implemented the three stdlib offline modules after design `0a3840ca` and the bounded-snapshot amendment
+`cf6a5c2`. The private closed job validates all declared methods, numeric kinds, seeds, model/convolution sizes,
+initialization float32 representation and resource cross-checks; it binds the running named three-module source
+closure. The dataset consumer checks actual source/label/observer bytes, observer frame/time/role status,
+coherent label targets/bins, exact P-4/run/seed partitions, explicit coverage and the unmodified manifest /3 rules.
+It preserves owner overlap reports and recorder exclusions separately from unlabelled counts. All labelled frames
+pass a bounded streamed read-only verification before admission and are reverified on each iteration. JSON-safe
+reports and label access return private copies; derived job scalars/tuples are read-only.
+
+`training4a-contract.md` documents the exact member sets/method strings, identity and iterator contracts and limits.
+The expected numpy version and environment identity/lock digests are declarations at this stage; actual pinned
+framework/interpreter/environment verification belongs to 4b–4e. Shared compat `load_params` and `binding` are
+called without importing numpy. No training worker, optimizer, export, calibration, tensor, publication directory
+or candidate marker is implemented. Temporary validation scenario snapshots are cleaned automatically.
+
+Tests use real `LabelParams`, `label_run`, FrameStore writes and manifest /3 producers for byte-distinct TEST-ONLY
+present, absent and lateral targets, plus a genuine no-observer exclusion. Written regressions cover exact and
+duplicate JSON, unsafe numeric representations, nested methods/fields/derived bounds, closed source locators/index,
+rehashed malformed labels and observer status/line/frame/time, P-4/run/seed partitions, coverage, entire-run
+protected sections and allowed test overlap, unsafe zlib streams/length/digest/size, missing/symlink/FIFO sources,
+read-only temporary preservation, changed-on-next-read refusal, private state and runtime/framework import limits.
+
+Final-source checks performed: **51 tiny stdlib controls passed**, including a genuine 12-labelled-frame admission
+and streamed reads, all 25 declared method/numeric mutation controls, strict JSON, rehashed malformed labels,
+source-byte mismatches, zlib length/truncation/trailing/concatenated/bomb/digest cases, protected-section and
+seed-disjoint refusal, private state and nonblocking FIFO refusal. AST parsing of five new Python files and
+`git diff --check` passed. A preceding separate tiny control also verified rehashed observer-target absence is
+refused; the written tests include that case and duplicates/time. No pytest, numpy/torch/ONNX/ORT import, training,
+simulation, live data collection, download or heavy suite was performed. All probe/fixture values are TEST-ONLY.
+
+Queued owning validation from `automotive/assured-aeb`, only when the coordinator schedules the serialized slot:
+
+```sh
+env PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 XVERSE_AEB_SENSOR_SITE=/dev/shm/xverse-aeb-sensor-20261024/venv/lib/python3.13/site-packages XVERSE_PLATFORM_PROFILES=/tmp/codex-xverse-review-20261024-q93eotxv/xdl/profiles /dev/shm/compat-p6-venv/bin/python -I -B -m pytest tests/test_training_admission.py tests/test_perception_labels.py -q -p no:cacheprovider --tb=short
+```
+
+Then run the complete owning/assembled blueprint suite and obtain independent source review. No acceptance or
+merge by this worker. Recorder#6 source/world/map/traversal truth, 4b–4e framework execution/isolation and two
+complete genuine repeats, #5 characterisation, #7 real-model quality and AD-27 numeric/scientific freeze remain
+open gates. The accepted design's requirement/SADS dispositions are preserved; source admission is not a completed
+model or scientific result. Recommend a DRAFT Note23 update after author approval linking the accepted method
+decision and this engineering scope; do not change the canonical note automatically.
