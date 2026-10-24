@@ -99,11 +99,12 @@ MARKER_PROBE = "nonce-marker"
 # was written 0.24-1.26 s after its release in the S1c-2 part 1 runs (load 6.3-8.5). The owned units' timeout is
 # therefore the declared observe budget. 2 s (attempts at 0, 0.875 and 1.75 s) left the adapter on its last attempt
 # once (S1c finding 44, M3). 3.5 s then let the start step reach the bootstrap lease under load, so a cancel had no
-# native close time left (S1c finding 45-46; platform S1b-stack findings 22-23, RA1). Maestro now admits a marker window
-# only if W <= 5 - 2.25 (cancel-close reserve) - operation_seconds 0.38 = 2.37 s, and caps it at run time against the
-# lease. The owned window is 2.25 s, inside that bound (attempts spaced over the capped window); every owned unit's
-# ready latency is recorded (readyLatencyS). The VCU keeps the fixture's 1 s.
-OWNED_READINESS_TIMEOUT_S = 2.25
+# native close time left (S1c finding 45-46; platform S1b-stack findings 22-25, RA1/RA2/RA5). Maestro now admits a
+# marker window only if W <= 5 - (2 native close + op failure statement + 0.25) - op = 2.75 - 2 x 0.38 = 1.99 s, renews
+# the lease before a marker start step, and records a cut window (ML-PROBE-WINDOW-CUT). The owned window is 1.95 s
+# (attempts at 0, 0.85 and 1.70 s), above the slowest measured adapter latency (1.31 s); every owned unit's ready
+# latency is recorded (readyLatencyS). The VCU keeps the fixture's 1 s.
+OWNED_READINESS_TIMEOUT_S = 1.95
 ORDER = ("lite-driver", "carla-adapter", "legacy-vcu", "driver-stimulus")
 # the fixture's flow source starts first: the driver is the source of the actuation-command flow to the adapter
 RENAME = {"source-instance": "lite-driver-instance", "sink-instance": "carla-adapter-instance",
@@ -550,6 +551,8 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
                           diagnostics=_fact(lambda: list(outcome.diagnostics)),
                           dispatchDiagnostic=_fact(lambda: outcome.dispatch.diagnostic if outcome.dispatch else None),
                           steps=_fact(lambda: list(outcome.dispatch.steps) if outcome.dispatch else None),
+                          # S1c finding 46: declared and capped readiness windows (platform RA1/RA2, finding 25)
+                          readinessWindows=_fact(lambda: list(outcome.dispatch.readiness_windows) if outcome.dispatch else None),
                           normalUnitRecordsComplete=_fact(lambda: outcome.closure.normal_unit_records_complete),
                           nativeUnits=_fact(lambda: list(outcome.closure.native_units)),
                           # S1 FR-017: the facts that attribute a closure outcome (research R-2); each is computed
