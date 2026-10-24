@@ -41,7 +41,7 @@ TEST_ONLY_ENTRIES = {
     "fallback.distanceUncertaintyM": 0.5, "fallback.speedUncertaintyMps": 0.5, "fallback.latencyNs": 100 * MS,
     "fallback.decelerationMps2": 6.0, "fallback.marginM": 1.0, "fallback.brakeLevel": 1.0, "fallback.releaseSpeedMps": 0.5,
     "fallback.releaseAbsentCycles": 3,
-    "arbiter.requestFreshnessNs": 80 * MS, "arbiter.holdWindowNs": 100 * MS, "arbiter.mrcSource": "fallback-request",
+    "arbiter.requestFreshnessNs": 80 * MS, "arbiter.holdWindowNs": 100 * MS,
 }
 RADAR_RECORD = {"schema": R.RADAR_CHECKS, "spec": {"rangeM": 100.0, "horizontalFovDeg": 30.0, "verticalFovDeg": 10.0,
                                                     "maxVelocityMps": 100.0, "maxDetections": 500},
@@ -108,7 +108,7 @@ def test_projection_refuses_non_finite_and_unconsumed_entries():
     with pytest.raises(ValueError):
         projection(aeb__marginM=math.nan)
     with pytest.raises(ValueError):
-        V.FunctionalArbiter(projection(arbiter__mrcSource="adas"))
+        V.FunctionalArbiter(projection(arbiter__requestFreshnessNs=0))
     p = projection()
     consumed = set(F.DECLARATION) | set(V.FALLBACK_DECLARATION) | set(V.ARBITER_DECLARATION)
     p.check_exact(consumed)
@@ -404,12 +404,13 @@ def test_arbiter_hold_is_per_source_after_a_switch():
     assert request["value"] == 1.0 and arbiter.evidence[-1]["selectedInterface"] == "fallback-request"
 
 
-@pytest.mark.parametrize("mrc, expected", [("fallback-request", 0.6), ("adas-cycle", 0.2), ("none", 0.0)])
-def test_arbiter_mrc_follows_the_declared_source(mrc, expected):
-    arbiter = V.FunctionalArbiter(projection(arbiter__mrcSource=mrc))
+def test_arbiter_terminal_first_never_follows_a_same_inbox_live_source():
+    arbiter = V.FunctionalArbiter(projection())
     request = arbiter.step(WORLD, [("selector-command", selector(1, "S_MRC_REQUESTED")),
                                    ("adas-cycle", adas(1, WORLD, 0.2)), ("fallback-request", fallback(1, WORLD, 0.6))])
-    assert request["value"] == expected
+    assert request["value"] == 0.0
+    assert arbiter.evidence[-1]["kind"] == "terminal-entry-value-hold"
+    assert arbiter.evidence[-1]["terminalHoldProvenance"] == "initial-neutral-no-prior-emission"
 
 
 def test_arbiter_counts_qualified_evidence_and_refuses_undeclared_interfaces():
