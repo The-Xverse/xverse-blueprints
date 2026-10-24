@@ -99,3 +99,19 @@ Only AST/compile-without-bytecode and tiny stdlib probes run now. Full4c export/
 complete repeats stay separate and blocking. Real-model/scientific/calibration/#7/AD27 acceptance is not implied.
 FR005/V03 partial implementation; FR021/V14 and FR028/V21 offline boundary remain partial pending composition;
 FR024/AD27 deferred; FR034/#5 separate. Preserve accepted pipeline REF002 allocated/needs-clarification statuses.
+
+## Finding 2: separate pre-verification source review (2026-10-24)
+
+Before repairing: first candidate checks actual pinned framework origins but only filters site-packages paths;
+an extra non-site search path could shadow a dependency. Tighten to the actual standard-library/zip/dynload paths,
+admitted training site, owned blueprint import root and actual shared-compat source root. Refuse all other entries,
+including relative/empty roots. This is dependency-origin hygiene for the owned launch, not arbitrary-code isolation.
+Also require the admitted4a/4b/preprocessing source and environment identities unchanged after fitting and before
+output writes; a start-only tree hash does not support a whole-stage unchanged-input claim. Recheck the actual
+network namespace too. Do not claim hostile mutation immunity: source/environment files remain trusted immutable
+inputs, not descriptor-frozen imported code. Final full pipeline isolation/repeat checks remain4e.
+
+The same read-only pass checked actual pinned torch SGD signature (source only, no import): supports explicit
+maximize/foreach/differentiable/fused flags used here. Identified fixture/API typo and a no-op tamper byte in draft
+tests were corrected during initial writing before this review. The pre-repair stdlib pass performed33 small
+controls with genuine label/store/manifest admission and safe-weight corruption cases; no pytest/framework.
