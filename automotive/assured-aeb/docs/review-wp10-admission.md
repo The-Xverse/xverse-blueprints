@@ -134,3 +134,114 @@ All bound values in the tests are labelled test values. None is a D-4c measureme
 6. **The run command** that calls `admit_run` is increment #5.
 
 The next step is an independent read-only review of `f0ecf6e`, then acceptance and merge. Neither has happened.
+
+## Finding 3: independent review of findings 1 and 2 (2026-10-24 15:15:24)
+
+**Reviewer and method.**
+- An independent, read-only reviewer who did not write this increment.
+- Read `43000e5`, `f0ecf6e` and `dcf36e4` against base `5f71cde`, and checked them against the thesis
+  `decisions.md` row "WP-10 fault relay" (285) and `design/wp10-fault-relay.md` §3–§6.
+- Commands (`/dev/shm/compat-p6-venv/bin/python -I`, rc.1 profiles from a scratch export):
+  - `tests/test_admission.py`: 27 passed;
+  - the whole suite: 198 passed; without the profiles, 167 passed and 31 skipped;
+  - `check_topology.py`: exit 0.
+- In-memory probes, using spies and an injected (A) stand-in only: the venv's `xverse.faults`, and five
+  edge cases. Nothing in the worktree changed except this entry. No CARLA, no live run.
+
+### Verdict: **PASS WITH NOTES. Nothing blocks the merge.**
+
+On rc.1 the interim gate refuses every fault schedule, so nothing reaches Maestro. MEDIUM-1 and MEDIUM-2
+are gaps that open only once (A) lifts the gate. They must be closed in increment #3 or #5, before the
+gate is lifted. The merge still awaits acceptance.
+
+### Confirmed
+- **Order and stopping** (admission.py 98–147). The stages are `generate → bound-inputs → sim-duration →
+  fault-admission (rule, then the interim gate) → prepare → admit-schedule`, and every refusal returns
+  before `prepare_fn`.
+- **The spies are genuine.** `Spy` counts calls and replaces `prepare_fn` and `admit_fn`. For the four
+  refusing stages, both counts are 0 and `stages_run` ends at the refusing stage. The fault-free test uses
+  the real `prepare` and `admit_schedule`.
+- **The interim gate.** `option_a_available` imports `xverse.faults` and requires
+  `SIMULATION_TIME_TRIGGERS is True`. In the pinned venv (`xverse_xdl` 0.4.0, rc.1 sources) the attribute
+  is absent, and a non-`True` value, an `ImportError` or a missing attribute all count as absent.
+  - Every rc.1 schedule tested is refused with `INTERIM`, with neither spy called: the CC-1 pair, the three
+    single freeze units, `stale` and `loss` on F09, F12 `proposal-unsafe`, and F13 `evidence-loss`.
+  - The probe name is the flag increment #3 is to provide (residual 2).
+- **The simulation-time inequality.** `host_seconds = D/step_s · max_step_host_s + 2 · handshake_s ≤
+  thaw_bound_s`, as in design §4 and the decision row. Unknown D-4c values (`None`) refuse at
+  `sim-duration`, and each unknown or invalid input is reported.
+- **FreezeBound validation** (check_topology.py `__post_init__`). Zero, negative, NaN, infinite and bool
+  values are refused, as WP-12 LOW-B asked.
+- **Lone `vc-functional`.** With (A) injected and known bounds, a lone `vc-functional-unit` freeze passes
+  `sim-duration` and is refused at `fault-admission` by the CC-1 rule.
+- **Fault-free arm.** It skips stages 2–4, is admitted on rc.1 at op 0.29 with 6 units, and the caller
+  derives `cadence − health_scan_seconds = 3.26 s`.
+- **The `HubArmingRecheck` rule** repeats the target and kind rule from the topology form (§K flows and
+  kinds; the freeze targets), and `arm()` raises `NotImplementedError` naming increment #4.
+
+### Issues (none blocks the merge)
+
+**MEDIUM-1: under (A), only freeze *durations* are checked for simulation-time keying.**
+- Where: admission.py 56–64 and 122–136.
+- Probes with (A) injected:
+  - a **tick-keyed F09 `stale`** fault is admitted through all six stages;
+  - a freeze whose trigger unit is `tick` but whose duration is `ms` in `carla-simulation` is admitted.
+- `sim_duration_ns` reads only the intent's `timeDomainId` and the duration unit. It never checks the
+  trigger unit, and stage 3 runs only for freezes.
+- PAIR-1 requires the onset and duration of *every* fault in simulator time: design §4, "a time trigger and
+  a duration in a declared simulator time domain".
+- Repair before the gate is lifted: require the trigger unit and the duration unit to be in
+  `TIME_UNITS_NS` with domain `carla-simulation`, for every fault and not only freezes. Add the probes
+  above as tests.
+
+**MEDIUM-2: the inequality counts fractional steps.**
+- Where: admission.py 50–53.
+- Under the AD-30 delivery rule and the step-hold handshake, a freeze holds whole simulator steps. A `D`
+  that is not a multiple of `step_s` therefore costs `ceil(D/step)` steps.
+- Probe: `D` = 1201 ms at a 50 ms step gives 2.802 s by the code, against 2.9 s with whole steps, which
+  underestimates the host time by up to one `max_step_host_s`.
+- That is the P-11 thaw-bound guard, so it should be conservative. Either use `ceil(D / step_s)`, or refuse
+  a `D` that is not a whole number of steps.
+
+**MEDIUM-3: the hub's second line admits a lone `vc-functional` freeze.**
+- Where: admission.py 176–178; test_admission.py 146.
+- `recheck` takes every `admittedSet` member as individually armable. Design §3 says the admitted targets
+  are "enforced twice", and the CC-1 constraint (a U5 freeze only together with U6) is part of the
+  admitted freeze targets, which WP-12 finding 3 HIGH-1 fixed at admission.
+- A lone U5 descriptor reaches the hub only if admission was bypassed, which is exactly the case the
+  second line exists for, and there it passes.
+- Either give `recheck` the descriptors armed for one onset, as a batch, and apply the same concurrent-set
+  rule. Or record in residual 4 and design §3 that the hub re-checks targets and kinds only, and that CC-1
+  is enforced once.
+
+**LOW-1: `FreezeBound` is required but never applied.**
+- Where: admission.py 118–119 and 138.
+- Design §5 calls `check_fault_admission(docs, faults, freeze_bound)`. Here it is called without the
+  bound. That is deliberate, because its tick rule would refuse simulation-time durations, but it is not
+  recorded.
+- Probe: `FreezeBound(0.001, 1.0)` (`max_ticks` 0) does not refuse a 500 ms freeze. Under (A) the
+  simulation-time inequality is the duration rule.
+- Record the deviation, or drop the tick `FreezeBound` requirement from this path, so that a validated but
+  unused input does not suggest a check.
+
+**LOW-2: the test seams are open in the production signature.** `platform`, `prepare_fn` and `admit_fn`
+are ordinary keyword arguments. A caller passing any object with `SIMULATION_TIME_TRIGGERS = True` passes
+the interim gate (probe). State in residual 6 that the increment #5 run command must not pass them, or make
+them test-only, for example a private `_testing` hook.
+
+**LOW-3 (optional):** `recheck` does not repeat the simulation-time duration bound for a freeze
+descriptor, although `ArmDescriptor` carries `durationNs`.
+
+### Residuals 1 to 6
+- Residuals 1 to 6 are accurate.
+- Missing:
+  - MEDIUM-1 (simulation-time keying of all faults and triggers) and MEDIUM-2 (whole steps), both as
+    conditions for lifting the interim gate;
+  - MEDIUM-3 (the CC-1 rule at the hub);
+  - LOW-1 (`FreezeBound` not applied).
+
+### Recommendation
+- Accept as the interim admission path. Record MEDIUM-1 and MEDIUM-2 as gate-lift conditions for
+  increments #3 and #5, and MEDIUM-3 for increment #4.
+- Optionally repair MEDIUM-1 and MEDIUM-2 now (small, offline) with the probes as tests.
+- Record LOW-1 to LOW-3.
