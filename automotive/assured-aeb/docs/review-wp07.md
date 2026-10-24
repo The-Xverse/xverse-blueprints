@@ -468,3 +468,68 @@ environment were not touched.
 6. **Evidence emission:** ED-12.
 
 The next step is acceptance and a merge. Neither has happened.
+
+## Finding 6: independent re-review of findings 4 and 5 (2026-10-24 15:25:17)
+
+**Reviewer and method.**
+- The finding 3 reviewer, read-only. Read `6135b53`, `f1eb4cf` and `9b0f4aa` against `f89c97f`, with the new
+  thesis row "U2/U3 numpy" (`decisions.md` 289).
+- Commands:
+  - the three module test files: 82 passed;
+  - the whole suite with the rc.1 profiles: 253 passed;
+  - `check_topology.py`: exit 0.
+- In-memory probes on 800 × 600: uniform frames at levels 0, 128 and 255; a seeded textured frame, clean,
+  under exposure gain 0.5, offset +60 and blur 2^3; and the tool limit. Nothing in the worktree changed except
+  this entry. No CARLA, no live run.
+
+### Verdict: **PASS WITH NOTES. Nothing blocks the merge.**
+
+### Items of finding 3
+- **MEDIUM-1: closed.**
+  - `MAX_BOX_LOG2 = 4` (imageops.py 20) is enforced in `box_blur` and in both records, and labelled a tool
+    limit; `box_blur(…, 5)` raises.
+  - The two wiring obligations are stated in `camera_chain.py` and residual 2: F05 is delivered at a simulation
+    time independent of processing duration, and no role unit derives an indicator from host time.
+  - The re-measured cost (blur 2^4 70 ms, statistics 50 ms, against a 50 ms step) is now the basis of the
+    decided "U2/U3 numpy" row.
+- **MEDIUM-2: closed.**
+  - `interior` (175) excludes the 2^(s−1) margin. That margin is exactly the box's reach: the offsets run from
+    −w/2 to w/2 − 1, so no interior pixel sees a wrapped or zero contribution.
+  - Probe: uniform frames at 0, 128 and 255 give a high-frequency value of exactly `0.0`, compared with
+    −10.2 at 128 before the repair.
+  - The stage-side darkening is declared in `box_blur`.
+- **MEDIUM-3: closed.**
+  - `maxStdLuma` and `maxHighFrequencyVariance` were added to class (iii) (camera_chain.py 186–188), with
+    split low and high names.
+  - The tests map each AD-31 kind to a failing check:
+    - blur → `high-frequency-low`;
+    - darkening → `mean-luma`;
+    - occlusion → `dark-fraction`;
+    - brightening → `bright-fraction`;
+    - noise → `std-luma-high` and `high-frequency-high`;
+    - dropout → `sequence-gap`.
+- **LOW-1: closed.** min < max is enforced for the three pairs, fractions must lie in [0, 1], and the radar
+  record requires `minCount < maxCount`. `maxAgeNs` is removed from both sensors, so the AD-06 window in the
+  front zone is now the only age bound. The age remains an indicator and the future-origin check.
+- **LOW-2: closed.** The rounding half-units are added (`ANGLE_ROUNDING` 0.5e-6 rad, `LINEAR_ROUNDING`
+  0.5e-3; radar_zone.py 33–34), with a 35° test: 0.30543261 is accepted and 0.3060 refused.
+- **LOW-3 and LOW-4: closed** in the docstrings: the zero first and last pixels, the flooring bias, the ±2.9σ
+  truncation, and the interpreter pin plus libm.
+
+### New notes (LOW, not blocking)
+- **LOW-A: the high-frequency indicator is contrast-dependent by nature.**
+  - Probe on a seeded textured frame: clean 2285.0; exposure gain 0.5 gives **571.3** (×0.25, the square of
+    the gain); offset +60 with clipping gives 1740.2; blur 2^3 gives 9.1.
+  - So a contrast-reducing exposure also lowers the value that `high-frequency-low`, the blur check, bounds.
+    Whether a darkening event also trips the blur check depends on the D-3 thresholds.
+  - That is physics rather than an artefact, so it is not a defect. But AD-03 attribution would be cleaner with
+    a contrast-normalised sharpness, for example `highFrequencyVariance / var(Y)`, as an added indicator. This
+    is optional and should be decided with D-3.
+- **LOW-B: residual 4 is now decided.** It says "numpy for U2/U3 may be needed". `decisions.md` "U2/U3 numpy"
+  (15:23) decides a pinned numpy 2.5.4 venv under WP-13, with the standard-library operations kept as
+  reference implementations. Residual 4 should cite the row. The numpy port must reproduce these semantics
+  bit-exactly against the reference tests, including the edges, flooring and interior, or declare any
+  difference.
+
+### Recommendation
+Ready for acceptance and merge. Update residual 4 to cite the numpy decision, and decide LOW-A with D-3.
