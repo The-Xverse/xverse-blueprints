@@ -111,13 +111,26 @@ def _uniform(seed: int, event_id: str, relative_ns: int, length: int) -> bytes:
     return random.Random(int.from_bytes(key[:8], "big")).randbytes(length)
 
 
+def _ops(ops: Any) -> Any:
+    """The image-operations implementation (review-wp13-imageops-np finding 1 §1.2): ``None`` is the standard-library
+    reference ``imageops``; the numpy port ``imageops_np`` is selected only by the U2/U3 unit entry in the sensor venv,
+    and only when bit-exact (R-7). Nothing else is accepted."""
+
+    if ops is None:
+        return I
+    if getattr(ops, "__name__", None) in (f"{__package__}.imageops", f"{__package__}.imageops_np"):
+        return ops
+    raise TypeError("ops must be the module imageops or imageops_np")
+
+
 class CorruptionStage:
     """U2 sensor-model stage of the smart camera: verified frame in, delivered frame (or dropout) out."""
 
-    def __init__(self, schedule: CorruptionSchedule) -> None:
+    def __init__(self, schedule: CorruptionSchedule, *, ops: Any = None) -> None:
         if type(schedule) is not CorruptionSchedule:
             raise TypeError("CorruptionSchedule.from_record is required (no default schedule)")
         self.schedule = schedule
+        self.ops = _ops(ops)
         fmt = schedule.frame_format
         self.length = fmt["width"] * fmt["height"] * BYTES_PER_PIXEL[fmt["encoding"]]
         self.episode_origin_ns: int | None = None
@@ -168,13 +181,13 @@ class CorruptionStage:
     def _apply(self, event: Event, frame: bytes, relative_ns: int) -> bytes:
         fmt, p = self.schedule.frame_format, event.params
         if event.kind == "exposure":
-            return I.exposure(frame, p["gain"], p["offset"])
+            return self.ops.exposure(frame, p["gain"], p["offset"])
         if event.kind == "occlusion":
-            return I.occlusion(frame, fmt["width"], p["x"], p["y"], p["width"], p["height"], p["value"])
+            return self.ops.occlusion(frame, fmt["width"], p["x"], p["y"], p["width"], p["height"], p["value"])
         if event.kind == "noise":
-            return I.add_noise(frame, _uniform(self.schedule.seed, event.id, relative_ns, len(frame)), p["stdLevel"])
+            return self.ops.add_noise(frame, _uniform(self.schedule.seed, event.id, relative_ns, len(frame)), p["stdLevel"])
         if event.kind == "blur":
-            return I.box_blur(frame, fmt["width"], fmt["height"], p["boxLog2"])
+            return self.ops.box_blur(frame, fmt["width"], fmt["height"], p["boxLog2"])
         raise AssertionError(event.kind)
 
 
@@ -220,10 +233,11 @@ class SmartCameraParams:
 class SmartCamera:
     """U3 smart-camera diagnostics: self-checks on the delivered frame only (AD-18)."""
 
-    def __init__(self, params: SmartCameraParams) -> None:
+    def __init__(self, params: SmartCameraParams, *, ops: Any = None) -> None:
         if type(params) is not SmartCameraParams:
             raise TypeError("SmartCameraParams.from_record is required (no default parameters)")
         self.params = params
+        self.ops = _ops(ops)
         self.last_sequence: int | None = None
         self.last_frame: int | None = None
 
@@ -262,7 +276,7 @@ class SmartCamera:
         stats_evaluated = digest_ok and not plausibility
         if stats_evaluated:
             s = p.stats
-            indicators.update(I.image_statistics(bytes(pixels), fmt["width"], fmt["height"], stride=s["statsStride"],
+            indicators.update(self.ops.image_statistics(bytes(pixels), fmt["width"], fmt["height"], stride=s["statsStride"],
                                                  dark_level=s["darkLevel"], bright_level=s["brightLevel"],
                                                  sharpness_log2=s["sharpnessBoxLog2"]))
             t = p.thresholds
