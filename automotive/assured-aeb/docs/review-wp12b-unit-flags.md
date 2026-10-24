@@ -214,3 +214,12 @@ exit 0, **59 PASS lines**, no failing check. `git diff --check` passes.
 The generated-form digest and sizing changes remain recorded in finding 2; historical measurements are not rewritten.
 No protocol values, Phase 7/S1 commands, rc.1 worktrees or soak inputs changed.
 Suite-log SHA-256: `397dcccbb6d773c659a072aadfc51f2d07e70a478cb9084abc0eddfdb158cf19`.
+
+## Finding 4: delegated acceptance (Codex, 2026-10-24; flagged for author review)
+
+Accepted WP-12b on finding 3, the 399-test full suite and 59 topology checks, with finding 2 residuals R-1 to R-4
+carried. Basis: thesis `specs/002-assured-aeb/decisions.md` §G and the "S1e (1.0.x unit isolation) R-D and L-1;
+WP-12 unit flags" row, plus the author's instruction to continue Claude's X-Verse work. The form digests change;
+WP-10 #5 and later wiring must pin these regenerated forms. This is offline engineering acceptance only: no unit
+execution, protocol freeze, E8-3a/principal run, M1 admission or scientific claim. The next delivery step is a
+`--no-ff` merge into blueprints main and push.
