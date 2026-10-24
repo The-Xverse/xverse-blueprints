@@ -1,0 +1,46 @@
+{
+  "$id": "urn:xverse:assured-aeb:mrc-request:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "evidenceRefs": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "originNs": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "reason": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "requestId": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "schema": {
+      "const": "assured-aeb.mrc-request/1"
+    },
+    "sequence": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "source": {
+      "const": "fixed-fallback-supervisor"
+    }
+  },
+  "required": [
+    "evidenceRefs",
+    "originNs",
+    "reason",
+    "requestId",
+    "schema",
+    "sequence",
+    "source"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,66 @@
+{
+  "$id": "urn:xverse:assured-aeb:transition-request:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "deadlineId": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "evidenceRefs": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "originNs": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "outcome": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "phase": {
+      "enum": [
+        "pre",
+        "during",
+        "post"
+      ]
+    },
+    "schema": {
+      "const": "assured-aeb.transition-request/1"
+    },
+    "sequence": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "source": {
+      "const": "configuration-manager"
+    },
+    "transitionId": {
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "deadlineId",
+    "evidenceRefs",
+    "originNs",
+    "outcome",
+    "phase",
+    "schema",
+    "sequence",
+    "source",
+    "transitionId"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,67 @@
+{
+  "$id": "urn:xverse:assured-aeb:vehicle-state-record:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "accelerationMps2": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "evidenceRefs": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "originNs": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "schema": {
+      "const": "assured-aeb.vehicle-state-record/1"
+    },
+    "sequence": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "source": {
+      "const": "vehicle-state"
+    },
+    "speedMps": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "state": {
+      "enum": [
+        "NOMINAL",
+        "DEGRADED",
+        "UNCERTAIN",
+        "UNSAFE"
+      ]
+    }
+  },
+  "required": [
+    "accelerationMps2",
+    "evidenceRefs",
+    "originNs",
+    "schema",
+    "sequence",
+    "source",
+    "speedMps",
+    "state"
+  ],
+  "type": "object"
+}

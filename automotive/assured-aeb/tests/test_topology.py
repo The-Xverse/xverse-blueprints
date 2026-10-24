@@ -349,3 +349,18 @@ def test_unit_command_check_rejects_a_non_isolated_command(mutate):
     else:
         process["arguments"] = ["-B", "-s", "-S", *process["arguments"][3:]]
     assert C.check_unit_command(docs)
+
+
+# WP-14a / AD-23 DN-6: vocabulary rename with no authority or route widening.
+def test_configuration_manager_uses_the_controlled_authority_term_in_every_form():
+    pins = T.read_pins()
+    for arm in T.ARMS:
+        for form in T.FORMS:
+            docs = C.load(arm, form)
+            assert docs == json.loads(json.dumps(T.documents(arm, pins, form=form)))
+            component = docs["component-configuration-manager.json"]
+            authority = component["extensions"][T.EXT]
+            assert authority["authorityClass"] == "configuration-manager"
+            assert set(authority["permittedOutputs"]) == {"selector-command", "transition-request", "configuration-state"}
+    assert C.MANAGER_INPUTS == {("authorization", "gate"), ("forced-command", "fallback-supervisor"), ("transition-verdict", "verifier")}
+    assert C.CHAINS[("selector-command", "configuration-manager")] == {"functional-arbiter"}

@@ -1,0 +1,59 @@
+{
+  "$id": "urn:xverse:assured-aeb:proposal:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "basisRefs": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "fromConfiguration": {
+      "enum": [
+        "C_NOMINAL",
+        "C_DEGRADED_RADAR",
+        "S_MRC_REQUESTED"
+      ]
+    },
+    "originNs": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "proposalId": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "schema": {
+      "const": "assured-aeb.proposal/1"
+    },
+    "sequence": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "source": {
+      "const": "proposer"
+    },
+    "target": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "validUntilNs": {
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "basisRefs",
+    "fromConfiguration",
+    "originNs",
+    "proposalId",
+    "schema",
+    "sequence",
+    "source",
+    "target",
+    "validUntilNs"
+  ],
+  "type": "object"
+}

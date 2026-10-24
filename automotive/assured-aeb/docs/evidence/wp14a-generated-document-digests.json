@@ -1,0 +1,53 @@
+{
+  "baseline": "8bd0d3497b5cfe9d444985796dbd9c1e300dd9de",
+  "pins_unchanged": true,
+  "kind": "exact generated document/profile SHA-256; not compiled-plan semantic digests",
+  "compiled_plan_digests": "pending full verification after serialized platform regression",
+  "changes": [
+    {
+      "path": "xdl/authorization-bypass/maestro/component-configuration-manager.json",
+      "before": "e58b3f4b43be53c8fec65edc4700405450c97f65e532ba65c5615a15474ac1a0",
+      "after": "3ce047d12acb8f15987249da2fef3d095309c84597a477b7367bc1e83548677f"
+    },
+    {
+      "path": "xdl/authorization-bypass/topology/component-configuration-manager.json",
+      "before": "e58b3f4b43be53c8fec65edc4700405450c97f65e532ba65c5615a15474ac1a0",
+      "after": "3ce047d12acb8f15987249da2fef3d095309c84597a477b7367bc1e83548677f"
+    },
+    {
+      "path": "xdl/comparator/maestro/component-configuration-manager.json",
+      "before": "c5a5a57448d98076736cfa8a7da6f76d1d568dc6ff34d5ee0d872f920c88ffe2",
+      "after": "3e3b57647baf50813738f04f98fe3c3d6004bbe3d6f3e04793b2ab32baee2e33"
+    },
+    {
+      "path": "xdl/comparator/topology/component-configuration-manager.json",
+      "before": "c5a5a57448d98076736cfa8a7da6f76d1d568dc6ff34d5ee0d872f920c88ffe2",
+      "after": "3e3b57647baf50813738f04f98fe3c3d6004bbe3d6f3e04793b2ab32baee2e33"
+    },
+    {
+      "path": "xdl/mloc/maestro/component-configuration-manager.json",
+      "before": "c5a5a57448d98076736cfa8a7da6f76d1d568dc6ff34d5ee0d872f920c88ffe2",
+      "after": "3e3b57647baf50813738f04f98fe3c3d6004bbe3d6f3e04793b2ab32baee2e33"
+    },
+    {
+      "path": "xdl/mloc/topology/component-configuration-manager.json",
+      "before": "c5a5a57448d98076736cfa8a7da6f76d1d568dc6ff34d5ee0d872f920c88ffe2",
+      "after": "3e3b57647baf50813738f04f98fe3c3d6004bbe3d6f3e04793b2ab32baee2e33"
+    },
+    {
+      "path": "xdl/profiles/assured-aeb-v0.1.schema.json",
+      "before": "f12bb3ce1b590055a9ddb6175d21ce47b8d0f9fdc00e0566ba71a786c0e8c990",
+      "after": "9c3de24bc63bcb23da41ce746a59b6662d25fb89194765c25bd3d6ac8558f9a7"
+    },
+    {
+      "path": "xdl/verification-bypass/maestro/component-configuration-manager.json",
+      "before": "c5a5a57448d98076736cfa8a7da6f76d1d568dc6ff34d5ee0d872f920c88ffe2",
+      "after": "3e3b57647baf50813738f04f98fe3c3d6004bbe3d6f3e04793b2ab32baee2e33"
+    },
+    {
+      "path": "xdl/verification-bypass/topology/component-configuration-manager.json",
+      "before": "c5a5a57448d98076736cfa8a7da6f76d1d568dc6ff34d5ee0d872f920c88ffe2",
+      "after": "3e3b57647baf50813738f04f98fe3c3d6004bbe3d6f3e04793b2ab32baee2e33"
+    }
+  ]
+}

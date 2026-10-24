@@ -1,0 +1,57 @@
+{
+  "$id": "urn:xverse:assured-aeb:forced-command:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "class": {
+      "enum": [
+        "degradation",
+        "terminal",
+        "comparator-recovery"
+      ]
+    },
+    "commandId": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "originNs": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "schema": {
+      "const": "assured-aeb.forced-command/1"
+    },
+    "sequence": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "source": {
+      "const": "fixed-fallback-supervisor"
+    },
+    "target": {
+      "enum": [
+        "C_NOMINAL",
+        "C_DEGRADED_RADAR",
+        "S_MRC_REQUESTED"
+      ]
+    },
+    "trigger": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "class",
+    "commandId",
+    "originNs",
+    "schema",
+    "sequence",
+    "source",
+    "target",
+    "trigger"
+  ],
+  "type": "object"
+}

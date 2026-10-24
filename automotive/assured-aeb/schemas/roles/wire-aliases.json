@@ -1,0 +1,87 @@
+{
+  "urn:xverse:assured-aeb:adas-cycle:v1": [
+    "assured-aeb.adas-cycle/1"
+  ],
+  "urn:xverse:assured-aeb:aeb-status:v1": [
+    "assured-aeb.aeb-status/1"
+  ],
+  "urn:xverse:assured-aeb:assessment:v1": [
+    "assured-aeb.assessment/1"
+  ],
+  "urn:xverse:assured-aeb:authorization:v1": [
+    "assured-aeb.authorization/1",
+    "assured-aeb.gate-state/1"
+  ],
+  "urn:xverse:assured-aeb:brake-command:v1": [
+    "assured-aeb.brake-command/1"
+  ],
+  "urn:xverse:assured-aeb:brake-request:v1": [
+    "assured-aeb.brake-request/1"
+  ],
+  "urn:xverse:assured-aeb:brake-status:v1": [
+    "assured-aeb.brake-status/1"
+  ],
+  "urn:xverse:assured-aeb:camera-evidence:v1": [
+    "assured-aeb.camera-evidence/1"
+  ],
+  "urn:xverse:assured-aeb:camera-sensor-out:v1": [
+    "assured-aeb.camera-sensor-out/1"
+  ],
+  "urn:xverse:assured-aeb:configuration-state:v1": [
+    "assured-aeb.configuration-state/1"
+  ],
+  "urn:xverse:assured-aeb:diagnostic-verdict:v1": [
+    "assured-aeb.diagnostic-verdict/1"
+  ],
+  "urn:xverse:assured-aeb:fallback-request:v1": [
+    "assured-aeb.fallback-request/1"
+  ],
+  "urn:xverse:assured-aeb:forced-command:v1": [
+    "assured-aeb.forced-command/1"
+  ],
+  "urn:xverse:assured-aeb:goal-model:v1": [
+    "assured-aeb.goal-model/1"
+  ],
+  "urn:xverse:assured-aeb:motion-evidence:v1": [
+    "assured-aeb.motion-evidence/1"
+  ],
+  "urn:xverse:assured-aeb:mrc-request:v1": [
+    "assured-aeb.mrc-request/1"
+  ],
+  "urn:xverse:assured-aeb:objective:v1": [
+    "assured-aeb.objective/1"
+  ],
+  "urn:xverse:assured-aeb:perception-output:v1": [
+    "assured-aeb.perception-output/1"
+  ],
+  "urn:xverse:assured-aeb:proposal-basis:v1": [
+    "assured-aeb.adas-cycle/1"
+  ],
+  "urn:xverse:assured-aeb:proposal:v1": [
+    "assured-aeb.proposal/1"
+  ],
+  "urn:xverse:assured-aeb:qualified-evidence:v1": [
+    "assured-aeb.qualified-evidence/1"
+  ],
+  "urn:xverse:assured-aeb:radar-evidence:v1": [
+    "assured-aeb.radar-evidence/1"
+  ],
+  "urn:xverse:assured-aeb:selector-command:v1": [
+    "assured-aeb.selector-command/1"
+  ],
+  "urn:xverse:assured-aeb:smart-camera-evidence:v1": [
+    "assured-aeb.camera-selfcheck/1"
+  ],
+  "urn:xverse:assured-aeb:smart-radar-evidence:v1": [
+    "assured-aeb.radar-selfcheck/1"
+  ],
+  "urn:xverse:assured-aeb:transition-request:v1": [
+    "assured-aeb.transition-request/1"
+  ],
+  "urn:xverse:assured-aeb:transition-verdict:v1": [
+    "assured-aeb.transition-verdict/1"
+  ],
+  "urn:xverse:assured-aeb:vehicle-state-record:v1": [
+    "assured-aeb.vehicle-state-record/1"
+  ]
+}

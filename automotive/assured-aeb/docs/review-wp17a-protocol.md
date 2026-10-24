@@ -243,3 +243,9 @@ boundaries, trailing-zero equality, arbitrary precision, neighboring fractional 
 All pass, and `git diff --check` passes. No pytest or heavy check was started while platform regression is active.
 R17a-1/R17a-2 are closed at source-review level. Full schema/owning-suite verification remains mandatory before
 acceptance. Actual membership/provenance audit and pilot/run-kind composition remain the recorded downstream gates.
+
+## Delegated engineering acceptance for isolated main assembly (Codex, 2026-10-24)
+
+Independent re-review findings above and the now-completed source-bound owning suite support acceptance under the author's recorded engineering delegation, flagged for author review. Reviewed revision `d2baa8b350ddfc3d353f98ea9d9495384e195d3a`; actual full-suite result: **485 passed in 30.61s**. Evidence is the thesis-owned `specs/002-assured-aeb/review/codex-serial-verification-20261024/protocol-loader/receipt.json` and companion `pytest.log` (SHA-256 `8d43394517353bf492f652a03ade91ef1c2c743f310d530b91493dece990d55d`). No failed, missing or skipped required behavior is treated as a pass.
+
+Scope: Protocol loader and audit tools only. No actual scientific values, policy subset, complete freeze record, pin or principal-run approval. Preserve the decided D6 ordering and structural audit limits. All previously carried review limits remain. Assemble only accepted increments in an isolated main worktree and run its complete owning suite before delivery. This finding is acceptance of this engineering increment; it is not an assembled-main test or live/scientific acceptance.

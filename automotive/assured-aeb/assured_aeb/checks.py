@@ -16,7 +16,14 @@ def is_int(value: Any) -> bool:
 
 
 def is_number(value: Any) -> bool:
-    return type(value) in (int, float) and math.isfinite(value)
+    """Whether a JSON number is usable by the finite-float arithmetic (R13-6)."""
+
+    if type(value) not in (int, float):
+        return False
+    try:
+        return math.isfinite(value)
+    except OverflowError:
+        return False
 
 
 def exact(record: Any, schema: str, members: set[str] | frozenset[str]) -> dict[str, Any]:
