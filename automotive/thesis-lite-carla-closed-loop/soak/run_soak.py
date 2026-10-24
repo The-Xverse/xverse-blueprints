@@ -36,6 +36,9 @@ Protocol, fixed before the first run (FR-019):
   failed start (a server failure, DR-11).
 - Run directories (DR-19 (3), H2): run-live.sh stages the units' run directory on tmpfs during the run and copies
   it into the evidence directory at cleanup; durability is that of the copy after the run.
+- Operator stop (S1c finding 60): SIGTERM or SIGINT sets a flag only; the run in progress completes its own cleanup,
+  the soak stops before the next run (manifest ``stopped``, ``operator signal …``) and the server is stopped. An
+  operator stop is not a criterion failure; a stopped soak restarts from zero.
 Writes ``soak-manifest.json`` (append-only run list) and, at the end, ``soak-report.json``.
 """
 
@@ -46,6 +49,7 @@ import json
 import math
 import os
 import statistics
+import signal
 import subprocess
 import sys
 import threading
@@ -71,6 +75,10 @@ WARM_UP_EXCUSED_CHECKS = frozenset({"P1.flowRootClosedComplete", "P1.maestroRoot
 
 class CriterionStop(Exception):
     """A criterion failure found inside a server start (a warm-up), which stops the soak (FR-020)."""
+
+
+class OperatorStop(Exception):
+    """A SIGTERM or SIGINT from the operator, acted on between runs (S1c finding 60)."""
 
 
 def clean_readiness_failure(entry: dict, run_dir: Path) -> bool:
@@ -289,14 +297,21 @@ class Soak:
         self._save("stopped", reason)
         return 2
 
+    def _check_signal(self):
+        if getattr(self, "_signal", None):
+            raise OperatorStop(self._signal)
+
     def _wait_load(self):
         waited = 0
+        self._check_signal()
         while load1() > LOAD_START_MAX:
+            self._check_signal()
             time.sleep(15)
             waited += 15
         return waited
 
     def run_one(self, case: str, *, carla: bool) -> dict:
+        self._check_signal()  # a run in progress always completes its own cleanup first (finding 60)
         self._check_pins()
         stamp = time.strftime("%Y%m%dT%H%M%S")
         warm = getattr(self, "_warming", False)  # a warm-up is tagged before its first save (finding 50, LOW-1)
@@ -415,14 +430,24 @@ class Soak:
         if not self.pinned["runnerMatchesPinned"]:
             print("refused: run_soak.py, health_check.py and audit.py must equal the pinned blueprints copies", file=sys.stderr)
             return 4
+        self._signal = None
+
+        def on_signal(signum, frame):  # only a flag: the runner stops between runs, never inside one (finding 60)
+            self._signal = signal.Signals(signum).name
+
+        previous = {s: signal.signal(s, on_signal) for s in (signal.SIGTERM, signal.SIGINT)}
         try:
             try:
                 return self._execute()
             except CriterionStop as stop:  # a warm-up failure that is not a clean readiness failure (DR-19)
                 return self._stop(str(stop))
+            except OperatorStop as stop:
+                return self._stop(f"operator signal {stop} (stopped between runs; finding 60)")
         finally:  # any exit, including a pin change (SystemExit) or a crash, leaves no server running (finding 36)
             if carla_pids():
                 stop_server(self.out / f"carla-server-{self.server_index}")
+            for s, handler in previous.items():
+                signal.signal(s, handler)
 
     def _execute(self) -> int:
         self._save()

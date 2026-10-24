@@ -252,3 +252,31 @@ def test_a_warm_up_that_leaves_the_server_unhealthy_is_a_failed_start(soak):
     assert "warm-up left the server unhealthy" in events and "start failed health" in events
     assert s.server_failures == 1 and fake.starts == 3 + 1
     assert len([e for e in s.runs if e.get("warmUp")]) == 4  # the restarted server gets its own warm-up
+
+
+def test_an_operator_signal_stops_the_soak_between_runs(soak, monkeypatch):
+    """S1c finding 60: SIGTERM only sets a flag; the run in progress completes, the soak stops before the next one,
+    and the finally-block stops a running server."""
+    import os
+    import signal
+
+    s, fake = soak([])
+    original = fake.run_one
+    servers = {"running": False}
+
+    def run_one(soak_, case, carla):
+        entry = original(soak_, case, carla)
+        if len(fake.runs) == 2:
+            servers["running"] = True  # stands in for a server left up at the moment of the signal
+            os.kill(os.getpid(), signal.SIGTERM)
+        return entry
+
+    monkeypatch.setattr(run_soak.Soak, "run_one", lambda self, case, carla: run_one(self, case, carla))
+    monkeypatch.setattr(run_soak, "carla_pids", lambda: [1] if servers["running"] else [])
+    stops = []
+    monkeypatch.setattr(run_soak, "stop_server", lambda out: (stops.append(out), servers.update(running=False)))
+    assert s.execute() == 2
+    manifest = json.loads(s.manifest.read_text())
+    assert manifest["state"] == "stopped" and "operator signal SIGTERM" in manifest["stopReason"]
+    assert len(fake.runs) == 2 and stops  # no run after the signal; the server was stopped
+    assert signal.getsignal(signal.SIGTERM) is signal.SIG_DFL or callable(signal.getsignal(signal.SIGTERM))
