@@ -611,3 +611,16 @@ The merge still awaits acceptance.
 
 ### Recommendation
 Ready for acceptance and merge. LOW-A is an AD-30 input, and LOW-B is optional.
+
+## 7. Acceptance (written at 11:32:34 2026-10-24)
+
+- **Accepted** under the author's delegation of 2026-10-24 (thesis `specs/002-assured-aeb/decisions.md` §G, §J,
+  §K and the WP-12 design-owner row). It is flagged for the author's review.
+- **Basis:** finding 3 (FAIL on HIGH-1), repaired in findings 4–5, and finding 6 (PASS WITH NOTES, no blocker). The
+  checker passes 50 checks and the tests give 74 passed. Verification is offline only.
+- **Carried forward:**
+  - LOW-A is an AD-30 input: the latency declaration lists all four hub delay points (F04, F14, F15b, F17), with
+    F15b's needed only for XDL acyclicity.
+  - LOW-B goes to WP-10: validate the FreezeBound inputs (`max_cycle_s > 0`, a finite positive thaw bound) before
+    `check_fault_admission` is called on an admission path.
+- **Merged** into blueprints main and pushed (see the merge commit).
