@@ -156,3 +156,25 @@ It has the same function names, signatures and declared semantics as `imageops.p
 4. The `/dev/shm` sensor venv disappears at reboot. The test then skips, and does not fail.
 
 **Status.** Candidate only. The independent review, acceptance and the merge are pending.
+
+## Finding 3: independent read-only Codex review (2026-10-24), PASS
+
+Reviewed candidate `cc6523e7171997afd39841e057f15afb88f8efa1`: the complete port, reference operations,
+selection hook and probe. The signed integer intermediates cannot overflow on the declared byte/noise and box
+width domains; both passes preserve the reference's flat-array edge rules and rounding, and alpha restoration is
+unchanged. The standard-library implementation remains available and unchanged. No product repair was made.
+
+Re-ran the complete blueprint suite with the pinned test interpreter, rc.1 platform profiles and
+`XVERSE_AEB_SENSOR_SITE=/dev/shm/xverse-aeb-sensor-20261024/venv/lib/python3.13/site-packages`:
+`env PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 XVERSE_PLATFORM_PROFILES=<rc.1>/xdl/profiles
+XVERSE_AEB_SENSOR_SITE=<sensor-site> /dev/shm/compat-p6-venv/bin/python -I -B -m pytest -q -p no:cacheprovider tests --tb=short`.
+Result: **291 passed**, no skips, in 30.89 s. The non-skipped bit-exact probe checks over 1000 comparisons, numpy
+2.5.4 from the named sensor site, and no `site` import. This review does not infer a per-frame budget or live behaviour.
+Finding 2 residuals 1 to 4 remain carried, including explicit unit selection and the pending durable sensor venv.
+
+## Finding 4: delegated acceptance (Codex, 2026-10-24; flagged for author review)
+
+Accepted the offline WP-13 #4b port on finding 3, with finding 2 residuals carried. Basis: thesis
+`specs/002-assured-aeb/decisions.md` §G and "WP-13 R-1 to R-7", R-7; the author's continuation instruction.
+This does not accept the unreviewed sensor-venv increment, select a live unit implementation, fix a D-4c budget,
+authorize Phase 8 live execution or establish any scientific result. Merge and assembled-main verification follow.
