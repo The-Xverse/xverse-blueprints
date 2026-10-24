@@ -1,0 +1,110 @@
+{
+  "inputs": [
+    {
+      "files": [
+        {
+          "path": "automotive/assured-aeb/assured_aeb/perception/manifest.py",
+          "sha256": "f5740eb17acddc7030e0366e0d0f3207b90b49d3ef59c3d1a278209d8b4ec369"
+        },
+        {
+          "path": "automotive/assured-aeb/assured_aeb/perception/labels.py",
+          "sha256": "616539fdbd9a39cf7533cba443017c65b979ad146a1f77f3b856674755d06c20"
+        },
+        {
+          "path": "automotive/assured-aeb/assured_aeb/perception/scenario.py",
+          "sha256": "f08e746e20947ef4bd4ac5e41f85f44e5f51b531cf995659cc53484c46b8e24c"
+        },
+        {
+          "path": "automotive/assured-aeb/assured_aeb/perception/store.py",
+          "sha256": "62de844db7b6c54e3e2cc3e68274e77f8709b66b17ebc09f522d2614d79692c2"
+        }
+      ],
+      "repository": "/home/jefferson/xverse-blueprints",
+      "revision": "92dfe5ad4b77f9a4aa8aecfbb116872811a69267"
+    },
+    {
+      "files": [
+        {
+          "path": "tools/training/training.lock",
+          "sha256": "95109db70c7e20931330423e15c68cd24af93629c812523cca3612d91dc78b6b"
+        },
+        {
+          "path": "tools/training/make-training-env.sh",
+          "sha256": "e4fedf36ff40590ee92de0f07ac64d9ac7fabcca03dad76ac63107a1f13f4319"
+        },
+        {
+          "path": "tests/training/train_probe.py",
+          "sha256": "dda16ebfd9e687f234c5c9bc6908716e1b8b55c04f0a95395127812be7280ee2"
+        },
+        {
+          "path": "tests/training/test_training_env.py",
+          "sha256": "18824f8abce53d912f4c4cb6462d1c6f6851f7a8f625281dd90483d091e7afc3"
+        }
+      ],
+      "repository": "/home/jefferson/xverse-compat",
+      "revision": "11ff91e1569f68d977c8949bfd982483d2216d72"
+    },
+    {
+      "files": [
+        {
+          "path": "src/xverse_compat/inference/preprocess.py",
+          "sha256": "7aeed2913f41a77a5fe191a5123f98fa33211085b73387d265505f4465d07100"
+        },
+        {
+          "path": "src/xverse_compat/inference/loader.py",
+          "sha256": "6a7f9e7e388958f02a91bd46bde173bf2ae23ff7b2eafb5541f971915e436abe"
+        },
+        {
+          "path": "src/xverse_compat/inference/unit.py",
+          "sha256": "dbf0bc2679ba0bac2181c54bd45a36065bc2196d6bf817f1fae711798001eb14"
+        }
+      ],
+      "repository": "/home/jefferson/xverse-compat",
+      "revision": "4172f6151cab34cc8fd196a6d3bbf68fc53af2d4"
+    },
+    {
+      "files": [
+        {
+          "path": "automotive/assured-aeb/assured_aeb/model_contract.py",
+          "sha256": "2384ccb2116c0b1f3d802b349a7ecaa257a8f8004d7487b4bb5141a381c257ab"
+        },
+        {
+          "path": "automotive/assured-aeb/assured_aeb/camera_inference.py",
+          "sha256": "6edb0dee674ccb72ed4fa0640d0c64419cb62422a1ae6f43b17486fd95bf0b74"
+        },
+        {
+          "path": "automotive/assured-aeb/assured_aeb/postprocess.py",
+          "sha256": "cdc57aaf8424e5d4bd9b180a5a699008dd1ab8b3be9cae6a4b5db3dd9602e3f9"
+        }
+      ],
+      "repository": "/home/jefferson/xverse-blueprints",
+      "revision": "d7d4db50ee98203142e694ac759ed6d4daab8255"
+    }
+  ],
+  "status": "DESIGN-ONLY; source/identity-record inspection, no framework import or environment-tree verification",
+  "thesis": {
+    "fetch": "successful, no incoming canonical-note change; no pull needed",
+    "files": [
+      {
+        "path": "specs/002-assured-aeb/design/wp09-training-pipeline.md",
+        "sha256": "4d785c37602b839f30c6bedd78ab6fc8561fae9acd2ae85cacf699ebb908e0cf"
+      },
+      {
+        "path": "specs/002-assured-aeb/decisions.md",
+        "sha256": "2d17cd5a37d0d99a11e04d155f4a728291197d751f5b723c5adedd0e15c222a4"
+      },
+      {
+        "path": "specs/002-assured-aeb/implementation-plan.md",
+        "sha256": "48fc38c3ddf61fd6e92614b6c671483e6df1e526ec3d6bc2413ce1a89ccc710f"
+      }
+    ],
+    "head": "d97fdd1167bbd48b97aad5d4071ad59403665f42",
+    "upstream": "origin/agent/synchronize-thesis-obsidian-notes",
+    "workingCanonicalNoteBlob": "ba244ddb7df388386455524ab7667d4a1e86d5a3"
+  },
+  "trainingIdentityRecord": {
+    "path": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/cache/xverse-aeb-training-20261024/identity.json",
+    "scope": "small existing identity record only; no wheel/environment tree rehash or import",
+    "sha256": "f24dfe62164c32bb6e98f5e8b1a7ab2d7e1bf3712bedc84a70c06a0e70c4d578"
+  }
+}
