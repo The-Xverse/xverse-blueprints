@@ -204,3 +204,9 @@ exists. The complete source/test/schema delta and snapshot mutation test were re
 No pytest or heavy check was started during platform regression. The publication findings are closed at source
 review level; full schema/owning-suite verification is required before acceptance. Actual freeze membership and
 the complete V21 process/data provenance audit remain open integration obligations.
+
+## Delegated engineering acceptance for isolated main assembly (Codex, 2026-10-24)
+
+Independent re-review findings above and the now-completed source-bound owning suite support acceptance under the author's recorded engineering delegation, flagged for author review. Reviewed revision `101af558281b543d0ea36171479f46d80761f3e3`; actual full-suite result: **550 passed in 30.33s**. Evidence is the thesis-owned `specs/002-assured-aeb/review/codex-serial-verification-20261024/runtime-projections/receipt.json` and companion `pytest.log` (SHA-256 `5b3a11a2ab25282055b63fc462e896698c6f2609d08415523be3e4bcc6e8049b`). No failed, missing or skipped required behavior is treated as a pass.
+
+Scope: Offline projection builder and runtime narrow loader only. No real role table or admitted bundle, unit launch, process-authority proof or V21 integration acceptance. All previously carried review limits remain. Assemble only accepted increments in an isolated main worktree and run its complete owning suite before delivery. This finding is acceptance of this engineering increment; it is not an assembled-main test or live/scientific acceptance.
