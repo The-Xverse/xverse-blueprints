@@ -11,7 +11,8 @@ brake was applied (V26). Its "accepted" status is the AD-14 actuator-facing acce
 
 Only simulation time is used. Every ``*Ns`` stamp (``originNs``, ``atNs``, ``receivedNs``) is the absolute CARLA world
 simulation clock in integer nanoseconds, as the compat items carry it; WP-03's ``sim_s`` is episode-relative, so the
-reader converts it with the episode origin (review-wp04 finding 4, HIGH-1). The staleness window and the compute latency
+reader converts it with the episode origin, bound late from the first frame (review-wp04 findings 4 and 7;
+decisions.md "AD-30 delivery rule"). The staleness window and the compute latency
 are protocol values with no default: the parameter records are refused unless every member is supplied.
 """
 
@@ -234,19 +235,19 @@ class BrakeCommandReader:
     while fresh, and ``None`` (invalid: WP-03 holds the last brake with throttle 0) when stale, lost or not yet
     deliverable.
 
+    The episode origin, the absolute world simulation time (integer ns) of the episode's first ticked frame, has no
+    default. The U2 loop binds it once with ``bind_origin`` when the first frame arrives. Compat ``LiteVehicleLoop`` calls
+    the driver at tick 0 with ``sim_s`` 0.0 before that frame, so the reader must serve before it is bound: with no
+    command it returns 0.0 (B-3); with a command held and no origin it returns ``None`` (fail-closed).
+
     @param params Validated ``ReaderParams``.
-    @param episode_origin_ns The absolute world simulation time (integer ns) of the episode's first ticked frame, set
-        by the U2 loop. ``sim_s`` is relative to it (compat ``live/loop.py``), while F17 ``originNs`` is absolute. There
-        is no default: the reader refuses to construct without it.
     """
 
-    def __init__(self, params: ReaderParams, *, episode_origin_ns: int) -> None:
+    def __init__(self, params: ReaderParams) -> None:
         if type(params) is not ReaderParams:
             raise TypeError("ReaderParams.from_record is required (no default parameters)")
-        if not _int(episode_origin_ns) or episode_origin_ns < 0:
-            raise TypeError("episode_origin_ns must be the integer ns world time of the episode's first frame (no default)")
         self.params = params
-        self.episode_origin_ns = episode_origin_ns
+        self.episode_origin_ns: int | None = None
         self.newest: dict[str, Any] | None = None
         self.lost = False
         self.refused = 0
@@ -264,6 +265,15 @@ class BrakeCommandReader:
         self.newest = command
         self.lost = False
 
+    def bind_origin(self, episode_origin_ns: int) -> None:
+        """Bind the episode origin once, from the first frame; re-binding the same value is idempotent, another refused."""
+
+        if not _int(episode_origin_ns) or episode_origin_ns < 0:
+            raise ValueError("the episode origin must be the integer ns world time of the episode's first frame")
+        if self.episode_origin_ns is not None and self.episode_origin_ns != episode_origin_ns:
+            raise ValueError(f"the episode origin is already bound to {self.episode_origin_ns}")
+        self.episode_origin_ns = episode_origin_ns
+
     def mark_lost(self) -> None:
         """The hub reports the F17 flow lost (its receiver verdict); the source is invalid until a new command."""
 
@@ -275,7 +285,9 @@ class BrakeCommandReader:
         if self.lost:
             return None
         if self.newest is None:
-            return 0.0  # B-3: no active request before the node's first command
+            return 0.0  # B-3: no active request before the node's first command (bound or not)
+        if self.episode_origin_ns is None:
+            return None  # a command is held but the time base is unknown: fail-closed
         age = self.episode_origin_ns + round(sim_s * 1e9) - self.newest["originNs"]
         if age < 0:
             return None  # a future origin is not deliverable: WP-03 cuts throttle and holds the brake

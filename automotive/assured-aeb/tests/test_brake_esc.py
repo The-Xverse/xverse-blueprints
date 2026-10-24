@@ -22,8 +22,10 @@ def node(window=TEST_WINDOW_NS, latency=TEST_LATENCY_NS):
 
 
 def reader(window=TEST_WINDOW_NS, origin_ns=0):
-    return B.BrakeCommandReader(B.ReaderParams.from_record({"schema": B.READER_PARAMS, "stalenessWindowNs": window}),
-                                episode_origin_ns=origin_ns)
+    r = B.BrakeCommandReader(B.ReaderParams.from_record({"schema": B.READER_PARAMS, "stalenessWindowNs": window}))
+    if origin_ns is not None:
+        r.bind_origin(origin_ns)
+    return r
 
 
 def routed(sequence, origin_ns, value, now_ns=None):
@@ -57,7 +59,7 @@ def test_node_and_reader_refuse_construction_without_a_record():
     with pytest.raises(TypeError):
         B.BrakeEscNode(None)
     with pytest.raises(TypeError):
-        B.BrakeCommandReader(None, episode_origin_ns=0)
+        B.BrakeCommandReader(None)
     with pytest.raises(ValueError):
         B.ReaderParams.from_record({"schema": B.READER_PARAMS})
 
@@ -243,13 +245,49 @@ def test_offline_chain_arbiter_to_reader_matches_the_wp03_contract():
 WORLD_NS = 1_000 * 1_000 * MS  # a world clock at 1000 s at the episode's first frame (test value)
 
 
-def test_reader_refuses_to_construct_without_an_episode_origin():
-    params = B.ReaderParams.from_record({"schema": B.READER_PARAMS, "stalenessWindowNs": TEST_WINDOW_NS})
-    with pytest.raises(TypeError):
-        B.BrakeCommandReader(params)
-    for origin in (None, 1.5, -1, True):
-        with pytest.raises(TypeError):
-            B.BrakeCommandReader(params, episode_origin_ns=origin)
+def test_origin_binds_once_and_refuses_a_different_value():  # finding 7, MEDIUM-A
+    r = reader(origin_ns=None)
+    for bad in (None, 1.5, -1, True):
+        with pytest.raises(ValueError):
+            r.bind_origin(bad)
+    r.bind_origin(WORLD_NS)
+    r.bind_origin(WORLD_NS)  # idempotent
+    with pytest.raises(ValueError):
+        r.bind_origin(WORLD_NS + 1)
+
+
+def test_unbound_origin_serves_zero_without_a_command_and_none_with_one():
+    r, n = reader(origin_ns=None), node()
+    assert r(0.0) == 0.0
+    r.deliver(n.step(WORLD_NS, [routed(1, WORLD_NS, 1.0)])["commands"][0])
+    assert r(0.0) is None  # a command is held, the time base is unknown
+    r.bind_origin(WORLD_NS)
+    assert r(0.0) == 1.0
+
+
+def test_lite_vehicle_loop_order_driver_before_first_frame():
+    """compat LiteVehicleLoop.run (855878a, live/loop.py 83-115): the driver is called at tick 0 with sim_s 0.0 before the
+    first frame; the first frame then sets episode_ns, and the U2 loop binds the reader's origin from it."""
+
+    zone, n, r = B.ChassisZone(), node(), reader(origin_ns=None)
+    step_ns = 50 * MS  # test step
+    frames = [WORLD_NS + k * step_ns for k in range(6)]
+    requests = [0.0, 0.0, 1.0, 1.0, 1.0, 0.0]
+    sim_s, episode_ns, hub, seen = 0.0, None, [], []
+    for tick, frame_ns in enumerate(frames):
+        for command in hub:
+            r.deliver(command)
+        hub = []
+        seen.append(r(sim_s))  # command_source(sim_s, last_motion) comes first in each tick
+        if episode_ns is None:
+            episode_ns = frame_ns
+            r.bind_origin(frame_ns)  # the first frame of the episode
+        sim_s = (frame_ns - episode_ns) / 1e9
+        routed_requests = [m for d, m in zone.step(frame_ns, [("brake-request", B.brake_request(tick + 1, frame_ns, requests[tick]))])
+                           if d == B.NODE]
+        hub.extend(n.step(frame_ns, routed_requests)["commands"])
+    assert seen[0] == 0.0  # tick 0: no command, origin unbound
+    assert seen == [0.0, 0.0, 0.0, 1.0, 1.0, 1.0]  # the frame-k request reaches the driver at tick k+1 (one hub step)
 
 
 def test_stale_command_is_refused_with_a_non_zero_world_epoch():
