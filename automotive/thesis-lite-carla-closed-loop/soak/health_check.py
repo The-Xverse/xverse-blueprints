@@ -4,10 +4,17 @@
 
 (libcarla aborts without HOME; the runner treats every non-zero exit, an abort included, as unhealthy.)
 
-A fresh client calls ``get_world()`` within 15 s, then a passive ``wait_for_tick(5 s)`` on the world. It never
-ticks, never changes settings and never spawns or destroys actors, so it is not an owner. It is run outside the run
-window: before the preflight and at the end of the cleanup. A failure is the objective, predeclared evidence that
-makes a run INVALID (an external dependency failure). Prints one JSON object; exit 0 healthy, 1 unhealthy.
+A fresh client calls ``get_world()`` within 15 s. In an asynchronous world it then waits passively for a frame
+(``wait_for_tick(5 s)``). In a synchronous world (a freshly started server on this host is synchronous at 0.05 s with
+no tick owner; S1c finding 57, thesis DR-21) no frame comes unless someone ticks, so the check only requires the
+server to answer its server requests ``get_world``, ``get_settings`` and ``get_map`` within the 15 s client timeout
+(``tickProbe: skipped-synchronous``). The actor count and ``get_snapshot()`` come from the client's local view in a
+world nobody has ticked; they are recorded (``localSnapshotFrame``) but are not evidence (finding 58, MEDIUM-1). It
+never ticks, never changes settings and never spawns or destroys actors, so it is not an owner. It is run outside the
+run window: before the preflight and at the end of the cleanup. A failure is the objective, predeclared evidence that
+makes a run INVALID (an external dependency failure); a synchronous world after the cleanup is a restore failure
+(FAIL) in the runner's ``classify`` whatever this check reports (DR-21). Prints one JSON object; exit 0 healthy, 1
+unhealthy.
 """
 
 import argparse
@@ -37,9 +44,14 @@ def main(argv=None):
         result["map"] = world.get_map().name
         result["vehicles"] = len(world.get_actors().filter("vehicle.*"))
         began = time.monotonic_ns()
-        snapshot = world.wait_for_tick(5.0)  # passive: waits for a frame another party (the server) produces
-        result["waitForTickS"] = round((time.monotonic_ns() - began) / 1e9, 3)
-        result["frame"] = int(snapshot.frame)
+        if result["synchronousMode"]:  # DR-21: never tick; the server requests above are the evidence
+            result["localSnapshotFrame"] = int(world.get_snapshot().frame)  # client-local, not evidence (finding 58)
+            result["tickProbe"] = "skipped-synchronous"
+        else:
+            snapshot = world.wait_for_tick(5.0)  # passive: waits for a frame another party (the server) produces
+            result["tickProbe"] = "wait-for-tick"
+            result["waitForTickS"] = round((time.monotonic_ns() - began) / 1e9, 3)
+            result["frame"] = int(snapshot.frame)
         result["healthy"] = True
     except Exception as error:  # any failure is the INVALID evidence, recorded verbatim
         result["healthy"] = False

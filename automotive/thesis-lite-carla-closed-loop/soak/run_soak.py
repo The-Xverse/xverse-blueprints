@@ -22,9 +22,9 @@ Protocol, fixed before the first run (FR-019):
 - Criteria: audit.py per run (P1, P3-P8; P2 an observation). The first failure stops the soak; a finding is
   recorded before any repair and a repaired soak restarts from zero (FR-020).
 - Validity: if observation plus INVALID runs exceed 10% of a case's scheduled runs, the soak is INVALID.
-- Declared realizations (S1c finding 34; thesis DR-11, DR-12): no-carla in the server-stopped gaps (above); a
-  run whose after-cleanup health check fails while the world reports synchronous mode is a restore failure (FAIL,
-  P1), not a server failure; a run counts as PASS only if its harness also exited 0 (its own assertions); a server
+- Declared realizations (S1c finding 34; thesis DR-11, DR-12, DR-21): no-carla in the server-stopped gaps (above);
+  a run whose after-cleanup health check reports a synchronous world is a restore failure (FAIL, P1), not a server
+  failure, whether or not the server answers (DR-21, stricter than DR-12); a run counts as PASS only if its harness also exited 0 (its own assertions); a server
   that fails to start twice in a row stops the soak; every server failure, including those during repeats and
   failed restarts, counts toward the limit of 3 and is recorded in the manifest.
 - Warm-up (S1c findings 47 and 51; thesis DR-18 (2), narrowed by DR-19 (2)): after every healthy CARLA server
@@ -106,10 +106,12 @@ def _audit(script_dir: Path, run_dir: Path) -> dict:
 
 def classify(*, carla: bool, healthy_before: bool, after: dict | None, audit_pass: bool, script_exit: int,
              load_max: float) -> str:
-    """A run's soak status (DR-12): a restore failure and any failed verdict are FAIL; a server-side health failure is
-    INVALID; a passing run above the load limit is an OBSERVATION."""
+    """A run's soak status (DR-12, DR-21): a restore failure (a synchronous world after the cleanup) and any failed
+    verdict are FAIL; a server-side health failure is INVALID; a passing run above the load limit is an OBSERVATION."""
     after = after or {}
-    restore_failure = carla and not after.get("healthy") and after.get("synchronousMode") is True
+    # DR-21 (stricter than DR-12): the guard always ends asynchronous, so a synchronous world after the cleanup is a
+    # restore failure whether or not the (non-ticking) health check found the server answering
+    restore_failure = carla and after.get("synchronousMode") is True
     if restore_failure:
         return "FAIL"
     if carla and not (healthy_before and after.get("healthy")):
