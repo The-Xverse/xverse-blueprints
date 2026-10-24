@@ -103,6 +103,7 @@ class WindowTablesTests(unittest.TestCase):
             for identifier in row["inputIds"]:
                 self.assertEqual(row["inputs"][identifier], protocol.entry(identifier))
             self.assertTrue(row["check"]["passed"])
+            self.assertIn(row["check"]["unit"], ("ns", "m", "m/s"))
         unhashed = copy.deepcopy(report)
         digest = unhashed.pop("tableSha256")
         self.assertEqual(digest, hashlib.sha256(json.dumps(unhashed, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()).hexdigest())
@@ -172,12 +173,65 @@ class WindowTablesTests(unittest.TestCase):
         setvalue(rec, "confirmation", 100_000_000)
         setvalue(rec, "retainedValidity", 100_000_000)
         result = rows(W.generate(admitted(rec)))
-        self.assertIn("min(requestTime", result["deadline.confirmation"]["runtimeObligation"])
+        self.assertIn("min(requestTimeNs", result["deadline.confirmation"]["runtimeObligation"])
         self.assertIn("do not add T+C", result["deadline.confirmation"]["rule"])
         for name in ("transitionScope", "confirmationScope"):
             rec = record()
             setvalue(rec, name, "TEST-ONLY-unsupported-phase")
             self.refused(rec, "TABLE-DEADLINE-SCOPE")
+
+    def test_aged_retained_evidence_caps_all_applicable_relative_deadlines(self):
+        # ALL timestamps/deadlines are TEST-ONLY; this is a counterexample to omitting absolute expiry.
+        rec = record()
+        for name, value in (("transition", 100), ("confirmation", 40), ("fallback", 100),
+                            ("mrcRequest", 100), ("retainedValidity", 200)):
+            setvalue(rec, name, value)
+        result = rows(W.generate(admitted(rec)))
+        relative = {"requestTimeNs + totalTransitionDeadlineNs": 150+100,
+                    "selectorTimeNs + confirmationDeadlineNs": 170+40,
+                    "lossDetectionTimeNs + fallbackDeadlineNs": 150+100,
+                    "lossDetectionTimeNs + mrcRequestDeadlineNs": 150+100}
+        expected = {"transition": ["requestTimeNs + totalTransitionDeadlineNs"],
+                    "confirmation": ["requestTimeNs + totalTransitionDeadlineNs", "selectorTimeNs + confirmationDeadlineNs"],
+                    "fallback": ["lossDetectionTimeNs + fallbackDeadlineNs"],
+                    "mrcRequest": ["lossDetectionTimeNs + mrcRequestDeadlineNs"]}
+        # Retained evidence originated before request/detection/selector. Use more than one expiry;
+        # neither relative clock may replace the earlier authoritative expiry or restart its duration.
+        evidence_expiries = [220, 200]
+        completion = 205
+        for name, relative_terms in expected.items():
+            row = result["deadline."+name]
+            self.assertIn("runtimeExpiryTerms", row)
+            self.assertEqual(row["runtimeExpiryTerms"], relative_terms+["retainedEvidenceValidUntilNs[*]"])
+            self.assertIn("every applicable", row["retainedEvidenceExpiryPolicy"])
+            self.assertIn("never rebase or restart", row["retainedEvidenceExpiryPolicy"])
+            self.assertIn("retainedEvidenceValidUntilNs[*]", row["runtimeObligation"])
+            self.assertIn("test.retainedValidity", row["inputIds"])
+            relative_expiry = min(relative[term] for term in relative_terms)
+            complete_expiry = min(relative_expiry, *evidence_expiries)
+            self.assertLessEqual(completion, relative_expiry)  # old, incomplete obligation admits it
+            self.assertGreater(completion, complete_expiry)  # complete obligation refuses it
+            self.assertEqual(complete_expiry, 200)
+        self.assertIn("do not add T+C", result["deadline.confirmation"]["rule"])
+
+    def test_comparison_units_separate_constant_distance_from_time_bound(self):
+        finite = rows(W.generate(admitted(record())))["envelope.endToEnd"]
+        self.assertEqual(finite["unit"], "ns")
+        self.assertIn("unit", finite["check"])
+        self.assertEqual(finite["check"]["unit"], "ns")
+        for gap, expected_budget in ((100, 94), (1, -5)):
+            rec = record()
+            setvalue(rec, "maxClosingSpeed", 0)
+            setvalue(rec, "worstGap", gap)
+            report = W.generate(admitted(rec)) if gap == 100 else self.refused(rec, row="envelope.endToEnd")
+            row = rows(report)["envelope.endToEnd"]
+            self.assertEqual(row["unit"], "ns")
+            self.assertIsNone(row["value"])
+            self.assertIsNone(row["roundedUpperNs"])
+            self.assertEqual(row["check"]["unit"], "m")
+            self.assertEqual(row["check"]["relation"], ">=")
+            self.assertEqual(rational(row["check"]["left"]), expected_budget)
+            self.assertEqual(rational(row["check"]["right"]), 0)
 
     def test_unbounded_zero_speed_never_selects_an_infinite_or_default_deadline(self):
         rec = record()

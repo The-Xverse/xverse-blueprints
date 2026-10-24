@@ -134,6 +134,14 @@ def _bindings(inputs):
     return value
 
 
+def _expiry_contract(*relative_terms):
+    """Offline symbolic obligation; actual event/evidence timestamps are runtime inputs."""
+    terms = [*relative_terms, "retainedEvidenceValidUntilNs[*]"]
+    return {"runtimeExpiryTerms": terms,
+            "runtimeObligation": "complete the declared response by min(" + ", ".join(terms) + "); runtime enforcement not verified here",
+            "retainedEvidenceExpiryPolicy": "include every applicable retained-path evidence absolute validUntilNs; evidence can predate request/detection/selector; never rebase or restart its validity at those events"}
+
+
 def generate(protocol: Protocol) -> dict:
     """Return an offline checked report; refuse inputs/inequalities without changing a declared value.
 
@@ -146,12 +154,13 @@ def generate(protocol: Protocol) -> dict:
     binding = _bindings(inputs)
     rows = []
 
-    def row(identifier, rule, refs, value, unit, relation, left, right, passed, **details):
+    def row(identifier, rule, refs, value, unit, relation, left, right, passed, *, check_unit=None, **details):
         refs = list(dict.fromkeys(refs))
         rows.append({"id": identifier, "rule": rule, "inputIds": refs,
                      "inputs": {key: copy.deepcopy(inputs.entries[key]) for key in refs},
                      "value": None if value is None else _exact(value), "unit": unit,
-                     "check": {"relation": relation, "left": None if left is None else _exact(left),
+                     "check": {"relation": relation, "unit": unit if check_unit is None else check_unit,
+                               "left": None if left is None else _exact(left),
                                "right": None if right is None else _exact(right), "passed": bool(passed)}, **details})
 
     for item in binding["windows"]:
@@ -199,6 +208,7 @@ def generate(protocol: Protocol) -> dict:
         list(envelope[key] for key in ("worstGap", "maxClosingSpeed", "distanceUncertainty", "speedUncertainty", "deceleration", "margin", "endToEnd")),
         bound, "ns", "<=" if bound is not None else ">=",
         end_to_end if bound is not None else budget, math.floor(bound) if bound is not None else 0, passed,
+        check_unit="ns" if bound is not None else "m",
         boundKind=kind, roundedUpperNs=None if bound is None else math.floor(bound), declaredValueNs=end_to_end,
         constantDistanceBudgetM=_exact(budget), brakingDistanceM=_exact(vc * vc / (2 * a)),
         triggerDistinction="AD-05 <= is the brake-needed predicate; this >= side defines available delay, not a new safety claim")
@@ -232,15 +242,16 @@ def generate(protocol: Protocol) -> dict:
     row("deadline.transition", "total request-to-confirmed transitionDeadline <= retainedValidity",
         [deadlines["transition"], deadlines["retainedValidity"], semantics["transitionScope"]], values["transition"], "ns", "<=",
         values["transition"], values["retainedValidity"], values["transition"] <= values["retainedValidity"],
-        runtimeObligation="the absolute total deadline expires from request, including confirmation")
+        **_expiry_contract("requestTimeNs + totalTransitionDeadlineNs"))
     row("deadline.confirmation", "post-selector confirmationDeadline <= total transitionDeadline (included phase; do not add T+C)",
-        [deadlines["confirmation"], deadlines["transition"], semantics["transitionScope"], semantics["confirmationScope"]],
+        [deadlines["confirmation"], deadlines["transition"], deadlines["retainedValidity"], semantics["transitionScope"], semantics["confirmationScope"]],
         values["confirmation"], "ns", "<=", values["confirmation"], values["transition"], values["confirmation"] <= values["transition"],
-        runtimeObligation="confirm by min(requestTime + totalTransitionDeadline, selectorTime + confirmationDeadline); runtime enforcement not verified here")
+        **_expiry_contract("requestTimeNs + totalTransitionDeadlineNs", "selectorTimeNs + confirmationDeadlineNs"))
     for key in ("fallback", "mrcRequest"):
         row(f"deadline.{key}", "loss-detection-to-request deadline <= retainedValidity", [deadlines[key], deadlines["retainedValidity"]],
             values[key], "ns", "<=", values[key], values["retainedValidity"], values[key] <= values["retainedValidity"],
-            scope="request emission only; no external MRC execution/effectiveness claim")
+            scope="request emission only; no external MRC execution/effectiveness claim",
+            **_expiry_contract("lossDetectionTimeNs + " + key + "DeadlineNs"))
 
     metadata = protocol.metadata()
     if protocol.kind == "principal":

@@ -311,3 +311,32 @@ The coordinator accepted R17d-1 and R17d-2 in independent review commit `68c14a4
 Sol at high reasoning is recommended for this scope-preserving repair and its independent re-review; this is an
 informational task judgment. No scientific values are selected. Syntax and tiny stdlib probes only until the root
 scheduler executes owning verification. Independent re-review, acceptance, dependency reconciliation and merge remain.
+
+## Finding 6: narrow repair implementation and actual probe evidence (Codex, 2026-10-24)
+
+Design finding 5 was committed as `f35aec4` before source/test edits. R17d-1 and R17d-2 are repaired as candidates
+for independent re-review; acceptance and serialized owning verification remain with the coordinator.
+
+`runtimeExpiryTerms` and readable obligations now intersect transition request+T, confirmation request+T/selector+C,
+and fallback/MRC lossDetection+deadline with **every applicable absolute retained-path evidence `validUntilNs`**.
+The offline contract explicitly says evidence can predate all those events and its duration must never be restarted
+or rebased. No actual event-time input, time calculation, new runtime policy or numeric parameter is introduced.
+Confirmation now includes retainedValidity in its input/provenance list. Runtime composition enforcement remains
+unverified; the table still checks `C <= T <= V_retained` and does not add overlapping T+C.
+
+All row checks carry `check.unit`. Zero-speed end-to-end conditions use metres for the compared constant distance
+budget; the absent time-bound result remains null with result unit ns. Finite speed keeps ns comparisons and the
+same exact equations, rounding, domains and degeneracy classifications.
+
+Actual verification (small stdlib-only probes, no pytest/NumPy/torch/ORT):
+- Five selected controls passed in 0.026 s: the new aged-evidence and typed-unit controls, existing included-
+  confirmation semantics, complete report/by-ID provenance and fractional upper-bound/reserve rounding.
+- Both new regressions were rerun against isolated in-memory source from pre-repair `68c14a4`; both failed with
+  assertion failures, then both passed against the repaired source in 0.010 s. No checkout/source swap occurred.
+- Aged-evidence control covers transition, confirmation, fallback and MRC emission with TEST-ONLY event times,
+  multiple absolute expiries and a response permitted by relative deadlines but after the earliest expiry.
+  Typed-unit control covers finite ns, zero-speed unbounded metre and zero-speed no-solution metre comparisons.
+- Python AST syntax and `git diff --check` passed. The full owning suite has **not** run in this repair pass.
+
+The exact deferred command remains the finding-3 command (now 19 test methods). Schedule it through the root queue,
+then independently re-review this successor. WP-17a is still unaccepted; no acceptance/merge/freeze/live action here.
