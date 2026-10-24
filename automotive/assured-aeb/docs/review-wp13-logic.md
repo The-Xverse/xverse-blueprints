@@ -262,3 +262,59 @@ U4 code imports nothing from U5 modules, and U5 code nothing from U4 modules: bo
    - the state forwarded in the arbiter evidence rather than in a widened brake request (§1.7).
 6. The FR-007 field completeness of `adas-cycle` (validity window identifier and synchronisation quality) is
    checked by the WP-14 validator. This increment carries only the stamps, ages, states and provenance listed here.
+
+## Finding 2: implementation result (2026-10-24 15:54:11)
+
+**Files.**
+- `assured_aeb/parameters.py`: `Projection`, `take` and `check_exact`, and `params_digest`.
+- `assured_aeb/aeb_rule.py`: `weakest`, `qualify_radar`, `nearest_in_corridor`, `Rule` and `Latch`.
+- `assured_aeb/fusion_aeb.py`: `FusionRiskAeb` and `bin_interval`.
+- `assured_aeb/vc_functional.py`: `RadarFallback` and `FunctionalArbiter`.
+- `tests/test_aeb_logic.py`: 47 tests.
+
+**As designed in finding 1.** Details that the design left open:
+- **Fallback decision cycle.** It is a step with F09 delivered. Ego-speed updates alone are not decision cycles. The
+  WP-14 unit entry fixes the U5 cadence.
+- **Arbiter hold.** It is measured from the held request's `originNs`, and is inclusive at the window.
+- **Arbiter, selector with no source.** A configuration with no source (`arbiter.mrcSource = none` under
+  `S_MRC_REQUESTED`) gives 0.0 with kind `no-valid-source`.
+- **Arbiter, reused or out-of-order sequences.** A request whose sequence was already used is refused
+  (`request-refused`). Requests delivered at the same step are taken in sequence order, and the newest fresh one is
+  sent.
+- **Arbiter guard.** A non-finite value after clamping is unreachable, because raw values are finite. The guard is
+  kept.
+
+**Test fixture correction during the run** (not a logic defect). The fusion case "none" first placed its detection
+at an azimuth of 0.5 rad. That is outside the radar's configured ±15° field of view, so the real smart radar correctly
+failed plausibility and fusion reported `radar-unusable`. The fixture now uses 0.2 rad, which is in view and outside
+the corridor (y = 5.96 m).
+
+**Determinism stream (T-9).** The test also checks that the stream exercises the rule. All eight cycles agree, and
+the request is 0.0 on six cycles and 1.0 on two, firing at d = 9.6 m. Identical inputs give identical streams. A world
+epoch shifted by 7 s gives the same stream relative to its epoch.
+
+**Commands** (`/dev/shm/compat-p6-venv/bin/python -I`, rc.1 profiles):
+- `tests/test_aeb_logic.py`: 47 passed;
+- the whole suite: 334 passed (287 on main);
+- `check_topology.py`: exit 0;
+- `__pycache__` removed.
+
+**Residuals** (finding 1 §1.9, unchanged):
+1. Every value, every identifier and the projection form are `TODO` (AD-27). The tests use TEST-ONLY values.
+2. The radar velocity sign (`radar.closingSpeedSign`, D-2 verification) and ground clutter, with no altitude gate.
+3. WP-14 obligations:
+   - the qualified ego-speed record `{speedMps, originNs, state}`;
+   - `assured-aeb.selector-command/1`;
+   - the use of qualified evidence;
+   - the U4 and U5 cadences in the unit entry points.
+4. Increment #3 obligation: produce `assured-aeb.perception-output/1` with exactly the members of §1.5.
+5. Flagged for review:
+   - the fallback latch held through an ODD-gate failure;
+   - the per-source hold after a selector switch;
+   - the state forwarded in the arbiter-cycle evidence rather than in a widened brake request.
+6. FR-007 completeness of `adas-cycle` is the WP-14 validator's.
+7. Freeze consistency checks, recorded for AD-27:
+   - `fusion.corridor.*` must equal the WP-09 label corridor;
+   - `fusion.distanceBinEdgesM` must equal the label bin edges.
+
+**Status.** Engineering evidence on the candidate only. The independent review, acceptance and the merge are pending.
