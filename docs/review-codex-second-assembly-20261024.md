@@ -93,3 +93,30 @@ loop10. No pytest, Torch/NumPy/ORT, environment-tree hashing, compiled-plan exec
 repair, main update, acceptance or merge was performed by this review. The sole identified blocker is the test
 fixture above. After its independently reviewed repair, full combined verification and root's separate
 acceptance decision remain mandatory; existing design/live/scientific gates are not reduced.
+
+## Finding 2 — independent TEST-ONLY fixture successor re-review: PASS
+
+Reviewed clean exact repair `21f22fc00817dfb9738b8d9c62f4ac4bd2dcd4d1` against finding1's pre-code disposition.
+R-AS2-1 is closed. Byte comparison confirms that the interface test differs from4ec3e7f only by removal of the
+single `arbiter.mrcSource="none"` pair. Git product-subtree identity and intentional terminal-refusal test blob
+are unchanged. The genuine merged constructor now admits the intended fixture; no product check was weakened.
+
+Executed the exact interface test method
+`test_actual_arbiter_rejects_legacy_or_incomplete_metadata_without_upcast`, extracted together with its actual
+projection/input helpers by AST and invoked with a stdlib TestCase. Its genuine SmartCamera/FrontZone/
+CameraInference model-free fixture/Fusion path constructs active F11v2; all three legacy/unknown/missing-metadata
+refusals and subsequent genuine same-sequence recovery assertions pass. No pytest, NumPy, Torch or ORT was
+imported. This directly exercises the test path previously blocked by the obsolete constructor parameter.
+
+Four independent actual constructor controls still refuse the obsolete field for adas-cycle, fallback-request,
+none and unknown values. An additional genuine F11 source control clamps1.4 to1.0, snapshots that actually emitted
+value on terminal entry, ignores a same-inbox zero and later live recovery, and retains last-emitted provenance
+with no selected live source. Thus repairing the fixture did not reintroduce a terminal source or bypass metadata.
+
+Complete small-probe script/result are retained externally at `codex-20261024/scratch/review_wp15/second-assembly-
+fixture-successor-probes.py` and `.json`. All temporary data remained loop10; no suite, framework, environment-tree
+hash, compiled plan, live/C1 run, main update, acceptance or merge was performed. Original failed fixture finding
+and source pin remain in history. No further source blocker is open from this independent assembly review.
+Root next schedules the full combined owning suite and all eight compiled plans against an exact admitted pin;
+their actual results and separate delegated acceptance remain required. Sol/medium was the informational
+cost-effectiveness recommendation for this narrow re-review; no model switch was claimed.
