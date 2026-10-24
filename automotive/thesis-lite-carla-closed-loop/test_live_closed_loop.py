@@ -98,9 +98,12 @@ MARKER_PROBE = "nonce-marker"
 # release. The adapter is ready only once CARLA, its owned scenario and its link are set up: its owned-actor registry
 # was written 0.24-1.26 s after its release in the S1c-2 part 1 runs (load 6.3-8.5). The owned units' timeout is
 # therefore the declared observe budget. 2 s (attempts at 0, 0.875 and 1.75 s) left the adapter on its last attempt
-# once (S1c finding 44, M3), so the owned window is 3.5 s (attempts at 0, 1.625 and 3.25 s) inside a 4 s observe budget
-# and the 5 s platform cap; every owned unit's ready latency is recorded (readyLatencyS). The VCU keeps the fixture's 1 s.
-OWNED_READINESS_TIMEOUT_S = 3.5
+# once (S1c finding 44, M3). 3.5 s then let the start step reach the bootstrap lease under load, so a cancel had no
+# native close time left (S1c finding 45-46; platform S1b-stack findings 22-23, RA1). Maestro now admits a marker window
+# only if W <= 5 - 2.25 (cancel-close reserve) - operation_seconds 0.38 = 2.37 s, and caps it at run time against the
+# lease. The owned window is 2.25 s, inside that bound (attempts spaced over the capped window); every owned unit's
+# ready latency is recorded (readyLatencyS). The VCU keeps the fixture's 1 s.
+OWNED_READINESS_TIMEOUT_S = 2.25
 ORDER = ("lite-driver", "carla-adapter", "legacy-vcu", "driver-stimulus")
 # the fixture's flow source starts first: the driver is the source of the actuation-command flow to the adapter
 RENAME = {"source-instance": "lite-driver-instance", "sink-instance": "carla-adapter-instance",
@@ -116,6 +119,11 @@ FIXTURE_TEXT = {  # declared text replaced so that the plan does not describe an
     "Declared intent only; no runtime result is claimed.": "Engineering integration only; not AEB validation, not M1.",
 }
 ENVIRONMENT_DIGEST = pin(b"owned-environment")
+
+
+def _drain_facts(drain):
+    """Public fields of a platform drain record (BootstrapDrain or PersistenceDrain), for attribution only."""
+    return None if drain is None else {k: v for k, v in vars(drain).items() if isinstance(v, (bool, int, str, type(None)))}
 
 
 def _rename(value):
@@ -483,6 +491,9 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
     # missed a 2 s start-up once at load 9-10 (platform S1b finding 2, GA-10; S1c finding 28)
     scope = RuntimeScope(HostDeadline("host-session", lease.monotonic_seconds - 0.05), active, terminal, closure)
     record["startupScopeS"] = round(lease.monotonic_seconds - 0.05 - time.monotonic(), 3)
+    # S1c finding 46, H3: the lease facts, relative to the run start, to attribute a start step that reaches the lease
+    record["leaseFacts"] = {"bootstrapLeaseFromStartS": round(lease.monotonic_seconds - record["monotonicStartNs"] / 1e9, 3),
+                            "startupScopeEndFromStartS": round(lease.monotonic_seconds - 0.05 - record["monotonicStartNs"] / 1e9, 3)}
     rpc_timings = []  # client-side persistence round trips, as in the S1a bench (measurement only; S1 P6, FR-002)
     original_rpc = PersistenceClient._rpc
 
@@ -558,6 +569,9 @@ def test_live_closed_loop(environment, binaries, authority_binary, run_bootstrap
         record["stopModes"] = _fact(lambda: _stop_modes(record["nativeUnits"])) if isinstance(record.get("nativeUnits"), list) else None
         record["stderrPrivateBytes"] = _fact(lambda: _stderr_sizes(stderr_dirs))
         record["readyLatencyS"] = _fact(lambda: _ready_latency(work, [n for n in ORDER if n != "legacy-vcu"]))
+        # S1c finding 46, H3: the reap facts of the bootstrap root and of the storage worker (None when not drained)
+        record["reapFacts"] = {"bootstrap": _fact(lambda: _drain_facts(entry._session._drained) if entry._session else None),
+                               "storage": _fact(lambda: _drain_facts(entry._storage._drained) if entry._storage else None)}
         record["readinessProbes"] = _fact(lambda: _readiness_probes(tmp_path / "argus-maestro" / "events.jsonl"))
         if case == "freeze-vcu":
             record["freezeThrottle"] = _fact(lambda: _freeze_overlap(tmp_path / "argus-maestro" / "events.jsonl", run_dir / "stimulus.jsonl"))
