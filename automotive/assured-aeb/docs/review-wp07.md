@@ -228,3 +228,148 @@ The radar specification is the configured descriptor, as AD-36 class (ii) requir
 
 The next step is an independent read-only review of `98d6b25`, then acceptance and merge. Neither has
 happened.
+
+## Finding 3: independent review of findings 1 and 2 (2026-10-24 12:19:50)
+
+**Reviewer and method.**
+- An independent, read-only reviewer who did not write this increment.
+- Read `967ada2`, `98d6b25` and `c795b24` against base `5f71cde`, and checked them against:
+  - thesis FR-002, FR-007, FR-028, FR-031 and FR-034, AD-18 C, AD-31 C, AD-36 B (`decisions.md` 83) and
+    AD-02, §J, §K and the "AD-30 delivery rule";
+  - compat `sensors.py` 47–64 and `carla-sensors.json` at `95e9e7a`.
+- Commands (`/dev/shm/compat-p6-venv/bin/python -I`, rc.1 profiles from a scratch export):
+  - the three new test files: 64 passed;
+  - the whole suite: 235 passed;
+  - `check_topology.py`: exit 0.
+- In-memory probes on 800 × 600 BGRA: the uniform-frame statistics, blur widths 2^2, 2^5 and 2^8 (time,
+  mean luma and the edge pixels), and the noise table spread. Nothing in the worktree changed except this
+  entry. No CARLA, no live run.
+
+### Verdict: **PASS WITH NOTES. Nothing blocks the merge.**
+
+The modules are offline and unwired. MEDIUM-2 and MEDIUM-3 should be settled before the D-2/D-3
+characterisation, because they shape the AD-03 input-quality indicators. MEDIUM-1 must be a WP-10/D-4
+obligation before any live run. The merge still awaits acceptance.
+
+### Confirmed
+- **Corruption stage, determinism and time base** (camera_chain.py 106–163).
+  - The events are active on `[startNs, endNs)` of `originNs − episodeOriginNs`. The origin binds once,
+    and nothing is processed before it (`origin-unbound`, `before-episode`).
+  - Noise bytes come from `Random(SHA-256(schema | seed | event id | relative ns)[:8]).randbytes(n)`, so
+    two world epochs give identical delivered frames (PAIR-1 test).
+- **Incoming digest.** `sha256(pixels)` must equal the adapter item's `rawSha256`, and the length must
+  equal the configured format, before anything is applied.
+- **F05 content.** Exactly `schema, source, frame, sequence, originNs, width, height, encoding,
+  frameSha256, frameLength`.
+  - `frameSha256` is the digest of the delivered bytes, and the length is constant for the format.
+  - No event, kind, seed, flag or adapter digest is present.
+  - `frame`, `sequence` and `originNs` are the adapter's own, so a dropout appears as an adapter-sequence
+    gap, indistinguishable from a real missing frame.
+  - The evidence holds `frame`, `originNs`, event ids and kinds only, never bytes. U3 can therefore learn
+    nothing about the schedule from the *content*. For timing, see MEDIUM-1.
+- **Image operations** (imageops.py).
+  - Lane arithmetic stays carry-free: noise sums lie in [1, 766], box sums are ≤ 256 · 255, and luma is
+    ≤ 256 · 255.
+  - The noise clamp is correct: high byte 0 maps to 0, 1 keeps the low byte, and ≥ 2 maps to 255.
+  - Luma is BT.601 in integer form (77/150/29).
+  - The 14 reference tests agree on 9 × 7 frames.
+- **AD-36 classes.**
+  - (i) is logical: sequence, frame, digest and length, future origin, radar count consistency.
+  - (ii) is the configured specification: camera geometry, and the radar range, fields of view, velocity
+    and maximum detections equal to `carla-sensors.json`.
+  - (iii) is characterisation thresholds.
+  - Every record is exact-member with no defaults.
+- **Front zone** (radar_zone.py 132–181). It assigns `receivedNs`, and freshness is `0 ≤ age ≤ window`.
+  - It checks integrity and sequence, carries the sensor's plausibility verdict, and forwards every item
+    whatever its verdicts (no decision).
+  - The camera payload is the digest, frame and indicators only (no pixels).
+  - Radar goes to F08 and F09 as separate deep copies.
+- **Radar class (ii)** reproduces the adapter's bounds rule (`sensors.py` 47–64, the same
+  `ANGLE_TOLERANCE`). With the shipped descriptor it fires only on content altered after the adapter, as
+  declared. See LOW-2.
+
+### Issues (none blocks the merge)
+
+**MEDIUM-1: the host cost of the image work is the size of the step, and its timing consequences are
+not recorded.**
+- Measured on this host with no other load control:
+  - box blur alone takes 49 ms at 2^2, 151 ms at 2^5 and **913 ms at 2^8**;
+  - finding 2 records 68 ms for noise plus blur 4 in the stage, and 47 ms for the smart camera on every
+    frame at stride 4;
+  - the simulator step is 50 ms (K-10).
+- The `boxLog2` domain [1, 8] therefore admits severities that cannot run at 20 Hz. The U3 statistics
+  alone take about one step on every frame.
+- **Timing side channel.** The stage cost depends on the active kind: a clean frame needs only a digest,
+  while blur and noise take tens to hundreds of ms. U3 learns nothing from content. It also learns nothing
+  from simulation time, *provided that*:
+  - (a) the hub delivers F05 at a simulation time independent of the processing duration (the stage
+    completes inside the U2 tick that delivers the frame, or delivery is keyed to the frame's stamp under
+    the AD-30 delivery rule, never "when ready");
+  - (b) no role unit derives an indicator from host time.
+- Record (a) and (b) as WP-10/WP-13 obligations, and the per-frame host budget as a D-4/E8-3a item, in
+  the residuals. Either bound `boxLog2` by the measured budget, or declare that numpy (residual 4) may be
+  needed.
+
+**MEDIUM-2: the high-frequency indicator is biased by the zero edges of its own box, so it depends on
+mean luma.**
+- Where: imageops.py 162–174.
+- Probe: a perfectly uniform 128-grey frame (stride 4, sharpness box 2^2) gives `stdLuma` 0 but
+  `highFrequencyVariance` **−10.226**. The darkened top and bottom rows of `box(Y)` add variance that
+  `Y` does not have.
+- The term grows with the square of mean luma, so exposure changes alone move the blur detector. A
+  brightening exposure lowers it and can trip `high-frequency`, which is the blur check. That confounds
+  the per-kind attribution the AD-03 indicators are meant to give.
+- Strong blur in the corruption stage also darkens the frame through the same zero edges: mean luma fell
+  from 128 to 127.8 at 2^2, 126.3 at 2^5 and **114.2 at 2^8**. Blur therefore also moves `mean-luma`.
+- Repair options: compute the indicator on the interior only, excluding `2^(s−1)` rows and columns, or
+  with edge replication. Alternatively declare the bias in residual 3 and require D-3 to characterise
+  thresholds with this exact function. The stage-side darkening belongs in the declared fidelity limits.
+
+**MEDIUM-3: no self-check fails for the `noise` kind.**
+- Where: camera_chain.py 182–183 and 259–266; test_camera_chain.py 202–205.
+- Class (iii) has only lower bounds on `stdLuma` and `highFrequencyVariance`, and noise raises both.
+  `test_noise_raises_the_luma_spread` checks only that the indicator rises; no verdict fails.
+- So of the five AD-31 kinds, noise is the one the camera self-checks *observe* but never *flag*. FR-034
+  requires observation, which holds, but the AD-03 input-quality verdict is blind to it.
+- Either add upper bounds (`maxStdLuma` or `maxHighFrequencyVariance`, characterised under D-3), or
+  declare noise as indicator-only, left to the ML OOD indicator, in the record.
+
+**LOW-1: the parameter records do not check consistency or class.**
+- `minMeanLuma ≤ maxMeanLuma` is not enforced, and fractions are not limited to [0, 1].
+- `maxAgeNs` sits in class (iii), "from characterisation", although an age bound is an AD-06/AD-07
+  freshness value. The front zone also has its own `cameraFreshnessWindowNs`, so two age thresholds now
+  exist. Declare which one is the AD-06 value.
+
+**LOW-2: radar class (ii) runs on rounded values.**
+- The adapter checks the raw detection, then rounds altitude and azimuth to 6 decimals and depth and
+  velocity to 3 (`sensors.py` 62). The smart radar checks the rounded value against bound + 1e-9.
+- With the shipped 30° × 10° specification no rounded value can cross the bound. For other fields of view
+  a value within half a unit of the last decimal below the bound can round above it, for example
+  azimuth 0.3054326 at 35°, giving a false `detection-out-of-specification`.
+- Add the rounding half-unit to the tolerance, or state the limit.
+
+**LOW-3: the declared fidelity limits are incomplete.**
+- The first and last pixels of the frame take zeros rather than wrapping. Probe: the top-left pixel
+  becomes 50 from 200 at width 2.
+- Two flooring passes bias the blur by up to about −(w − 1)/2w levels per pass.
+- The inverse-CDF table truncates the noise at about ±2.9σ: extremes ±58 at σ 20, with a spread of
+  19.95.
+- Add these to residual 3.
+
+**LOW-4: reproducibility.** CPython documents version stability only for `random()` under a compatible
+seeder. `randbytes` and `getrandbits` are covered by the interpreter pin, which residual 5 states.
+`NormalDist.inv_cdf` uses `math.log` and `math.sqrt`, so the host libm is also a condition. Its offsets
+are rounded to integers, so the effect is limited to rounding boundaries. Add the libm condition to
+residual 5, as for WP-05.
+
+### Residuals 1 to 6
+- Residuals 1, 4 and 6 are accurate. Residual 2 is accurate but should add MEDIUM-1 (a) and (b).
+  Residual 3 is incomplete (MEDIUM-2, LOW-3). Residual 5 is accurate and should add the libm condition.
+- Missing: the host budget and the timing conditions (MEDIUM-1), and the noise detection gap (MEDIUM-3).
+
+### Recommendation
+- Before D-2/D-3, repair or decide MEDIUM-2 (interior-only high-frequency variance) and MEDIUM-3 (noise
+  upper bounds, or indicator-only).
+- Record MEDIUM-1 as WP-10, WP-13 and D-4 obligations, with a `boxLog2` bound.
+- Record LOW-1 to LOW-4.
+- Then acceptance and merge.
