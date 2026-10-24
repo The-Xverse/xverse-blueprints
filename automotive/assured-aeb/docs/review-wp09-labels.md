@@ -199,3 +199,129 @@ All extents, corridor values, bin edges, seeds and floors in the tests are label
    live D-3 activity.
 
 The next step is an independent read-only review of `f095817`, then acceptance and merge. Neither has happened.
+
+## Finding 3: independent review of findings 1 and 2 (2026-10-24 15:33:28)
+
+**Reviewer and method.**
+- An independent, read-only reviewer who did not write this increment.
+- Read `9e21d31`, `f095817` and `e3a8c37` against base `5f71cde`, and checked them against:
+  - thesis `design/wp09-training-pipeline.md` §1–§3 and §8–§9;
+  - `decisions.md` "WP-09 training pipeline" (288), "WP-02b scope" (290) and §H P-2 (239) and P-4;
+  - `implementation-plan.md` P-2 (163);
+  - compat `scenario.py` at `82ee37c` (`target.adjacentLane`).
+- Commands (`/dev/shm/compat-p6-venv/bin/python -I`, rc.1 profiles):
+  - the three new test files: 56 passed;
+  - the whole suite: 227 passed;
+  - `check_topology.py`: exit 0.
+- In-memory geometry and manifest probes. Nothing in the worktree changed except this entry. No CARLA, no live
+  run.
+
+### Verdict: **PASS WITH NOTES. Nothing blocks the merge.**
+
+This increment produces no data: live labelling is increment #6. MEDIUM-1 to MEDIUM-4 must be repaired or
+decided before increment #6 records or labels any frame. The merge still awaits acceptance.
+
+### Confirmed
+- **Distance.**
+  - The ego front is `ego.locationM.x + ego.extentM.x`.
+  - The target footprint is centred at `origin + locationM.x·f_t + locationM.y·r_t` with half-sizes `extentM`
+    and its own yaw. CARLA's frame is used: forward `(cos ψ, sin ψ)`, right `(−sin ψ, cos ψ)`.
+  - The gap is the minimum corner `x` minus the ego front.
+  - Probe: an aligned target 30 m ahead gives 25.5 m (WP-02 R-2), and an ego box offset of 0.3 m gives 25.2 m.
+    Both offsets are used.
+- **Corridor.** A separating-axis test of two rectangles, with two edge normals each and touching counting as
+  intersecting, against `[x_front, x_front + maxRange] × [±halfWidth]`.
+- **Provenance.** Each label records `observerSha256`, the 1-based `observerLine`, `labelCodeSha256` (the
+  SHA-256 of `labels.py`) and `labelParamsDigest`, with `rawSha256` as the join key. There are no bytes.
+- **Offline only.** The AST scan of every module outside `assured_aeb/perception/` and `tests/` finds no import
+  of the label code (test_perception_labels.py 182). The observer header must be the evaluation-only v2
+  schema.
+- **Manifest.**
+  - It splits by run.
+  - It refuses spawn point 1, an evaluation seed, a seed in two splits, a frame digest in two runs, duplicate
+    runs and malformed members.
+  - A shared segment is reported, as the design states.
+  - The identity is the SHA-256 of canonical JSON with no NaN.
+- **Frame store.**
+  - The digest and the declared length are verified on `put`, and the digest again on `get`.
+  - The write is atomic: `mkstemp` in the shard directory, `fsync`, then `os.replace`, with the temporary file
+    removed on error.
+  - The free-space floor is checked before writing, and an identical entry is idempotent.
+  - Records carry digests and sizes only.
+- **No pixels** in labels, manifest or store records.
+
+### Issues (none blocks the merge; repair or decide before increment #6)
+
+**MEDIUM-1: visibility is tested on an arbitrary corner among those tied for nearest.**
+- Where: labels.py 175 and 181–186.
+- `nearest = min(corners, key=x)` keeps the first of the corners that share the minimum `x`, and visibility is
+  judged only at that corner.
+- Probe: a target yawed 90° at (5.5, 3.0) has footprint x ∈ [4.6, 6.4] and y ∈ [0.8, 5.2]. Its corner
+  (4.6, 0.8) lies inside the corridor and inside the 90° field of view, which spans |y| ≤ 3.1 at that range.
+  The code tests the tied corner (4.6, 5.2), which is outside, and returns **`visible: False`, `obstacle:
+  False`, at 2.2 m in the corridor**. That is a wrong negative in the close-range regime.
+- For WP-02b opposite-direction targets on the left lane, the tie also falls on the outer corner, so the
+  `visible` field, and with it the measured corridor/visibility disagreement, depends on corner order.
+- Repair: define visibility as the footprint (or its in-corridor part) intersecting the horizontal
+  field-of-view wedge, plus the vertical test at that point's range. If a single point is kept, use the
+  footprint point nearest to the camera axis among the minimum-range points, never an index-ordered tie.
+  Add the probe as a test.
+
+**MEDIUM-2: the "WP-02b scope" refusal is not implemented, and cannot be with the manifest's current
+inputs.**
+- `decisions.md` 290 says that "the WP-09 dataset manifest refuses [adjacent-lane targets] in any evaluation
+  run". But `check_manifest`:
+  - never reads the scenario: `scenarioSha256` is only format-checked as 64 hex characters and is not verified
+    against any scenario content;
+  - has no notion of an evaluation run, because evaluation runs (spawn point 1 or evaluation seeds) are
+    refused from the manifest altogether.
+- So an adjacent-lane target can never be *in* an evaluation run that the manifest sees. The rule "no
+  adjacent-lane target in the AD-04 evaluation family" therefore has to be enforced where evaluation runs are
+  admitted: the Phase 8 run command and scenario selection (WP-10 #5 or WP-16). That needs a decision that
+  names the enforcement point.
+- Within WP-09, the manifest should verify each `scenarioSha256` against supplied scenario records and record
+  the run's target placement (`inLane` or `adjacentLane{side, direction}`), so the data card and the
+  negatives are traceable.
+- Record this as a residual, and raise it for an amendment of the decision row.
+
+**MEDIUM-3: the evaluation *segment* is not refused, only spawn point 1.**
+- Where: manifest.py 51–53 and 72–75.
+- `decisions.md` §H P-2 says "training and calibration use other **segments**", and `implementation-plan.md`
+  P-2 says "no evaluation-segment frame enters training".
+- The manifest's `evaluation` block holds only `spawnPoint` and `seeds`. Probe: a training run with spawn point
+  2 and `segment: "town10-sp1-straight"` gives no refusal and no report.
+- Design §3 says only "refuses any run with spawn point 1", so the design and the decision disagree.
+- Add the evaluation segment to the `evaluation` block and refuse runs in it. Alternatively, record a decision
+  that other spawn points on the evaluation segment are acceptable.
+
+**MEDIUM-4: the dataset identity does not bind the labels.**
+- The manifest digest covers `labelParamsDigest`, the runs and the frame digests, but not `labelCodeSha256`
+  and no digest of the label records (probe: neither is in the manifest).
+- The same dataset identity can therefore stand for different labels, for example after a change to
+  `labels.py` with the same parameters.
+- The frozen model digest (WP-09) needs a dataset identity that fixes images *and* labels. Add
+  `labelCodeSha256` and a per-run labels digest, the SHA-256 of the canonical label list, to the manifest.
+
+**LOW-1: `target_declared` is a free caller flag.** `label_run(…, target_declared=…)` decides positives against
+negatives. It should come from the verified scenario record (see MEDIUM-2), not be asserted by the caller.
+
+**LOW-2: frame-store durability details.**
+- `os.replace` is not followed by an `fsync` of the shard directory, so after a crash the rename may not be
+  durable.
+- A crash between `mkstemp` and `os.replace` leaves `.tmp-*.zlib` files that nothing cleans up.
+- The free-space check and the write are not atomic with respect to other writers. That is acceptable for one
+  writer.
+- State these in residual 6, or fsync the directory and sweep the `.tmp-*` files on open.
+
+### Residuals 1 to 6
+- Residuals 1 to 6 are accurate.
+- Missing: MEDIUM-1 (the visibility tie), MEDIUM-2 (the WP-02b enforcement point and unverified scenario
+  digests), MEDIUM-3 (the evaluation segment) and MEDIUM-4 (labels not bound into the identity).
+
+### Recommendation
+- Repair MEDIUM-1 and MEDIUM-4.
+- Decide MEDIUM-2 (the enforcement point; scenario verification in the manifest) and MEDIUM-3 (the evaluation
+  segment) on the thesis side.
+- Do all of this before increment #6.
+- Record LOW-1 and LOW-2.
+- Then acceptance and merge.
