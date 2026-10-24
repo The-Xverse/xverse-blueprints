@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:xverse:assured-aeb:protocol-record:1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "recordId",
+    "declaredAt",
+    "entries"
+  ],
+  "properties": {
+    "schema": {
+      "const": "assured-aeb.protocol-record/1"
+    },
+    "recordId": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "declaredAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]+)?(?:Z|\\+00:00)$",
+      "not": {
+        "pattern": "[\\r\\n]"
+      },
+      "description": "Valid Gregorian UTC date/time; arbitrary fractional digits are compared exactly. Only Z or +00:00 is supported."
+    },
+    "entries": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][A-Za-z0-9]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "value",
+          "unit",
+          "source",
+          "status",
+          "category"
+        ],
+        "properties": {
+          "value": {},
+          "unit": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "source": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "reference"
+            ],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "decision",
+                  "measurement",
+                  "policy"
+                ]
+              },
+              "reference": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            }
+          },
+          "status": {
+            "enum": [
+              "final",
+              "provisional",
+              "unresolved"
+            ]
+          },
+          "category": {
+            "enum": [
+              "runtime",
+              "oracle",
+              "scenario",
+              "fault",
+              "metric",
+              "policy"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
