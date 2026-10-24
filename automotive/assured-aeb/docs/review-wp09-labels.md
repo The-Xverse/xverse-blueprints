@@ -717,3 +717,44 @@ coordinator's relay of those rows. They are not an approval of the merge.
    Then the whole suite with the rc.1 profiles and `check_topology.py`, followed by finding 8.
 8. **Out of scope.** No CARLA, live run or download. The loop10 dataset and soak paths are not touched. The thesis
    repository is read-only, and no thesis record is edited.
+
+## Finding 8: Codex inspection of unfinished amendment-1 repair, and completion design (2026-10-24)
+
+The candidate was inherited at `c992ac7` with five modified files: `labels.py`, `manifest.py`, `scenario.py`,
+`store.py` and `tests/test_perception_store.py`. They were not discarded or stashed. Before any Codex repair, their
+complete diff and individual SHA-256 hashes were preserved under
+`docs/evidence/wp09-claude-dirty-before-codex-20261024/` (`original.patch`, SHA-256
+`0e75f85d6ab5101a7eb4a91934627e26c5a977c87c74fedfd0ad4ccce1787eff`; `original-state.json`).
+This review/design finding is committed separately before further code changes.
+
+**Read-only findings.**
+- The pending source implements the amendment-1 section sets and whole-run intersection refusal; it checks actual
+  label lists against run digests/provenance, hashes both label source files, and confines sweeping to writable opens
+  with a root fsync after creating a shard. These are consistent with finding 7's decided design.
+- Manifest tests still use the old evaluation-segment object, `segment` run field, two-argument `check_manifest`,
+  arbitrary label-code hashes and placeholder label digests. They cannot verify the new interface and need migration.
+  The promised section-set and actual label-binding negative tests have not been added.
+- The label/manifest scenario fixtures still contain unnamed test values (LOW-5); the source-closure sensitivity
+  test is missing. The newly added store tests already express the writable/read-only and fsync obligations.
+- `check_manifest` does not validate a run id before using it as a set/dictionary key, and a malformed unhashable
+  split can proceed after a refusal to a set operation. The new label-verification path needs typed frame tables
+  before constructing its held pairs. Also, duplicate-label detection uses `(frame, rawSha256)`, so two different
+  byte digests under the same frame number can evade the promised "frame labelled twice" refusal.
+- LOW-3 is correctly still an obligation of recorder increment #6: actual observer-header map binding, CARLA map-name
+  comparison and schema-1 stray-map refusal remain unimplemented here. Do not claim those are closed.
+
+**Completion design, before code.** Preserve and finish finding 7's source changes. Migrate the tests to schema /3
+and the required label-record mapping; generate positive manifests with real `label_run` output, unique per-run raw
+frame digests and matching observer/parameter/code provenance. Preserve the existing scenario and split negative
+coverage, add the planned section-set/intersection and label-binding tests, name the existing test-only fixture values,
+and demonstrate that changing `scenario.py` alone changes the closure digest.
+
+Add small fail-closed guards for non-string/empty run ids, invalid split types, integer frame/time members and duplicate
+frame ids before their hash/set use. Track labelled frame numbers independently of digests, so the same CARLA frame
+cannot be labelled twice. These guards implement the existing malformed-member and LOW-1 duplicate-label requirements;
+they introduce no physical bound or protocol value. Observer-map binding and single-writer limits remain as decided.
+
+No pytest or heavy work is run while the coordinator's full platform regression is active. Only syntax and small
+stdlib fixture probes are permitted now; the full owning suite and independent re-review remain pending before
+acceptance or merge. No CARLA, inference runtime, download, live data, dataset-root or soak-path operation is authorized
+by this completion.

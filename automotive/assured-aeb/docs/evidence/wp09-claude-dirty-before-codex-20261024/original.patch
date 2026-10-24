@@ -1,0 +1,486 @@
+diff --git a/automotive/assured-aeb/assured_aeb/perception/labels.py b/automotive/assured-aeb/assured_aeb/perception/labels.py
+index 0446b9a..9e17e35 100644
+--- a/automotive/assured-aeb/assured_aeb/perception/labels.py
++++ b/automotive/assured-aeb/assured_aeb/perception/labels.py
+@@ -25,7 +25,20 @@ LABEL_PARAMS = "assured-aeb.perception-label-params/1"
+ LABEL = "assured-aeb.perception-label/1"
+ OBSERVER_SCHEMA = "xverse-compat.evaluation-observer/2"
+ EGO_ROLE, TARGET_ROLE = "xverse-lite-ego", "xverse-lite-target"
+-LABEL_CODE_SHA256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
++#: The label-code closure, named and ordered (review-wp09-labels finding 6 LOW-2): ``label_run`` depends on
++#: ``scenario.verified_scenario`` for whether a target is declared.
++LABEL_CODE_FILES = ("labels.py", "scenario.py")
++
++
++def label_code_digest(directory: Path) -> str:
++    """SHA-256 of the canonical ``[{file, sha256}]`` list over ``LABEL_CODE_FILES`` in ``directory``."""
++
++    entries = [{"file": name, "sha256": hashlib.sha256((Path(directory) / name).read_bytes()).hexdigest()}
++               for name in LABEL_CODE_FILES]
++    return hashlib.sha256(json.dumps(entries, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
++
++
++LABEL_CODE_SHA256 = label_code_digest(Path(__file__).resolve().parent)
+ 
+ 
+ def _number(value: Any) -> bool:
+diff --git a/automotive/assured-aeb/assured_aeb/perception/manifest.py b/automotive/assured-aeb/assured_aeb/perception/manifest.py
+index f484f3a..0211541 100644
+--- a/automotive/assured-aeb/assured_aeb/perception/manifest.py
++++ b/automotive/assured-aeb/assured_aeb/perception/manifest.py
+@@ -2,15 +2,21 @@
+ 
+ Splits are by run, never by frame. ``check_manifest`` refuses:
+ - the evaluation spawn point and the evaluation seeds;
+-- any training or calibration run on the evaluation road segment, i.e. the map road and lane section of spawn
+-  point 1, a declared parameter (finding 4, MEDIUM-3; decisions.md "WP-09 data separation" (2));
++- as a whole, any training or calibration run whose ego-traversed lane sections (``traversedSections``) meet the
++  declared evaluation set (``evaluation.segmentSections``), whatever its spawn point (finding 7, MEDIUM-1 of finding
++  6; decisions.md "WP-09 data separation, amendment 1"). The traversed set is filled by the increment #6 recorder from
++  the ego waypoint of every recorded frame; its completeness is that recorder's obligation;
+ - a seed shared between splits, a frame digest in two runs, a duplicate run and malformed members;
+ - a run whose scenario file is missing, fails its ``scenarioSha256``, or disagrees with the run's spawn point, map or
+-  recorded ``targetPlacement`` (finding 4, MEDIUM-2).
++  recorded ``targetPlacement`` (finding 4, MEDIUM-2);
++- a run whose label records do not reproduce its ``labelsSha256``, carry another label code, parameter or observer
++  digest, or label a frame the run does not hold (finding 7, LOW-1); and a manifest whose ``labelCodeSha256`` is not
++  the running label code's.
+ 
+ The SHA-256 of the canonical manifest is the dataset identity. It binds ``labelParamsDigest``, ``labelCodeSha256``
+ and each run's ``labelsSha256`` (finding 4, MEDIUM-4). Only digests and counts are recorded, never pixels or host
+-paths.
++paths. Binding the scenario map to the loaded world (the observer header) is an obligation of increment #6 (finding
++6, LOW-3).
+ 
+ The refusal of adjacent-lane targets in *evaluation* runs is an obligation of evaluation-run admission (WP-10 #5 /
+ WP-16), not of this manifest, which holds no evaluation run.
+@@ -24,18 +30,19 @@ from pathlib import Path
+ import re
+ from typing import Any, Mapping
+ 
++from . import labels as L
+ from .scenario import check_placement, verified_scenario
+ 
+-MANIFEST = "assured-aeb.dataset-manifest/2"
++MANIFEST = "assured-aeb.dataset-manifest/3"
+ SPLITS = ("training", "calibration", "test")
+-SEGMENT_REFUSED_SPLITS = ("training", "calibration")  # decisions.md "WP-09 data separation" (2)
++SEGMENT_REFUSED_SPLITS = ("training", "calibration")  # decisions.md "WP-09 data separation" (2), amendment 1
+ #: P-2: evaluation uses only spawn point 1 (Town10HD_Opt; K-9). A sourced rule, not a chosen value.
+ EVALUATION_SPAWN_POINT = 1
+ HEX64 = re.compile(r"[0-9a-f]{64}\Z")
+ TOP_MEMBERS = {"schema", "labelParamsDigest", "labelCodeSha256", "evaluation", "runs"}
+-EVALUATION_MEMBERS = {"spawnPoint", "seeds", "segment"}
+-SEGMENT_MEMBERS = {"map", "roadId", "sectionId"}
+-RUN_MEMBERS = {"runId", "seed", "spawnPoint", "segment", "split", "scenarioSha256", "targetPlacement", "runParamsSha256",
++EVALUATION_MEMBERS = {"spawnPoint", "seeds", "segmentSections"}
++SECTION_MEMBERS = {"map", "roadId", "sectionId"}
++RUN_MEMBERS = {"runId", "seed", "spawnPoint", "traversedSections", "split", "scenarioSha256", "targetPlacement", "runParamsSha256",
+                "observerSha256", "labelsSha256", "frames"}
+ FRAME_MEMBERS = {"frame", "simElapsedNs", "rawSha256"}
+ 
+@@ -50,27 +57,49 @@ def manifest_digest(manifest: dict[str, Any]) -> str:
+     return hashlib.sha256(canonical(manifest)).hexdigest()
+ 
+ 
+-def _segment_ok(segment: Any) -> bool:
+-    return isinstance(segment, dict) and set(segment) == SEGMENT_MEMBERS and isinstance(segment["map"], str) \
+-        and bool(segment["map"]) and type(segment["roadId"]) is int and type(segment["sectionId"]) is int
++def _section_ok(section: Any) -> bool:
++    return isinstance(section, dict) and set(section) == SECTION_MEMBERS and isinstance(section["map"], str) \
++        and bool(section["map"]) and type(section["roadId"]) is int and type(section["sectionId"]) is int
++
++
++def _key(section: dict[str, Any]) -> tuple[str, int, int]:
++    return section["map"], section["roadId"], section["sectionId"]
++
++
++def sections_ok(sections: Any) -> bool:
++    """A section set: a non-empty list of ``{map, roadId, sectionId}``, unique and in canonical (sorted) order."""
++
++    if not (isinstance(sections, list) and sections and all(_section_ok(x) for x in sections)):
++        return False
++    keys = [_key(x) for x in sections]
++    return all(a < b for a, b in zip(keys, keys[1:]))
++
++
++def section_set(sections: list[dict[str, Any]]) -> list[dict[str, Any]]:
++    """Return ``sections`` as a canonical section set (unique, sorted); used by producers such as the #6 recorder."""
++
++    unique = {_key(x): x for x in sections}
++    return [dict(unique[k]) for k in sorted(unique)]
+ 
+ 
+ def build_manifest(label_params_digest: str, label_code_sha256: str, evaluation_seeds: list[int],
+-                   evaluation_segment: dict[str, Any], runs: list[dict[str, Any]]) -> dict[str, Any]:
+-    """Assemble a manifest. The evaluation seed list (P-4) and the evaluation segment (P-2; the map road and lane
+-    section of spawn point 1, TODO: engineering verification) are required, with no default."""
++                   evaluation_sections: list[dict[str, Any]], runs: list[dict[str, Any]]) -> dict[str, Any]:
++    """Assemble a manifest. The evaluation seed list (P-4) and the evaluation section set (P-2 as amended: the lane
++    sections the evaluation trajectory covers, TODO: engineering verification) are required, with no default."""
+ 
+     return {"schema": MANIFEST, "labelParamsDigest": label_params_digest, "labelCodeSha256": label_code_sha256,
+             "evaluation": {"spawnPoint": EVALUATION_SPAWN_POINT, "seeds": list(evaluation_seeds),
+-                           "segment": dict(evaluation_segment)},
++                           "segmentSections": [dict(x) for x in evaluation_sections]},
+             "runs": list(runs)}
+ 
+ 
+-def check_manifest(manifest: Any, scenarios: Mapping[str, str | Path]) -> tuple[list[str], list[str]]:
++def check_manifest(manifest: Any, scenarios: Mapping[str, str | Path],
++                   labels: Mapping[str, list[dict[str, Any]]]) -> tuple[list[str], list[str]]:
+     """Return ``(refusals, reports)``; an empty refusal list means the manifest is admissible.
+ 
+-    ``scenarios`` maps each ``runId`` to its live-scenario file. It is required: each file is read and verified
+-    against the run's ``scenarioSha256``.
++    ``scenarios`` maps each ``runId`` to its live-scenario file, and ``labels`` maps each ``runId`` to its label
++    records (the ``label_run`` output). Both are required: each file is verified against ``scenarioSha256``, and each
++    label list against ``labelsSha256`` and the label provenance.
+     """
+ 
+     refusals, reports = [], []
+@@ -78,17 +107,22 @@ def check_manifest(manifest: Any, scenarios: Mapping[str, str | Path]) -> tuple[
+         return [f"manifest must be exactly {sorted(TOP_MEMBERS)} with schema {MANIFEST}"], []
+     if not isinstance(scenarios, Mapping):
+         return ["scenarios must map each runId to its scenario file (no default)"], []
++    if not isinstance(labels, Mapping):
++        return ["labels must map each runId to its label records (no default)"], []
+     for name in ("labelParamsDigest", "labelCodeSha256"):
+         if not (isinstance(manifest[name], str) and HEX64.match(manifest[name])):
+             refusals.append(f"{name} must be a SHA-256 hex digest")
++    if manifest["labelCodeSha256"] != L.LABEL_CODE_SHA256:
++        refusals.append("labelCodeSha256 is not the running label code's LABEL_CODE_SHA256 (relabel with this code)")
+     evaluation = manifest["evaluation"]
+     if not (isinstance(evaluation, dict) and set(evaluation) == EVALUATION_MEMBERS
+             and evaluation["spawnPoint"] == EVALUATION_SPAWN_POINT
+             and isinstance(evaluation["seeds"], list) and evaluation["seeds"] and all(type(s) is int for s in evaluation["seeds"])
+-            and _segment_ok(evaluation["segment"])):
++            and sections_ok(evaluation["segmentSections"])):
+         return refusals + ["evaluation must be {spawnPoint: 1, seeds: [the non-empty P-4 evaluation list], "
+-                           "segment: {map, roadId, sectionId} of spawn point 1 (P-2)}"], reports
+-    evaluation_seeds, evaluation_segment = set(evaluation["seeds"]), evaluation["segment"]
++                           "segmentSections: [the non-empty, unique, sorted {map, roadId, sectionId} set (P-2)]}"], reports
++    evaluation_seeds = set(evaluation["seeds"])
++    evaluation_keys = {_key(x) for x in evaluation["segmentSections"]}
+     runs = manifest["runs"]
+     if not isinstance(runs, list) or not runs:
+         return refusals + ["runs must be a non-empty list"], reports
+@@ -116,37 +150,80 @@ def check_manifest(manifest: Any, scenarios: Mapping[str, str | Path]) -> tuple[
+         for name in ("scenarioSha256", "runParamsSha256", "observerSha256", "labelsSha256"):
+             if not (isinstance(run[name], str) and HEX64.match(run[name])):
+                 refusals.append(f"{rid}: {name} must be a SHA-256 hex digest")
+-        if not _segment_ok(run["segment"]):
+-            refusals.append(f"{rid}: segment must be exactly {sorted(SEGMENT_MEMBERS)} (map, int roadId, int sectionId)")
++        if not sections_ok(run["traversedSections"]):
++            refusals.append(f"{rid}: traversedSections must be a non-empty, unique, sorted list of "
++                            f"{sorted(SECTION_MEMBERS)} (map, int roadId, int sectionId)")
+         else:
+-            segment = run["segment"]
+-            if segment == evaluation_segment:
++            met = sorted({_key(x) for x in run["traversedSections"]} & evaluation_keys)
++            if met:
+                 if run["split"] in SEGMENT_REFUSED_SPLITS:
+-                    refusals.append(f"{rid}: a {run['split']} run on the evaluation segment {segment} is refused "
+-                                    f"(P-2 by segment; spawn point {run['spawnPoint']})")
++                    refusals.append(f"{rid}: a {run['split']} run that traverses evaluation sections {met} is refused as "
++                                    f"a whole (P-2 by traversed sections; spawn point {run['spawnPoint']})")
+                 else:
+-                    reports.append(f"{rid}: a {run['split']} run on the evaluation segment {segment}")
+-            segment_splits.setdefault((segment["map"], segment["roadId"], segment["sectionId"]), set()).add(run["split"])
++                    reports.append(f"{rid}: a {run['split']} run traverses evaluation sections {met}")
++            for section in run["traversedSections"]:
++                segment_splits.setdefault(_key(section), set()).add(run["split"])
+         if not check_placement(run["targetPlacement"]):
+             refusals.append(f"{rid}: targetPlacement must be none, ego-lane or adjacent-lane{{side, direction}}")
+         refusals.extend(_check_scenario(run, scenarios))
+         if not isinstance(run["frames"], list):
+             refusals.append(f"{rid}: frames must be a list")
+             continue
++        frames_ok = True
+         for frame in run["frames"]:
+             if not (isinstance(frame, dict) and set(frame) == FRAME_MEMBERS and isinstance(frame["rawSha256"], str)
+                     and HEX64.match(frame["rawSha256"]) and type(frame["frame"]) is int):
+                 refusals.append(f"{rid}: frame entries must be exactly {sorted(FRAME_MEMBERS)} with a SHA-256 rawSha256")
++                frames_ok = False
+                 break
+             other = frame_run.setdefault(frame["rawSha256"], rid)
+             if other != rid:
+                 refusals.append(f"{rid}: frame {frame['rawSha256'][:12]} also appears in run {other} (split by run)")
+-    for segment, splits in sorted(segment_splits.items(), key=lambda kv: str(kv[0])):
++        if frames_ok:
++            refusals.extend(_check_labels(run, manifest, labels))
++    for section, splits in sorted(segment_splits.items()):
+         if len(splits) > 1:
+-            reports.append(f"segment {segment!r} is shared by splits {sorted(splits)} (allowed where the segment count requires)")
++            reports.append(f"section {section!r} is shared by splits {sorted(splits)} (allowed where the section count requires)")
+     return refusals, reports
+ 
+ 
++def _check_labels(run: dict[str, Any], manifest: dict[str, Any], labels: Mapping[str, list[dict[str, Any]]]) -> list[str]:
++    """Verify the run's label records against its ``labelsSha256``, the label provenance and its frames (LOW-1)."""
++
++    rid = run["runId"]
++    if rid not in labels:
++        return [f"{rid}: no label records supplied (labelsSha256 cannot be verified)"]
++    records = labels[rid]
++    if not (isinstance(records, list) and all(isinstance(r, dict) and isinstance(r.get("provenance"), dict) for r in records)):
++        return [f"{rid}: label records must be a list of labels with provenance"]
++    try:
++        digest = L.labels_digest(records)
++    except (TypeError, ValueError) as error:
++        return [f"{rid}: label records are not canonical JSON: {error}"]
++    refusals = []
++    if digest != run["labelsSha256"]:
++        refusals.append(f"{rid}: label records do not reproduce labelsSha256")
++    held = {(f["frame"], f["rawSha256"]) for f in run["frames"]}
++    seen = set()
++    for record in records:
++        provenance, pair = record["provenance"], (record.get("frame"), record.get("rawSha256"))
++        if type(pair[0]) is not int or not isinstance(pair[1], str):
++            refusals.append(f"{rid}: a label needs an integer frame and a rawSha256 string")
++            continue
++        if provenance.get("labelCodeSha256") != manifest["labelCodeSha256"]:
++            refusals.append(f"{rid}: label of frame {pair[0]} carries another labelCodeSha256")
++        if provenance.get("labelParamsDigest") != manifest["labelParamsDigest"]:
++            refusals.append(f"{rid}: label of frame {pair[0]} carries another labelParamsDigest")
++        if provenance.get("observerSha256") != run["observerSha256"]:
++            refusals.append(f"{rid}: label of frame {pair[0]} carries another observerSha256")
++        if pair not in held:
++            refusals.append(f"{rid}: label of frame {pair[0]} names a (frame, rawSha256) the run does not hold")
++        if pair in seen:
++            refusals.append(f"{rid}: frame {pair[0]} is labelled twice")
++        seen.add(pair)
++    return refusals
++
++
+ def _check_scenario(run: dict[str, Any], scenarios: Mapping[str, str | Path]) -> list[str]:
+     """Verify the run's scenario file against its digest, spawn point, map and recorded placement (MEDIUM-2)."""
+ 
+@@ -161,8 +238,10 @@ def _check_scenario(run: dict[str, Any], scenarios: Mapping[str, str | Path]) ->
+     refusals = []
+     if scenario["map"] is None:
+         refusals.append(f"{rid}: the scenario declares no map (schema 2 is required for a dataset run)")
+-    elif _segment_ok(run["segment"]) and scenario["map"] != run["segment"]["map"]:
+-        refusals.append(f"{rid}: scenario map {scenario['map']!r} differs from the run segment's {run['segment']['map']!r}")
++    elif sections_ok(run["traversedSections"]):
++        maps = sorted({x["map"] for x in run["traversedSections"]} - {scenario["map"]})
++        if maps:
++            refusals.append(f"{rid}: scenario map {scenario['map']!r} differs from traversed-section maps {maps}")
+     if scenario["spawnPointIndex"] != run["spawnPoint"]:
+         refusals.append(f"{rid}: scenario spawnPointIndex {scenario['spawnPointIndex']} differs from the run's {run['spawnPoint']}")
+     if scenario["targetPlacement"] != run["targetPlacement"]:
+diff --git a/automotive/assured-aeb/assured_aeb/perception/scenario.py b/automotive/assured-aeb/assured_aeb/perception/scenario.py
+index eea0fe3..5b8b356 100644
+--- a/automotive/assured-aeb/assured_aeb/perception/scenario.py
++++ b/automotive/assured-aeb/assured_aeb/perception/scenario.py
+@@ -8,6 +8,11 @@ compat.
+ 
+ The refusal of adjacent-lane targets in evaluation runs is not done here. It belongs to evaluation-run admission
+ (WP-10 #5 / WP-16; decisions.md "WP-09 data separation" (1)).
++
++The ``map`` returned here is the scenario's *declared* map. Binding it to the loaded world is an obligation of
++increment #6 (review-wp09-labels finding 6 LOW-3; decisions.md "WP-09 data separation, amendment 1"): the map comes
++from the evaluation-only observer header (``world.get_map().name``), its comparison with ``Town10HD_Opt`` is
++``TODO: engineering verification``, and a schema-1 scenario's stray ``map`` member is refused there.
+ """
+ 
+ from __future__ import annotations
+diff --git a/automotive/assured-aeb/assured_aeb/perception/store.py b/automotive/assured-aeb/assured_aeb/perception/store.py
+index 0f5be94..04d71e9 100644
+--- a/automotive/assured-aeb/assured_aeb/perception/store.py
++++ b/automotive/assured-aeb/assured_aeb/perception/store.py
+@@ -4,9 +4,12 @@ Raw verified frames are stored losslessly with ``zlib`` under ``<root>/<sha[:2]>
+ ``rawSha256``. The root (the proposed loop10 dataset path of design §2), the free-space floor (TODO: author decision)
+ and the compression level are required, with no default. Records carry digests and sizes, never bytes.
+ 
+-Durability (review-wp09-labels finding 4, LOW-2): the shard directory is fsynced after the rename. Stale ``.tmp-*``
+-files left by an interrupted write are removed when the store is opened. The store assumes a single writer: the
+-free-space check and the write are not atomic with respect to other writers.
++Durability (review-wp09-labels finding 4, LOW-2; finding 7, LOW-4): the shard directory is fsynced after the rename,
++and the root is fsynced after a new shard directory is created. Stale ``.tmp-*`` files left by an interrupted write
++are removed only when the store is opened ``writable``; a read-only open never sweeps and refuses ``put``, so a
++reader cannot remove a writer's in-flight file. The store assumes a single *writer*: two concurrent writable opens
++are not excluded (no lock is decided), and the free-space check and the write are not atomic with respect to other
++writers.
+ """
+ 
+ from __future__ import annotations
+@@ -38,7 +41,7 @@ class FrameStoreError(RuntimeError):
+ 
+ class FrameStore:
+     def __init__(self, root: str | os.PathLike, *, free_space_floor_bytes: int, compression_level: int,
+-                 frame_length: int | None) -> None:
++                 frame_length: int | None, writable: bool) -> None:
+         root = Path(root)
+         if not root.is_absolute() or not root.is_dir():
+             raise ValueError("root must be an existing absolute directory (no default)")
+@@ -48,11 +51,14 @@ class FrameStore:
+             raise ValueError("compression_level must be an integer in [0, 9]")
+         if frame_length is not None and (type(frame_length) is not int or frame_length <= 0):
+             raise ValueError("frame_length must be a positive integer or None")
++        if type(writable) is not bool:
++            raise ValueError("writable must be a bool (no default)")
+         self.root, self.floor, self.level, self.frame_length = root, free_space_floor_bytes, compression_level, frame_length
+-        self.swept = self._sweep()
++        self.writable = writable
++        self.swept = self._sweep() if writable else 0
+ 
+     def _sweep(self) -> int:
+-        """Remove stale temporary files of interrupted writes in the shard directories (single writer, at open)."""
++        """Remove stale temporary files of interrupted writes in the shard directories (writable open only)."""
+ 
+         removed = 0
+         for shard in self.root.iterdir():
+@@ -75,6 +81,8 @@ class FrameStore:
+     def put(self, raw: bytes, raw_sha256: str) -> dict:
+         """Store one verified frame; return ``{rawSha256, rawBytes, storedBytes, status}`` (never the bytes)."""
+ 
++        if not self.writable:
++            raise FrameStoreError("refused: the store was opened read-only")
+         target = self.path(raw_sha256)
+         if hashlib.sha256(raw).hexdigest() != raw_sha256:
+             raise FrameStoreError("frame bytes do not match rawSha256")
+@@ -86,7 +94,12 @@ class FrameStore:
+                 raise FrameStoreError("stored frame differs")
+             return {"rawSha256": raw_sha256, "rawBytes": len(raw), "storedBytes": target.stat().st_size, "status": "present"}
+         packed = zlib.compress(raw, self.level)
+-        target.parent.mkdir(parents=True, exist_ok=True)
++        try:
++            target.parent.mkdir()
++        except FileExistsError:
++            pass
++        else:
++            _fsync_dir(self.root)  # make the new shard entry durable (finding 7, LOW-4)
+         if shutil.disk_usage(target.parent).free - len(packed) < self.floor:
+             raise FrameStoreError("refused: the write would fall below the free-space floor")
+         fd, temp = tempfile.mkstemp(dir=target.parent, prefix=TEMP_PREFIX, suffix=TEMP_SUFFIX)
+diff --git a/automotive/assured-aeb/tests/test_perception_store.py b/automotive/assured-aeb/tests/test_perception_store.py
+index e1c81d4..74d6dec 100644
+--- a/automotive/assured-aeb/tests/test_perception_store.py
++++ b/automotive/assured-aeb/tests/test_perception_store.py
+@@ -1,5 +1,5 @@
+ """Offline tests of the WP-09 frame store on a temporary directory (never the loop10 dataset root).
+-The floor and the frame length below are test values."""
++The floor, the compression level and the frame length below are test values."""
+ 
+ from __future__ import annotations
+ 
+@@ -19,7 +19,7 @@ def frame(seed=1, size=4096):
+ 
+ 
+ def test_round_trip_and_layout(tmp_path):
+-    store = S.FrameStore(tmp_path, free_space_floor_bytes=0, compression_level=6, frame_length=4096)
++    store = S.FrameStore(tmp_path, free_space_floor_bytes=0, compression_level=6, frame_length=4096, writable=True)
+     raw, sha = frame()
+     record = store.put(raw, sha)
+     assert record["status"] == "stored" and record["rawBytes"] == 4096 and set(record) == {"rawSha256", "rawBytes", "storedBytes", "status"}
+@@ -30,7 +30,7 @@ def test_round_trip_and_layout(tmp_path):
+ 
+ 
+ def test_digest_and_length_are_verified(tmp_path):
+-    store = S.FrameStore(tmp_path, free_space_floor_bytes=0, compression_level=6, frame_length=4096)
++    store = S.FrameStore(tmp_path, free_space_floor_bytes=0, compression_level=6, frame_length=4096, writable=True)
+     raw, sha = frame()
+     with pytest.raises(S.FrameStoreError, match="do not match"):
+         store.put(raw[:-1] + b"\x00", sha)
+@@ -42,7 +42,7 @@ def test_digest_and_length_are_verified(tmp_path):
+ 
+ 
+ def test_corrupted_store_entry_fails_its_digest(tmp_path):
+-    store = S.FrameStore(tmp_path, free_space_floor_bytes=0, compression_level=6, frame_length=None)
++    store = S.FrameStore(tmp_path, free_space_floor_bytes=0, compression_level=6, frame_length=None, writable=True)
+     raw, sha = frame()
+     store.put(raw, sha)
+     import zlib
+@@ -53,7 +53,7 @@ def test_corrupted_store_entry_fails_its_digest(tmp_path):
+ 
+ def test_free_space_floor_refuses(tmp_path):
+     free = shutil.disk_usage(tmp_path).free
+-    store = S.FrameStore(tmp_path, free_space_floor_bytes=free + 1, compression_level=6, frame_length=None)
++    store = S.FrameStore(tmp_path, free_space_floor_bytes=free + 1, compression_level=6, frame_length=None, writable=True)
+     raw, sha = frame()
+     with pytest.raises(S.FrameStoreError, match="floor"):
+         store.put(raw, sha)
+@@ -65,29 +65,76 @@ def test_free_space_floor_refuses(tmp_path):
+                                     {"free_space_floor_bytes": 0, "compression_level": 6, "frame_length": 0}])
+ def test_store_parameters_are_refused(tmp_path, kwargs):
+     with pytest.raises(ValueError):
+-        S.FrameStore(tmp_path, **kwargs)
++        S.FrameStore(tmp_path, **kwargs, writable=True)
+     with pytest.raises(ValueError):
+-        S.FrameStore("relative/root", free_space_floor_bytes=0, compression_level=6, frame_length=None)
++        S.FrameStore("relative/root", free_space_floor_bytes=0, compression_level=6, frame_length=None, writable=True)
+ 
+ 
+ def test_rename_is_followed_by_a_directory_fsync(tmp_path, monkeypatch):  # finding 4 / LOW-2
+-    store = S.FrameStore(tmp_path, free_space_floor_bytes=0, compression_level=6, frame_length=4096)
++    store = S.FrameStore(tmp_path, free_space_floor_bytes=0, compression_level=6, frame_length=4096, writable=True)
+     synced = []
+     monkeypatch.setattr(S, "_fsync_dir", lambda path: synced.append(path))
+     raw, sha = frame(seed=7)
+     store.put(raw, sha)
+-    assert synced == [tmp_path / sha[:2]]
++    assert synced == [tmp_path, tmp_path / sha[:2]]  # finding 7 / LOW-4: the root after a new shard, then the shard
++    synced.clear()
++    other = next((f for f in (frame(seed=k) for k in range(100, 5000)) if f[1][:2] == sha[:2]))
++    store.put(*other)
++    assert synced == [tmp_path / sha[:2]]  # an existing shard: no root fsync
+ 
+ 
+ def test_stale_temporary_files_are_swept_on_open(tmp_path):  # finding 4 / LOW-2
+     raw, sha = frame(seed=8)
+-    S.FrameStore(tmp_path, free_space_floor_bytes=0, compression_level=6, frame_length=4096).put(raw, sha)
++    S.FrameStore(tmp_path, free_space_floor_bytes=0, compression_level=6, frame_length=4096, writable=True).put(raw, sha)
+     shard = tmp_path / sha[:2]
+     (shard / ".tmp-abc123.zlib").write_bytes(b"partial")
+     (shard / ".tmp-keep.txt").write_bytes(b"not ours")
+     (tmp_path / "notes").mkdir()
+     (tmp_path / "notes" / ".tmp-x.zlib").write_bytes(b"outside a shard")
+-    store = S.FrameStore(tmp_path, free_space_floor_bytes=0, compression_level=6, frame_length=4096)
++    store = S.FrameStore(tmp_path, free_space_floor_bytes=0, compression_level=6, frame_length=4096, writable=True)
+     assert store.swept == 1 and not (shard / ".tmp-abc123.zlib").exists()
+     assert (shard / ".tmp-keep.txt").exists() and (tmp_path / "notes" / ".tmp-x.zlib").exists()
+     assert store.get(sha) == raw
++
++
++# ---- finding 7 / LOW-4: the sweep runs only on writable opens --------------------------------------------------
++
++def test_read_only_open_does_not_sweep_and_refuses_put(tmp_path):
++    raw, sha = frame(seed=9)
++    S.FrameStore(tmp_path, free_space_floor_bytes=0, compression_level=6, frame_length=4096, writable=True).put(raw, sha)
++    stale = tmp_path / sha[:2] / ".tmp-abc123.zlib"
++    stale.write_bytes(b"partial")
++    reader = S.FrameStore(tmp_path, free_space_floor_bytes=0, compression_level=6, frame_length=4096, writable=False)
++    assert reader.swept == 0 and stale.exists() and reader.get(sha) == raw
++    with pytest.raises(S.FrameStoreError, match="read-only"):
++        reader.put(*frame(seed=10))
++
++
++@pytest.mark.parametrize("value", [None, 1, "yes"])
++def test_writable_is_required_and_a_bool(tmp_path, value):
++    with pytest.raises(TypeError):
++        S.FrameStore(tmp_path, free_space_floor_bytes=0, compression_level=6, frame_length=None)
++    with pytest.raises(ValueError, match="writable"):
++        S.FrameStore(tmp_path, free_space_floor_bytes=0, compression_level=6, frame_length=None, writable=value)
++
++
++@pytest.mark.parametrize("second_writable, survives", [(False, True), (True, False)])
++def test_an_open_during_a_put(tmp_path, monkeypatch, second_writable, survives):
++    """The finding 6 probe: a read-only open during ``put`` leaves the writer's temporary file; a second writable open
++    (the declared single-writer limit) still removes it, and the writer fails loudly."""
++
++    store = S.FrameStore(tmp_path, free_space_floor_bytes=0, compression_level=6, frame_length=4096, writable=True)
++    real_replace = os.replace
++
++    def replace(source, target):
++        S.FrameStore(tmp_path, free_space_floor_bytes=0, compression_level=6, frame_length=4096, writable=second_writable)
++        return real_replace(source, target)
++
++    monkeypatch.setattr(S.os, "replace", replace)
++    raw, sha = frame(seed=11)
++    if survives:
++        assert store.put(raw, sha)["status"] == "stored" and store.get(sha) == raw
++    else:
++        with pytest.raises(FileNotFoundError):
++            store.put(raw, sha)
++        assert not store.path(sha).exists()
