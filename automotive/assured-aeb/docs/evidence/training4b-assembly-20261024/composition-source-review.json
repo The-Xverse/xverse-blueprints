@@ -1,0 +1,19 @@
+{
+  "utc": "2026-10-24T20:18:35.757828+00:00",
+  "repository": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/worktrees/xverse-blueprints/codex-training4b-integration-20261024",
+  "base": "9df3fd13499164ad39d4928822fbff158bff6c64",
+  "reviewed_source": "a0086be11cc7a79e43e1c626d517cc11cbe7dc79",
+  "assembled_head": "13addd861f9f8f263ff0e31a689eff6b1391a4ae",
+  "existing_main_files_unchanged": true,
+  "all_67_added_files_equal_reviewed_source": true,
+  "added_files": 67,
+  "new_product_modules": [
+    "training_loop.py",
+    "training_network.py",
+    "training_weights.py",
+    "training_worker.py"
+  ],
+  "scope": "SOURCE-only composed inspection; inherited full genuine fitting evidence, owning integration pending",
+  "accepted": false,
+  "merged_to_main": false
+}

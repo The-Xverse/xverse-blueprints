@@ -595,3 +595,26 @@ than overriding that old declaration or rewriting old artifacts. Recorder truth/
 4c–4e/principal/protocol/live/M1/scientific gates remain. This candidate is ready for isolated integration against
 current delivered blueprint main9df3fd1 and repeated composed owning verification before final acceptance/main
 merge. No numerical scientific value or canonical-note edit is introduced.
+
+
+## Finding16: independent composed verification and delegated acceptance (coordinator, 2026-10-24)
+
+Independent source composition at13addd861f9f8f263ff0e31a689eff6b1391a4ae, based on delivered main9df3fd1,
+adds exactly67 reviewed candidate files byte-identical to a0086be and changes no existing main file. Unchanged
+4a3file/4b4file closures preserve the actual fitting evidence and the original failed namespace attempt.
+Approved source launcher b813bea89d3c29c5d7d9883a02d91f8aca0deed303fb83bf370731fccd8f8c4a pins accepted
+compat f5b3957ca84cccfd98cddd9eb3ab95b0a4643eed with actual external source root and no plugin/cache bytecode.
+
+Actual composed owning suite:1195passed,176subtests,52.43s,exit0,no skips/timeout. All8 actual role plans
+compile; complete document/semantic digests equal the previously delivered main assembly. Exact command, revision,
+environment, logs and receipts are retained unchanged in docs/evidence/training4b-assembly-20261024. Source-only
+composition and actual evidence review are separate from the genuine4b fresh-rn fits retained in finding15.
+
+Coordinator ACCEPTS the development CPU-fitting stage under the author's 24October delegation, explicitly flagged
+for author review. This acceptance includes the separately reviewed namespace proof and bounded worker supervision
+and the actual two-identical-fit/heldout-pixel-invariance/controlled-nonfinite evidence. It does not promote
+oldjob's TEST-ONLY U4 placeholders, prove U4 inference/export or select a real scientific parameter. Original
+failed/refused evidence stays failed/refused. The following isolated main delivery may add only this evidence and
+review metadata to the tested tree; require exact accepted-tree equality and remote main equality before claiming
+delivery. No scientific result, calibrated/frozen model, real-data protocol, live/factory execution or4c–4e
+acceptance follows. Existing main AGENTS.md modification must be preserved. Canonical thesis note remains unchanged.
