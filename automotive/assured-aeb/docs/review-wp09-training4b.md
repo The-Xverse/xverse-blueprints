@@ -567,3 +567,31 @@ and network/weights/loop equal reviewed03987. Actual model fitting/repeat/held-o
 remain UNPROVEN. Root now separately admits full owning plus genuine fresh isolated three-success/one-nonfinite
 verification; keep original failed attempt and use fresh directories/new actual source-stage pins. No acceptance,
 merge, real-data, export/calibration/4c–4e/live/protocol/scientific approval is implied.
+
+
+## Finding15: actual isolated fitting evidence and integration readiness (coordinator, 2026-10-24)
+
+At independently reviewed d47ddf9e7bab9e5ab08a1cf1707e406ed83204ae, full owning suite reports1114passed/11subtests
+in53.65s,exit0. Genuine driver then ran four separate freshunshare-rn/-S-s-B workers with actual pinned CPUstack:
+Torch2.14.1+cpu/NumPy2.5.4, two inherited parent namespace handles, no timeout, unchanged captured inputs and
+complete owned-group cleanup. Three synthetic fits succeeded; fourth actualexit1 ended ValueError: nonfinite
+per-example loss with no output, not signal/crash/unavailable-facility substitution. Originalfailed parent-proc
+attempt remains failed and retained.
+
+Independent actual-evidence review PASS (SHA232afbdbc3b248195804b89c4e21c89f242e3b4a8d90f7fcb66dbab0b6e2380d)
+checks command/proof/cleanup/input/output pins, externally captured canonical report into safe weight reading,
+6tensors/26parameters/104finite float32bytes, four genuine updates and min-selection/earliest checkpoint. Cases0/1
+have exact job/report/weight bytes. Case2 changes actual calibration/test pixels, their label raw-hash bindings,
+manifest/job identity while fit/selection input bytes, order/loss/selected checkpoint/weights remain unchanged;
+semantic class targets were not changed. Canonical case0 reportSHA43cffabf57db6cf1ede7e83562c848a2f87a3ab0755d9c8748a2bb02fb76bf3f,
+rawweightsSHA d1112df276f95ef2845744c662de79fa03ce63ab2b6b5444232d67f1630d7c28. Source4bclosure99de5a1c and
+three4aclosured83ba1f5 remain unchanged. Full actual operational receipts/reports/packages and independent review
+are copied unchanged into docs/evidence/training4b-runtime-20261024; original raw synthetic corpora remain onloop10.
+
+Scope is the development CPUfit stage. Original synthetic job's U4environment fields are TEST-ONLY placeholders,
+not a satisfied inference environment declaration; no U4readiness/export/calibration/realmodel/quality claim is
+made. For4c, root chose a NEW truthful job with both actual training/U4environment pins and fresh4b fit, rather
+than overriding that old declaration or rewriting old artifacts. Recorder truth/realdata/support/calibration/
+4c–4e/principal/protocol/live/M1/scientific gates remain. This candidate is ready for isolated integration against
+current delivered blueprint main9df3fd1 and repeated composed owning verification before final acceptance/main
+merge. No numerical scientific value or canonical-note edit is introduced.

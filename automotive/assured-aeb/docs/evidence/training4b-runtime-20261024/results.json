@@ -1,0 +1,12 @@
+[
+  {
+    "id": "training4b-owning",
+    "state": "passed",
+    "receipt": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/repositories/distributed_safety_critical_thesis/specs/002-assured-aeb/review/codex-training4b-namespace-verification-20261024/training4b-owning/receipt.json"
+  },
+  {
+    "id": "training4b-genuine-isolated",
+    "state": "passed",
+    "receipt": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/repositories/distributed_safety_critical_thesis/specs/002-assured-aeb/review/codex-training4b-namespace-verification-20261024/training4b-genuine-isolated/receipt.json"
+  }
+]
