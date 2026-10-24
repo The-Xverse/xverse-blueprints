@@ -226,3 +226,61 @@ The parent coordinator confirmed these scope clarifications before implementatio
 No heavy test or inference/build process is authorized until the parent releases the host test slot. The current
 platform full regression and midnight rc.1 soak remain protected. The continuation does not accept or merge any
 candidate and does not select a scientific model, method, threshold, tolerance or protocol value.
+
+## Finding 3: ML-path continuation implemented; full verification pending (Codex, 2026-10-24)
+
+Implemented finding 2 after its separate design commit `23127fe`:
+- Completed `camera_inference.py` and `postprocess.py` from the inspected Claude drafts, and added
+  `model_contract.py`, the bounded standard-library local ONNX-contract reader. Digest, telemetry, actual static I/O,
+  preprocessing binding, postprocessing parameter/code binding and declared output/bin shape are checked before
+  `loader.load_model` may create a session. The genuine loader then independently rechecks the frozen model digest.
+- Runtime provenance is the agreed three bare-HEX64 digests. Full shared-code/model/runtime identities are retained
+  in a detached canonical audit record with its own SHA-256; that audit record is never a runtime flow message.
+- The read-only spool pins the declared root and follows no digest-prefix/file symlink below it. Reads reject
+  non-regular files and mismatched length/digest, and are bounded by the declared frame length plus one byte.
+- F07 evidence uses the real front-zone form and a closed set of camera diagnostic fields. Missing/unknown checks,
+  stale/replayed evidence, unavailable frames and malformed/non-finite model output remain `UNCERTAIN` with no
+  fabricated inference values. Explicit statistical failure or OOD is `DEGRADED` as the design declares.
+- Candidate temperature scaling and the two example OOD methods remain explicitly pending AD-03. All parameters
+  come from the model metadata, with no default. Stable postprocessing shifts bin logits before division by a
+  positive temperature and refuses wrong-shape, non-floating or non-finite logits. No training/update path exists.
+
+**Test artifacts.**
+- `tests/fixtures/make_camera_model.py`: standard-library deterministic IR-7/opset-13/V-1 logits-model writer and
+  an independent NumPy forward reference; all numeric values are TEST-ONLY.
+- Checked-in `tests/fixtures/tiny-camera-model.onnx`: **1640 bytes**, SHA-256
+  `016a737e777968993e6d830cd4ff8a16ebaf6f5e610004eab5e92e87386a1d8a`.
+  Its metadata binds the genuine shared compat preprocessing and current owned postprocessing code.
+- `tests/test_camera_inference.py`: parsing, malformed/unsupported byte contracts and graph identities, before-session
+  refusal ordering, spool confinement, F07 states, output/provenance conformance and explicit no-training/import
+  boundaries. Its optional runtime checks use the actual compat U4 command/environment template.
+- `tests/camera_inference_probe.py`: nine isolated modes cover the genuine pinned loader/preprocessing, fixture
+  logits against the independent reference, postprocessing formulas/extremes/refusals, repeats, the real owned
+  corruption-camera-front-zone chain, path replacement after loading and before-session refusal cases.
+  Fixture regeneration is separately checked against the actual shared preprocessing binding.
+
+**Checks performed so far, and limits.**
+- Python AST parsing of all changed Python files: pass. `git diff --check`: pass.
+- Tiny pinned-interpreter `-S -s -B` standard-library-only probe: generated/inspected the fixed fixture, parsed its
+  postprocessing binding, refused four malformed/truncated protobuf cases, verified one spool read and length/digest
+  refusals. Neither NumPy nor ONNX Runtime was imported. No pytest or training process was started.
+- **The full test suite and all nine genuine-runtime probe modes have NOT run.** The platform full regression owns
+  the heavy test slot. The candidate is implemented for verification, not a passing or accepted increment.
+
+After the coordinator releases the host slot, from `automotive/assured-aeb` run:
+
+```sh
+env PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 \
+  XVERSE_COMPAT_SRC=/home/jefferson/xverse-compat/src \
+  XVERSE_AEB_U4_SITE=<pinned-inference-env>/venv/lib/python3.13/site-packages \
+  XVERSE_PLATFORM_PROFILES=<rc.1-export>/xdl/profiles \
+  /dev/shm/compat-p6-venv/bin/python -I -B -m pytest -q -p no:cacheprovider tests --tb=short
+```
+
+Torch/ORT never run in the pytest host: every genuine-runtime probe is a fresh `unshare -rn` process with the real
+pinned interpreter and U4 `-S -s -B` template. If compat/site/namespace prerequisites are missing those modes skip;
+a skip is not runtime verification. No venv rebuild/download is required. Run independent review after verification;
+acceptance and merge remain separate. This branch still contains the old stacked #1 baseline and needs reconciliation
+with the independently reviewed #1 repair before assembled delivery; do not rebase or overwrite another worker's
+branch automatically. The null/not-evaluated output-form amendment, spool writer, unit readiness/wiring, real-model
+calibration/OOD choices and tolerances, inference budget and live/protocol gates remain open.
