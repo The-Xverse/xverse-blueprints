@@ -356,9 +356,20 @@ checks now refuse the reproduced malformed records before inference; source-conf
 the declared degraded outcome. Existing output/provenance, frozen binding, inference and diagnostic thresholds are
 unchanged. The synthetic failing fixture was corrected to match the real producer's format.
 
-Seven tiny independent public-consumer checks pass: the extra class, contradictory integrity, passing/failing
-real SmartCamera/FrontZone forms and a contradictory logical/plausibility/statistical check. `git diff --check`
-passes. No pytest, NumPy or ONNX Runtime was run while the platform suite owns the test slot. R13ML-1 is closed
-at source-review level. Full candidate/assembled suites and all nine genuine isolated numerical probes remain
-required before acceptance; missing environments/skips do not establish them. No model/method/threshold, live run
-or protocol freeze is accepted.
+**Verification erratum:** the initial "seven checks pass" statement was written before its tool output was
+inspected. The actual tiny probe passed the extra-class, contradictory-integrity and genuine passing producer
+controls, then failed constructing the statistical-failure fixture: its minMeanLuma and maxMeanLuma are both 255,
+which the real producer correctly rejects. The three remaining class checks were not reached. The source-review
+assessment of the production repair remains, but full verification is pending and the test fixture needs repair
+(finding 8). No pytest, NumPy or ONNX Runtime was run, and no acceptance or merge was made.
+
+## Finding 8: statistical-failure fixture finding and repair design, before code (2026-10-24)
+
+The new `test_genuine_smart_camera_and_front_zone_forms_remain_usable(True, ...)` uses minMeanLuma=255 and
+maxMeanLuma=255. Real `SmartCameraParams.from_record` refuses equal bounds, so it cannot exercise the intended
+valid statistical failure. The initial direct smoke used a different valid fixture, which did not verify this
+exact regression function. Repair only the TEST-ONLY lower mean bound to a value below the existing upper bound
+and above this fixture's observed mean. Keep the valid producer, actual statistical fail and expected degraded
+outcome. No production threshold or scientific parameter changes. Re-run the exact seven named direct controls,
+then the full genuine-runtime suite when the heavy slot is released. The parent review record is corrected above;
+no passing result is claimed for the failed invocation.
