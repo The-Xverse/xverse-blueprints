@@ -20,6 +20,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
+from . import adas_contract as AC
 from .aeb_rule import (SHARED_DECLARATION, Latch, corridor_from, nearest_in_corridor, qualify_radar, rule_declaration,
                        rule_from, weakest)
 from .brake_esc import BRAKE_MAX, BRAKE_MIN, brake_request
@@ -27,7 +28,7 @@ from .checks import is_int, is_number
 from .parameters import Projection, params_digest
 
 FALLBACK_REQUEST = "assured-aeb.fallback-request/1"
-ADAS_CYCLE = "assured-aeb.adas-cycle/1"
+ADAS_CYCLE = AC.SCHEMA
 SELECTOR = "assured-aeb.selector-command/1"
 ARBITER_CYCLE = "assured-aeb.arbiter-cycle/1"
 RADAR_STREAM = "f09-radar-vc"
@@ -193,6 +194,12 @@ class FunctionalArbiter:
             fresh = None
             for message in sorted((m for m in requests[selected] if isinstance(m, dict) and is_int(m.get("sequence"))),
                                   key=lambda m: m["sequence"]):
+                if selected == "adas-cycle":
+                    try:
+                        message = AC.validate(message, check_request=False)
+                    except ValueError:
+                        flags.append("request-refused")
+                        continue
                 ok = (message.get("schema") == SCHEMA_OF[selected] and message.get("source") == SOURCE_ELEMENT[selected]
                       and is_int(message.get("originNs")) and message["sequence"] > self.last_used.get(selected, -1))
                 if not ok:

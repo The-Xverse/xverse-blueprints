@@ -1,0 +1,241 @@
+{
+  "allowedChanges": "only two payload URNs v1->v2 and their XCOM interface-policy schemaVersion1.0.0->2.0.0",
+  "artifactPinsSha256": "0e8ba373d5676f5d2f67bf9b8c27b93b3914e81b33b5f6ef5d851695b8187472",
+  "baseRevision": "b21824a06bf1264aefa201001cb73fc7d13087c6",
+  "changedDocuments": [
+    {
+      "afterSha256": "2a527c3f047b0312b9143eaca332aea8ee81416af282caedf2a09cc8d5aafe77",
+      "beforeSha256": "c5cce0526c83974c17e18aee0f0e0de6c62cd92efbc3eee4370e814cf39f915b",
+      "path": "xdl/comparator/topology/system.json"
+    },
+    {
+      "afterSha256": "fbec61884775959465b8b414161f67fa2efbe2d82a2a1cfe80b38e8ef007bbe1",
+      "beforeSha256": "6ef4a3295992f1f53e7db662e37a4888503f159c83d609dfe3942fe968265577",
+      "path": "xdl/comparator/topology/component-fusion-risk-aeb.json"
+    },
+    {
+      "afterSha256": "2b50ce7663b951855da64ecf9323699725ff467f243e3373830c720a8f50d9f2",
+      "beforeSha256": "296de341ccd1647e16999bf8a66ad4eb409a6d8ada57c0c9e03e53cbed0094f0",
+      "path": "xdl/comparator/topology/component-vc-ingress.json"
+    },
+    {
+      "afterSha256": "2f5995b3c13684c935c4a7fb9fef757b7ffe3f16dcba990b211935c3a90b0e00",
+      "beforeSha256": "f6e53f41d2c5eb875b64db4b32d337e221298e0fbfc3b7f85d4c241046d92095",
+      "path": "xdl/comparator/topology/component-evidence-validator.json"
+    },
+    {
+      "afterSha256": "420a17bccd653eb913f04de6b06af1e09bc40ec774967213df9f509675b23a36",
+      "beforeSha256": "c7013e44969c50dd8622da65e6c8b2c22aa59ea414f7345e015b5d99730ab64f",
+      "path": "xdl/comparator/topology/component-functional-arbiter.json"
+    },
+    {
+      "afterSha256": "e871e292098c6911e120f1145373c53854efcbd3e4c2827f4f6897df045aebb2",
+      "beforeSha256": "ec599ec3e515726597409b1fee83a2866386bdd6a093b450b31c5c1fccfb4090",
+      "path": "xdl/comparator/maestro/system.json"
+    },
+    {
+      "afterSha256": "fbec61884775959465b8b414161f67fa2efbe2d82a2a1cfe80b38e8ef007bbe1",
+      "beforeSha256": "6ef4a3295992f1f53e7db662e37a4888503f159c83d609dfe3942fe968265577",
+      "path": "xdl/comparator/maestro/component-fusion-risk-aeb.json"
+    },
+    {
+      "afterSha256": "2b50ce7663b951855da64ecf9323699725ff467f243e3373830c720a8f50d9f2",
+      "beforeSha256": "296de341ccd1647e16999bf8a66ad4eb409a6d8ada57c0c9e03e53cbed0094f0",
+      "path": "xdl/comparator/maestro/component-vc-ingress.json"
+    },
+    {
+      "afterSha256": "2f5995b3c13684c935c4a7fb9fef757b7ffe3f16dcba990b211935c3a90b0e00",
+      "beforeSha256": "f6e53f41d2c5eb875b64db4b32d337e221298e0fbfc3b7f85d4c241046d92095",
+      "path": "xdl/comparator/maestro/component-evidence-validator.json"
+    },
+    {
+      "afterSha256": "420a17bccd653eb913f04de6b06af1e09bc40ec774967213df9f509675b23a36",
+      "beforeSha256": "c7013e44969c50dd8622da65e6c8b2c22aa59ea414f7345e015b5d99730ab64f",
+      "path": "xdl/comparator/maestro/component-functional-arbiter.json"
+    },
+    {
+      "afterSha256": "f66c53fb6046704811795b4eb3e81a0939c67f81c7aee81c3df82e22663d6feb",
+      "beforeSha256": "f982be829441aab0c9f621e9119cbb4929928f3606d39850570f2eca0bab07af",
+      "path": "xdl/mloc/topology/system.json"
+    },
+    {
+      "afterSha256": "fbec61884775959465b8b414161f67fa2efbe2d82a2a1cfe80b38e8ef007bbe1",
+      "beforeSha256": "6ef4a3295992f1f53e7db662e37a4888503f159c83d609dfe3942fe968265577",
+      "path": "xdl/mloc/topology/component-fusion-risk-aeb.json"
+    },
+    {
+      "afterSha256": "3f434b3a3e0c84dea8fd631bb5c446bda6fd635bb162d5fd0e4362e0f1977773",
+      "beforeSha256": "1c062c72d7d76448373cbe608d59e158dd2959aa4874761083426208dbc4c252",
+      "path": "xdl/mloc/topology/component-proposer.json"
+    },
+    {
+      "afterSha256": "2b50ce7663b951855da64ecf9323699725ff467f243e3373830c720a8f50d9f2",
+      "beforeSha256": "296de341ccd1647e16999bf8a66ad4eb409a6d8ada57c0c9e03e53cbed0094f0",
+      "path": "xdl/mloc/topology/component-vc-ingress.json"
+    },
+    {
+      "afterSha256": "2f5995b3c13684c935c4a7fb9fef757b7ffe3f16dcba990b211935c3a90b0e00",
+      "beforeSha256": "f6e53f41d2c5eb875b64db4b32d337e221298e0fbfc3b7f85d4c241046d92095",
+      "path": "xdl/mloc/topology/component-evidence-validator.json"
+    },
+    {
+      "afterSha256": "420a17bccd653eb913f04de6b06af1e09bc40ec774967213df9f509675b23a36",
+      "beforeSha256": "c7013e44969c50dd8622da65e6c8b2c22aa59ea414f7345e015b5d99730ab64f",
+      "path": "xdl/mloc/topology/component-functional-arbiter.json"
+    },
+    {
+      "afterSha256": "21862ccc77c226ce217c98005ff8b0212d37e8e88cd8192e0c0318bfa4d09033",
+      "beforeSha256": "47e10758c0c8d4136965a489d8c9afde6d77963fbb4649dfbc2a74666086ba9a",
+      "path": "xdl/mloc/maestro/system.json"
+    },
+    {
+      "afterSha256": "fbec61884775959465b8b414161f67fa2efbe2d82a2a1cfe80b38e8ef007bbe1",
+      "beforeSha256": "6ef4a3295992f1f53e7db662e37a4888503f159c83d609dfe3942fe968265577",
+      "path": "xdl/mloc/maestro/component-fusion-risk-aeb.json"
+    },
+    {
+      "afterSha256": "3f434b3a3e0c84dea8fd631bb5c446bda6fd635bb162d5fd0e4362e0f1977773",
+      "beforeSha256": "1c062c72d7d76448373cbe608d59e158dd2959aa4874761083426208dbc4c252",
+      "path": "xdl/mloc/maestro/component-proposer.json"
+    },
+    {
+      "afterSha256": "2b50ce7663b951855da64ecf9323699725ff467f243e3373830c720a8f50d9f2",
+      "beforeSha256": "296de341ccd1647e16999bf8a66ad4eb409a6d8ada57c0c9e03e53cbed0094f0",
+      "path": "xdl/mloc/maestro/component-vc-ingress.json"
+    },
+    {
+      "afterSha256": "2f5995b3c13684c935c4a7fb9fef757b7ffe3f16dcba990b211935c3a90b0e00",
+      "beforeSha256": "f6e53f41d2c5eb875b64db4b32d337e221298e0fbfc3b7f85d4c241046d92095",
+      "path": "xdl/mloc/maestro/component-evidence-validator.json"
+    },
+    {
+      "afterSha256": "420a17bccd653eb913f04de6b06af1e09bc40ec774967213df9f509675b23a36",
+      "beforeSha256": "c7013e44969c50dd8622da65e6c8b2c22aa59ea414f7345e015b5d99730ab64f",
+      "path": "xdl/mloc/maestro/component-functional-arbiter.json"
+    },
+    {
+      "afterSha256": "52695ea75becc3b84bea48366643aeda808570267f24035ef09734f83929070e",
+      "beforeSha256": "d49b8b91157b2c5a14934a3bfebc9aef896df3e248e62907c0633fcc7e79f496",
+      "path": "xdl/authorization-bypass/topology/system.json"
+    },
+    {
+      "afterSha256": "fbec61884775959465b8b414161f67fa2efbe2d82a2a1cfe80b38e8ef007bbe1",
+      "beforeSha256": "6ef4a3295992f1f53e7db662e37a4888503f159c83d609dfe3942fe968265577",
+      "path": "xdl/authorization-bypass/topology/component-fusion-risk-aeb.json"
+    },
+    {
+      "afterSha256": "3f434b3a3e0c84dea8fd631bb5c446bda6fd635bb162d5fd0e4362e0f1977773",
+      "beforeSha256": "1c062c72d7d76448373cbe608d59e158dd2959aa4874761083426208dbc4c252",
+      "path": "xdl/authorization-bypass/topology/component-proposer.json"
+    },
+    {
+      "afterSha256": "2b50ce7663b951855da64ecf9323699725ff467f243e3373830c720a8f50d9f2",
+      "beforeSha256": "296de341ccd1647e16999bf8a66ad4eb409a6d8ada57c0c9e03e53cbed0094f0",
+      "path": "xdl/authorization-bypass/topology/component-vc-ingress.json"
+    },
+    {
+      "afterSha256": "2f5995b3c13684c935c4a7fb9fef757b7ffe3f16dcba990b211935c3a90b0e00",
+      "beforeSha256": "f6e53f41d2c5eb875b64db4b32d337e221298e0fbfc3b7f85d4c241046d92095",
+      "path": "xdl/authorization-bypass/topology/component-evidence-validator.json"
+    },
+    {
+      "afterSha256": "420a17bccd653eb913f04de6b06af1e09bc40ec774967213df9f509675b23a36",
+      "beforeSha256": "c7013e44969c50dd8622da65e6c8b2c22aa59ea414f7345e015b5d99730ab64f",
+      "path": "xdl/authorization-bypass/topology/component-functional-arbiter.json"
+    },
+    {
+      "afterSha256": "d8f34a7ec1b8a1347055ecbc7a9d616a9f24b7f95cb7e3767d370a8d27b38564",
+      "beforeSha256": "49dfa51cd62138b7ac9453a35f5ce79a178b33deeb7baa458dce6b34e3a29ca8",
+      "path": "xdl/authorization-bypass/maestro/system.json"
+    },
+    {
+      "afterSha256": "fbec61884775959465b8b414161f67fa2efbe2d82a2a1cfe80b38e8ef007bbe1",
+      "beforeSha256": "6ef4a3295992f1f53e7db662e37a4888503f159c83d609dfe3942fe968265577",
+      "path": "xdl/authorization-bypass/maestro/component-fusion-risk-aeb.json"
+    },
+    {
+      "afterSha256": "3f434b3a3e0c84dea8fd631bb5c446bda6fd635bb162d5fd0e4362e0f1977773",
+      "beforeSha256": "1c062c72d7d76448373cbe608d59e158dd2959aa4874761083426208dbc4c252",
+      "path": "xdl/authorization-bypass/maestro/component-proposer.json"
+    },
+    {
+      "afterSha256": "2b50ce7663b951855da64ecf9323699725ff467f243e3373830c720a8f50d9f2",
+      "beforeSha256": "296de341ccd1647e16999bf8a66ad4eb409a6d8ada57c0c9e03e53cbed0094f0",
+      "path": "xdl/authorization-bypass/maestro/component-vc-ingress.json"
+    },
+    {
+      "afterSha256": "2f5995b3c13684c935c4a7fb9fef757b7ffe3f16dcba990b211935c3a90b0e00",
+      "beforeSha256": "f6e53f41d2c5eb875b64db4b32d337e221298e0fbfc3b7f85d4c241046d92095",
+      "path": "xdl/authorization-bypass/maestro/component-evidence-validator.json"
+    },
+    {
+      "afterSha256": "420a17bccd653eb913f04de6b06af1e09bc40ec774967213df9f509675b23a36",
+      "beforeSha256": "c7013e44969c50dd8622da65e6c8b2c22aa59ea414f7345e015b5d99730ab64f",
+      "path": "xdl/authorization-bypass/maestro/component-functional-arbiter.json"
+    },
+    {
+      "afterSha256": "5fab4ee803adf5d26193bd8db1a308f9f4b139a44a84a71b857f1e4a14119803",
+      "beforeSha256": "8e03cfd740ceafb9310fc50f5b0e7d99dafc095cf6a14e641c1f8eda72176e5d",
+      "path": "xdl/verification-bypass/topology/system.json"
+    },
+    {
+      "afterSha256": "fbec61884775959465b8b414161f67fa2efbe2d82a2a1cfe80b38e8ef007bbe1",
+      "beforeSha256": "6ef4a3295992f1f53e7db662e37a4888503f159c83d609dfe3942fe968265577",
+      "path": "xdl/verification-bypass/topology/component-fusion-risk-aeb.json"
+    },
+    {
+      "afterSha256": "3f434b3a3e0c84dea8fd631bb5c446bda6fd635bb162d5fd0e4362e0f1977773",
+      "beforeSha256": "1c062c72d7d76448373cbe608d59e158dd2959aa4874761083426208dbc4c252",
+      "path": "xdl/verification-bypass/topology/component-proposer.json"
+    },
+    {
+      "afterSha256": "2b50ce7663b951855da64ecf9323699725ff467f243e3373830c720a8f50d9f2",
+      "beforeSha256": "296de341ccd1647e16999bf8a66ad4eb409a6d8ada57c0c9e03e53cbed0094f0",
+      "path": "xdl/verification-bypass/topology/component-vc-ingress.json"
+    },
+    {
+      "afterSha256": "2f5995b3c13684c935c4a7fb9fef757b7ffe3f16dcba990b211935c3a90b0e00",
+      "beforeSha256": "f6e53f41d2c5eb875b64db4b32d337e221298e0fbfc3b7f85d4c241046d92095",
+      "path": "xdl/verification-bypass/topology/component-evidence-validator.json"
+    },
+    {
+      "afterSha256": "420a17bccd653eb913f04de6b06af1e09bc40ec774967213df9f509675b23a36",
+      "beforeSha256": "c7013e44969c50dd8622da65e6c8b2c22aa59ea414f7345e015b5d99730ab64f",
+      "path": "xdl/verification-bypass/topology/component-functional-arbiter.json"
+    },
+    {
+      "afterSha256": "b0b9c8469b886631619907f7cbc9f527793c338dfc5bc1430ec30aad0a198161",
+      "beforeSha256": "c90b53743dfb2ab25ed6157db96099bd35af575ff7fc7e43fe0c755e4d47ad3e",
+      "path": "xdl/verification-bypass/maestro/system.json"
+    },
+    {
+      "afterSha256": "fbec61884775959465b8b414161f67fa2efbe2d82a2a1cfe80b38e8ef007bbe1",
+      "beforeSha256": "6ef4a3295992f1f53e7db662e37a4888503f159c83d609dfe3942fe968265577",
+      "path": "xdl/verification-bypass/maestro/component-fusion-risk-aeb.json"
+    },
+    {
+      "afterSha256": "3f434b3a3e0c84dea8fd631bb5c446bda6fd635bb162d5fd0e4362e0f1977773",
+      "beforeSha256": "1c062c72d7d76448373cbe608d59e158dd2959aa4874761083426208dbc4c252",
+      "path": "xdl/verification-bypass/maestro/component-proposer.json"
+    },
+    {
+      "afterSha256": "2b50ce7663b951855da64ecf9323699725ff467f243e3373830c720a8f50d9f2",
+      "beforeSha256": "296de341ccd1647e16999bf8a66ad4eb409a6d8ada57c0c9e03e53cbed0094f0",
+      "path": "xdl/verification-bypass/maestro/component-vc-ingress.json"
+    },
+    {
+      "afterSha256": "2f5995b3c13684c935c4a7fb9fef757b7ffe3f16dcba990b211935c3a90b0e00",
+      "beforeSha256": "f6e53f41d2c5eb875b64db4b32d337e221298e0fbfc3b7f85d4c241046d92095",
+      "path": "xdl/verification-bypass/maestro/component-evidence-validator.json"
+    },
+    {
+      "afterSha256": "420a17bccd653eb913f04de6b06af1e09bc40ec774967213df9f509675b23a36",
+      "beforeSha256": "c7013e44969c50dd8622da65e6c8b2c22aa59ea414f7345e015b5d99730ab64f",
+      "path": "xdl/verification-bypass/maestro/component-functional-arbiter.json"
+    }
+  ],
+  "compiledSemanticDigests": "not computed; root-scheduled owning/topology verification pending",
+  "designAmendmentRevision": "ab222af",
+  "dispositionRevision": "076e96e",
+  "generatedDocumentsCompared": 301
+}

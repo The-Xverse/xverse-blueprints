@@ -309,8 +309,9 @@ def selector(sequence, configuration, now_ns=WORLD, source="configuration-manage
 
 
 def adas(sequence, now_ns, value, state="NOMINAL", reason=None):
-    return {"schema": F.ADAS_CYCLE, "source": "fusion-risk-aeb", "sequence": sequence, "originNs": now_ns, "brakeRequest": value,
-            "state": state, "reason": reason}
+    # A complete genuine /2 owner envelope; individual tests then alter only their request/state stimulus.
+    record = F.FusionRiskAeb(projection()).step(now_ns, radar=Radar().at(now_ns, FAR), perception=perception(now_ns))
+    return dict(record, sequence=sequence, brakeRequest=value, state=state, reason=reason)
 
 
 def fallback(sequence, now_ns, value, state="NOMINAL"):

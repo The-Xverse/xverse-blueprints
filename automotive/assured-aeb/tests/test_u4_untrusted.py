@@ -87,7 +87,7 @@ def genuine_basis(now=1_000, sequence=1):
     item = dict(type="item",flowId="radar-adas",sequence=1,originNs=now,frame=1,value={"detections":[[0.0,0.0,40.0,-10.0]],"count":1})
     radar = dict(zone.step(now,[("smart-radar-evidence",sensor.step(now,item))]))["f08-radar-adas"]
     camera = dict(schema=F.PERCEPTION_OUTPUT,source="perception",frame=1,frameSha256="c"*64,originNs=now,
-                  occupancyProbability=0.9,binProbabilities=[0.1,0.1,0.1,0.7],predictedBin="bin-2",oodScore=0.1,oodFlag=False,
+                  occupancyProbability=0.9,binProbabilities=[0.05,0.05,0.05,0.05,0.7,0.1],predictedBin="bin-2",oodScore=0.1,oodFlag=False,
                   inputQuality={},provenance={"modelDigest":"d"*64,"preprocessParamsSha256":"e"*64,"postprocessSha256":"f"*64},
                   state="NOMINAL",reason=None)
     for _ in range(sequence):

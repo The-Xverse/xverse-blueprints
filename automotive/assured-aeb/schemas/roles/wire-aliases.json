@@ -1,6 +1,6 @@
 {
-  "urn:xverse:assured-aeb:adas-cycle:v1": [
-    "assured-aeb.adas-cycle/1"
+  "urn:xverse:assured-aeb:adas-cycle:v2": [
+    "assured-aeb.adas-cycle/2"
   ],
   "urn:xverse:assured-aeb:aeb-status:v1": [
     "assured-aeb.aeb-status/1"
@@ -54,8 +54,8 @@
   "urn:xverse:assured-aeb:perception-output:v1": [
     "assured-aeb.perception-output/1"
   ],
-  "urn:xverse:assured-aeb:proposal-basis:v1": [
-    "assured-aeb.adas-cycle/1"
+  "urn:xverse:assured-aeb:proposal-basis:v2": [
+    "assured-aeb.adas-cycle/2"
   ],
   "urn:xverse:assured-aeb:proposal:v1": [
     "assured-aeb.proposal/1"

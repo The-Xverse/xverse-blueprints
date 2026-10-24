@@ -83,7 +83,7 @@
               "encoding": "json",
               "interactionKind": "message",
               "schemaId": "adas-cycle-schema",
-              "schemaVersion": "1.0.0",
+              "schemaVersion": "2.0.0",
               "semanticCompatibility": "exact"
             },
             "schemaVersion": "0.1",
@@ -96,7 +96,7 @@
           }
         },
         "id": "adas-cycle",
-        "payloadSchema": "urn:xverse:assured-aeb:adas-cycle:v1",
+        "payloadSchema": "urn:xverse:assured-aeb:adas-cycle:v2",
         "unitSemantics": "evidence-item"
       },
       {
@@ -109,7 +109,7 @@
               "encoding": "json",
               "interactionKind": "message",
               "schemaId": "proposal-basis-schema",
-              "schemaVersion": "1.0.0",
+              "schemaVersion": "2.0.0",
               "semanticCompatibility": "exact"
             },
             "schemaVersion": "0.1",
@@ -122,7 +122,7 @@
           }
         },
         "id": "proposal-basis",
-        "payloadSchema": "urn:xverse:assured-aeb:proposal-basis:v1",
+        "payloadSchema": "urn:xverse:assured-aeb:proposal-basis:v2",
         "unitSemantics": "evidence-item"
       },
       {

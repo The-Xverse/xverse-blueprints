@@ -1,0 +1,648 @@
+{
+  "$id": "urn:xverse:assured-aeb:proposal-basis:v2",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "brakeRequest": {
+      "type": "number"
+    },
+    "cycle": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "fired": {
+      "type": "boolean"
+    },
+    "hypothesis": {
+      "additionalProperties": false,
+      "properties": {
+        "agreement": {
+          "anyOf": [
+            {
+              "enum": [
+                "agree",
+                "camera-only",
+                "radar-only",
+                "none"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "closingSpeedMps": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "distanceM": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "distanceUncertaintyM": {
+          "type": "number"
+        },
+        "present": {
+          "type": "boolean"
+        },
+        "residualM": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "speedUncertaintyMps": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "agreement",
+        "closingSpeedMps",
+        "distanceM",
+        "distanceUncertaintyM",
+        "present",
+        "residualM",
+        "speedUncertaintyMps"
+      ],
+      "type": "object"
+    },
+    "latched": {
+      "type": "boolean"
+    },
+    "originNs": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "paramsSha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "schema": {
+      "const": "assured-aeb.adas-cycle/2"
+    },
+    "sequence": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "source": {
+      "const": "fusion-risk-aeb"
+    },
+    "sources": {
+      "additionalProperties": false,
+      "properties": {
+        "camera": {
+          "additionalProperties": false,
+          "properties": {
+            "ageNs": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "distanceClassConfidence": {
+              "anyOf": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "failures": {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "frameSha256": {
+              "anyOf": [
+                {
+                  "pattern": "^[0-9a-f]{64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "inputQuality": {
+              "additionalProperties": false,
+              "properties": {
+                "fresh": {
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "integrity": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "pass",
+                        "fail",
+                        "not-evaluated"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "plausibility": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "pass",
+                        "fail",
+                        "not-evaluated"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "sensorLogical": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "pass",
+                        "fail",
+                        "not-evaluated"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "sensorPlausibility": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "pass",
+                        "fail",
+                        "not-evaluated"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "sensorStatistical": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "pass",
+                        "fail",
+                        "not-evaluated"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "sequence": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "ok",
+                        "gap",
+                        "duplicate",
+                        "regressed",
+                        "unknown"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "fresh",
+                "integrity",
+                "plausibility",
+                "sensorLogical",
+                "sensorPlausibility",
+                "sensorStatistical",
+                "sequence"
+              ],
+              "type": "object"
+            },
+            "occupancyDecisionConfidence": {
+              "anyOf": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "occupancyProbability": {
+              "anyOf": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "oodFlag": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "originNs": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "predictedBin": {
+              "anyOf": [
+                {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "provenance": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "modelDigest": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    "postprocessSha256": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    "preprocessParamsSha256": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "modelDigest",
+                    "postprocessSha256",
+                    "preprocessParamsSha256"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "state": {
+              "enum": [
+                "NOMINAL",
+                "DEGRADED",
+                "UNCERTAIN",
+                "UNSAFE"
+              ]
+            }
+          },
+          "required": [
+            "ageNs",
+            "distanceClassConfidence",
+            "failures",
+            "frameSha256",
+            "inputQuality",
+            "occupancyDecisionConfidence",
+            "occupancyProbability",
+            "oodFlag",
+            "originNs",
+            "predictedBin",
+            "provenance",
+            "state"
+          ],
+          "type": "object"
+        },
+        "radar": {
+          "additionalProperties": false,
+          "properties": {
+            "ageNs": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "checks": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "fresh": {
+                      "type": "boolean"
+                    },
+                    "integrity": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "failed": {
+                          "items": {
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "verdict": {
+                          "enum": [
+                            "pass",
+                            "fail",
+                            "not-evaluated"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "failed",
+                        "verdict"
+                      ],
+                      "type": "object"
+                    },
+                    "plausibility": {
+                      "enum": [
+                        "pass",
+                        "fail",
+                        "not-evaluated"
+                      ]
+                    },
+                    "sensorSelfCheck": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "logical": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "failed": {
+                              "items": {
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "type": "array"
+                            },
+                            "verdict": {
+                              "enum": [
+                                "pass",
+                                "fail",
+                                "not-evaluated"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "failed",
+                            "verdict"
+                          ],
+                          "type": "object"
+                        },
+                        "plausibility": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "failed": {
+                              "items": {
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "type": "array"
+                            },
+                            "verdict": {
+                              "enum": [
+                                "pass",
+                                "fail",
+                                "not-evaluated"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "failed",
+                            "verdict"
+                          ],
+                          "type": "object"
+                        },
+                        "statistical": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "failed": {
+                              "items": {
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "type": "array"
+                            },
+                            "verdict": {
+                              "enum": [
+                                "pass",
+                                "fail",
+                                "not-evaluated"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "failed",
+                            "verdict"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "logical",
+                        "plausibility",
+                        "statistical"
+                      ],
+                      "type": "object"
+                    },
+                    "sequence": {
+                      "enum": [
+                        "ok",
+                        "gap",
+                        "duplicate",
+                        "regressed",
+                        "unknown"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "fresh",
+                    "integrity",
+                    "plausibility",
+                    "sensorSelfCheck",
+                    "sequence"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "count": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "failures": {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "originNs": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "selectedDetection": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "sequence": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "state": {
+              "enum": [
+                "NOMINAL",
+                "DEGRADED",
+                "UNCERTAIN",
+                "UNSAFE"
+              ]
+            }
+          },
+          "required": [
+            "ageNs",
+            "checks",
+            "count",
+            "failures",
+            "originNs",
+            "selectedDetection",
+            "sequence",
+            "state"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "camera",
+        "radar"
+      ],
+      "type": "object"
+    },
+    "state": {
+      "enum": [
+        "NOMINAL",
+        "DEGRADED",
+        "UNCERTAIN",
+        "UNSAFE"
+      ]
+    }
+  },
+  "required": [
+    "brakeRequest",
+    "cycle",
+    "fired",
+    "hypothesis",
+    "latched",
+    "originNs",
+    "paramsSha256",
+    "reason",
+    "schema",
+    "sequence",
+    "source",
+    "sources",
+    "state"
+  ],
+  "type": "object"
+}
