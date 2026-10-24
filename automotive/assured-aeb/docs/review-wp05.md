@@ -449,3 +449,11 @@ The next step is a focused re-review of `7a8d8cd`, then acceptance and merge. Ne
 ### Recommendation
 Ready for acceptance and merge. Record LOW-A as a reproducibility condition, and LOW-C in the WP-10
 wiring item.
+
+## 7. Acceptance (written at 12:01:28 2026-10-24)
+
+- **Accepted** under the author's delegation of 2026-10-24 (thesis `specs/002-assured-aeb/decisions.md` §G and
+  the "AD-30 delivery rule" and "WP-04 fault status" rows). It is flagged for the author's review.
+- **Basis:** findings 3 (FAIL), 4-5 (repair) and 6 (PASS WITH NOTES); suite 123 passed, checker exit 0.
+- Declared: LOW-A, the Box-Muller noise is bit-exact only on the pinned C maths library (glibc 2.35 on this host, ED-14); LOW-B is a wording note on quantisation near-ties; LOW-C goes to WP-10, deriving the origin as for WP-04 LOW-B.
+- **Merged** into blueprints main and pushed (see the merge commit).
