@@ -38,24 +38,29 @@ class FakeWorld:
 
 def _run(monkeypatch, tmp_path, capsys, world):
     class Client:
+        timeouts = []
+
         def __init__(self, host, port):
             pass
 
         def set_timeout(self, seconds):
-            pass
+            Client.timeouts.append(seconds)
 
         def get_world(self):
             return world
 
     monkeypatch.setitem(sys.modules, "carla", types.SimpleNamespace(Client=Client))
     code = health_check.main(["--carla-site", str(tmp_path)])
-    return code, json.loads(capsys.readouterr().out)
+    result = json.loads(capsys.readouterr().out)
+    assert Client.timeouts == [15.0]  # every server request runs under the 15 s client timeout (finding 58, LOW-5)
+    return code, result
 
 
 def test_a_fresh_synchronous_server_is_healthy_without_a_tick(monkeypatch, tmp_path, capsys):
     world = FakeWorld(synchronous=True, tick_ok=False)  # no tick owner: wait_for_tick would time out
     code, result = _run(monkeypatch, tmp_path, capsys, world)
-    assert code == 0 and result["healthy"] and result["tickProbe"] == "skipped-synchronous" and result["frame"] == 41
+    assert code == 0 and result["healthy"] and result["tickProbe"] == "skipped-synchronous"
+    assert result["localSnapshotFrame"] == 41 and "frame" not in result and "waitForTickS" not in result  # LOW-6
     assert result["synchronousMode"] is True and world.waited == 0 and world.ticked == 0
 
 
@@ -69,8 +74,15 @@ def test_an_asynchronous_server_without_frames_is_unhealthy(monkeypatch, tmp_pat
     assert code == 1 and not result["healthy"] and "time-out" in result["error"]
 
 
-def test_an_unanswering_server_is_unhealthy(monkeypatch, tmp_path, capsys):
-    world = FakeWorld(synchronous=True)
-    world.get_snapshot = lambda: (_ for _ in ()).throw(RuntimeError("time-out while waiting for the simulator"))
+@pytest.mark.parametrize("request_name", ["get_settings", "get_map"])
+@pytest.mark.parametrize("synchronous", [True, False])
+def test_a_server_that_does_not_answer_a_request_is_unhealthy(monkeypatch, tmp_path, capsys, request_name, synchronous):
+    """The server requests are the evidence (finding 58, MEDIUM-1 and LOW-5): a time-out at either is unhealthy."""
+    world = FakeWorld(synchronous=synchronous)
+
+    def timed_out():
+        raise RuntimeError("time-out of 15000ms while waiting for the simulator")
+
+    setattr(world, request_name, timed_out)
     code, result = _run(monkeypatch, tmp_path, capsys, world)
-    assert code == 1 and not result["healthy"]
+    assert code == 1 and not result["healthy"] and "time-out" in result["error"]
