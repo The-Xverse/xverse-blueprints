@@ -325,3 +325,64 @@ negatives. It should come from the verified scenario record (see MEDIUM-2), not 
 - Do all of this before increment #6.
 - Record LOW-1 and LOW-2.
 - Then acceptance and merge.
+
+## Finding 4: disposition of finding 3 and the repair plan (recorded at 15:36:27, before any change)
+
+**Authority.** The coordinator's disposition of finding 3, under the author's delegation of 2026-10-24, and the
+thesis row `decisions.md` "WP-09 data separation" (15:34). Design `wp09-training-pipeline.md` §3 is aligned to it (by
+segment; placement recorded; labels bound into the identity). This finding is engineering evidence only and does not
+accept or merge anything.
+
+**Planned repairs on this branch.**
+1. **MEDIUM-1 (visibility tie).**
+   - Visibility comes from the **intersection of the target footprint with the horizontal field-of-view wedge**, and
+     no longer from one corner chosen by its index among tied corners.
+     - The footprint is clipped, in the camera-relative ego frame, by the wedge's two half-planes
+       `tan(h)·dx ∓ dy ≥ 0` (convex clipping; touching counts, as for the corridor).
+     - It is horizontally visible when the clipped region is non-empty and reaches `dx > 0`.
+   - The vertical test applies at the clipped region's **largest range**. The box is a vertical prism, and the
+     pinhole vertical aperture widens with range, so some part of the target is in the vertical field of view if and
+     only if that part is in view at the largest range.
+   - `obstacle` stays `inCorridor and visible` (design §3).
+     - A stricter form would test visibility only on the in-corridor part of the footprint. It is recorded as a
+       residual, and is not adopted here: neither the decision nor the disposition asks for it.
+   - The reviewer's probe becomes a test: a target yawed 90° at (5.5, 3.0) is labelled visible, an obstacle, at
+     2.2 m.
+2. **MEDIUM-2 and LOW-1 (scenario and placement).**
+   - A new offline module, `perception/scenario.py`, reads a live-scenario file's bytes and verifies its SHA-256
+     against the declared `scenarioSha256`.
+   - It derives the **target placement**:
+     - `none` (schema 1, or schema 2 without a target);
+     - `ego-lane`;
+     - `adjacent-lane` with `side` and `direction`.
+   - It mirrors the placement members of compat `xverse_compat_carla/scenario.py` `target_of` (schemas 1 and 2;
+     `adjacentLane` exactly `{side, direction}`), and refuses an unknown schema or value.
+   - It does not re-run compat's full validation, which stays at spawn. Blueprints keep no import of compat.
+   - Two consumers use it:
+     - `label_run` takes the verified scenario (bytes plus digest) instead of the caller flag `target_declared`;
+     - `check_manifest` takes a required mapping from run identifier to scenario file. It refuses a missing file, a
+       digest mismatch, a recorded `targetPlacement` that differs from the derived one, and a scenario whose
+       `spawnPointIndex` or `map` differs from the run's.
+   - **Not repaired here (obligation recorded).** Refusing adjacent-lane targets in evaluation runs belongs to
+     WP-10 #5 (run command) and WP-16 (scenario selection), as the decision row (1) says. The manifest contains no
+     evaluation run.
+3. **MEDIUM-3 (evaluation segment).**
+   - Each run's `segment` becomes a record `{map, roadId, sectionId}`: the OpenDRIVE road and lane section of its
+     spawn waypoint, read from the live run (increment #6).
+   - The manifest's `evaluation` block gains the declared `segment` of spawn point 1, a parameter with no default
+     (P-2 map verification; `TODO: engineering verification`).
+   - Any **training or calibration** run on that segment is refused, whatever its spawn point.
+   - A test-split run on it is reported, not refused, because the decision names training and calibration only.
+   - Tests cover spawn point 2 on the evaluation segment (refused for training and for calibration).
+4. **MEDIUM-4 (identity binds the labels).**
+   - The manifest gains the top-level `labelCodeSha256` and a per-run `labelsSha256`: the SHA-256 of the canonical
+     label list, from a new `labels.labels_digest`.
+   - Because every label's provenance carries `labelCodeSha256`, a label-code change changes every
+     `labelsSha256`, and with them the identity.
+   - A test shows that a label-code change changes the identity.
+5. **LOW-2 (store durability).**
+   - After `os.replace`, the shard directory is fsynced.
+   - On open, the store removes stale `.tmp-*.zlib` files left by an interrupted write. It does this for a single
+     writer, at open time only.
+   - A test covers both: the directory fsync is observed, and stale temporary files are swept.
+6. Run the tests and the checker, record finding 5, and commit.
