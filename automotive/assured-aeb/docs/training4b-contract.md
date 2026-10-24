@@ -80,6 +80,7 @@ actual identity/lock/interpreter/compat source and explicit TEST-ONLY engineerin
   --python <admitted real CPython> --compat-source <accepted compat src>
   --scratch <fresh external scratch directory> --memory-bytes <explicit engineering bound>
   --disk-bytes <explicit engineering bound> --timeout <explicit engineering bound seconds>
+  --cleanup-term-seconds <explicit engineering bound> --cleanup-kill-seconds <explicit engineering bound>
 ```
 
 The driver itself needs only blueprint/compat/tests source roots on PYTHONPATH, no framework site. It launches
@@ -89,3 +90,12 @@ checkpoint choice, all deterministic bytes, unchanged weights under held-out pix
 nonfinite failure. Retain command/status/stdout/stderr and exact source/environment/job/stage identities. Missing
 namespace/environment is failed or unavailable verification, never a counted pass. No full4c–4e equivalence,
 exporter/static-reader/ORT/calibration/final-loader success is implied by this4b driver.
+
+Each attempt exclusively retains worker.stdout, worker.stderr and worker-execution.json before interpreting the
+model outcome. Receipt includes actual command/environment, source/input hashes before/after, actual return code,
+timeout/error and owned-group cleanup; diagnostics remain outside deterministic fit artifacts. Timeout/capture
+failure/incomplete cleanup cannot satisfy the expected nonfinite refusal. Supervisor owns a fresh group with
+bounded TERM/KILL and cancellation-safe spawn ownership. A leader exit is not descendant completion. This is a
+trusted owned-worker group claim, not containment of deliberately escaped sessions. Filesystem failure may leave
+partial diagnostics and always fails verification; existing attempts are never overwritten. No genuine training
+result is implied by supervisor-only stdlib controls.

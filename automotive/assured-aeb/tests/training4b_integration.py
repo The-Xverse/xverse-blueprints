@@ -10,7 +10,6 @@ import argparse
 import json
 import os
 from pathlib import Path
-import subprocess
 import sys
 
 from assured_aeb.perception import training_record as T, training_worker as W
@@ -18,6 +17,7 @@ from assured_aeb.perception.training_io import canonical, sha
 from assured_aeb.perception.training_weights import read_weights
 from assured_aeb.perception.store import FrameStore
 from training4a_fixture import build, refresh_job, rehash
+from training4b_supervisor import capture_attempt
 
 
 def prepare(root, args, *, mutate_held_out=False, nonfinite_loss=False):
@@ -68,14 +68,27 @@ def run(root, output, args, *, expect_success=True):
     command = ["unshare", "-rn", args.python, "-S", "-s", "-B", "-m", "assured_aeb.perception.training_worker",
                "--job", str(root / "job.json"), "--locations", str(root / "locations.json"), "--stage", str(root / "stage.json"),
                "--identity", args.identity, "--lock", args.lock, "--parent-netns", parent, "--output", str(output), "--max-record-bytes", "1000000"]
-    completed = subprocess.run(command, env=env, cwd=source, capture_output=True, text=True, timeout=args.timeout)
-    (root / "worker.stdout").write_text(completed.stdout)
-    (root / "worker.stderr").write_text(completed.stderr)
+    def identity():
+        paths = {name: root / name for name in ('job.json', 'locations.json', 'stage.json')}
+        paths.update(identity=Path(args.identity), lock=Path(args.lock), driver=Path(__file__))
+        return dict(files={name: sha(path.read_bytes()) for name, path in paths.items()},
+                    stageSourceClosureSha256=W.code_digest(), admissionSourceClosureSha256=T.code_digest(),
+                    parentNetns=os.readlink('/proc/self/ns/net'))
+    completed = capture_attempt(command, environment=env, cwd=source, directory=root,
+                                timeout_seconds=args.timeout, term_seconds=args.cleanup_term_seconds,
+                                kill_seconds=args.cleanup_kill_seconds, identity_reader=identity,
+                                context=dict(purpose='TEST-ONLY-synthetic-training4b', expected_success=expect_success,
+                                             output=str(output), parent_netns=parent))
+    assert completed['capture_complete'], f"worker capture failed; inspect {root / 'worker-execution.json'}"
+    with (root / 'worker.stderr').open('rb') as stream:
+        stream.seek(0, os.SEEK_END)
+        stream.seek(max(0, stream.tell()-3000))
+        error_tail = stream.read().decode(errors='replace')
     if not expect_success:
-        assert completed.returncode != 0 and not output.exists(), "nonfinite training must refuse without output"
-        assert "nonfinite" in completed.stderr or "overflow" in completed.stderr, completed.stderr[-3000:]
+        assert completed['returncode'] != 0 and not output.exists(), "nonfinite training must refuse without output"
+        assert "nonfinite" in error_tail or "overflow" in error_tail, error_tail
         return None
-    assert completed.returncode == 0, f"worker failed {completed.returncode}: {completed.stderr[-3000:]}"
+    assert completed['returncode'] == 0, f"worker failed {completed['returncode']}: {error_tail}"
     return json.loads((output / "training-report.json").read_bytes())
 
 
@@ -85,6 +98,8 @@ def main():
         parser.add_argument("--" + key, required=True)
     for key in ("memory-bytes", "disk-bytes", "timeout"):
         parser.add_argument("--" + key, required=True, type=int)
+    for key in ('cleanup-term-seconds', 'cleanup-kill-seconds'):
+        parser.add_argument('--' + key, required=True, type=float)
     args = parser.parse_args()
     args.scratch = Path(args.scratch).resolve()
     args.scratch.mkdir(parents=False, exist_ok=False)

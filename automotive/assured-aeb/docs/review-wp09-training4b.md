@@ -287,3 +287,25 @@ the actual spawn-assignment interrupt seam, post-assignment interruption, missin
 Controls may use short explicit TEST-ONLY bounds and fork/subprocesses, with independent cleanup; they must not
 launch frameworks or manufacture successful training receipts. A separately reviewed successor and actual owning
 suite plus genuine isolated fitting driver remain mandatory before implementation acceptance.
+
+## Finding 7: supervisor-only repair candidate and performed controls (coordinator, 2026-10-24)
+
+Implemented the finding6 design only in the explicit integration driver, its new stdlib supervisor and controls.
+Each attempt exclusively reserves diagnostics/receipt, streams real output, records actual command/environment/
+input identities and terminal result, defers cancellation until spawn ownership is established, and performs
+bounded TERM/KILL/group disappearance/reap checks. Expected nonfinite refusal requires complete capture plus
+actual nonzero exit/diagnostic/no output; timeout/error/drift/incomplete cleanup cannot count. Added required
+explicit engineering cleanup bounds to the CLI/contract, without a scientific value or fallback.
+
+Actually ran seven unittest controls (stdlib only) in4.601s, rc0. They cover real stdout/stderr and normal/nonzero
+exit, retained partial diagnostics on timeout, real child-created/pre-assignment SIGINT, post-assignment SIGTERM,
+missing executable/input drift, no-overwrite without spawn, and timeout with a real TERM-ignoring descendant
+requiring KILL/group disappearance. The last control uses a temporary harness-only Linux subreaper, reaps its
+owned descendant and restores prior state. This is not a C1/namespace/training test or hostile-session proof.
+Evidence `docs/evidence/training4b-supervisor-controls-20261024.json` retains actual command, tool terminal fragment,
+exit and source hashes; earlier individual status lines are in the tool transcript, not claimed as a full file log.
+
+All four product modules and all three4a files are byte-identical to reviewed03987de. Current training test
+sources compile without bytecode and whitespace checks pass. No framework, pytest, real unshare worker, tree
+environment scan, training/export/calibration/live work, acceptance, merge or4c execution occurred. Independent
+successor review, parent4a acceptance and actual isolated owning/genuine-driver verification remain pending.

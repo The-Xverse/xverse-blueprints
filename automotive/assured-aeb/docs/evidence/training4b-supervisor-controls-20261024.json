@@ -1,0 +1,35 @@
+{
+  "purpose": "TEST-ONLY stdlib supervisor verification; no training/framework execution",
+  "command": [
+    "env",
+    "TMPDIR=/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/training4b-supervisor-controls",
+    "PYTHONDONTWRITEBYTECODE=1",
+    "/usr/bin/python3",
+    "-B",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "automotive/assured-aeb/tests",
+    "-p",
+    "test_training_supervisor.py",
+    "-v"
+  ],
+  "exec_session_id": 39216,
+  "terminal_tool_result": {
+    "chunk_id": "aea026",
+    "wall_time_seconds": 1.0145e-05,
+    "exit_code": 0,
+    "original_token_count": 55,
+    "output": "ok\ntest_timeout_retains_partial_diagnostics_and_refuses_success (test_training_supervisor.TrainingSupervisorTests) ... ok\n\n----------------------------------------------------------------------\nRan 7 tests in 4.601s\n\nOK\n"
+  },
+  "output_scope": "Terminal fragment retained; earlier individual statuses are in the tool transcript. This is not a complete redirected unittest log.",
+  "accepted": false,
+  "merged": false,
+  "python": "3.13.13 (main, May 29 2026, 21:59:41) [GCC 11.4.0]",
+  "source_sha256": {
+    "tests/training4b_supervisor.py": "ccabc416482d570a1a6978e2206ef4293561deb80576c04fe26416c27a29a9b4",
+    "tests/training4b_integration.py": "3a6c5127c647b9e6b902be8da5a40f60c8cae32cf7478e9f480cca5feb53bc20",
+    "tests/test_training_supervisor.py": "42388a520ad6000c55b38e80713487826fc331e6e684bdda8b61da5241d01242"
+  }
+}
