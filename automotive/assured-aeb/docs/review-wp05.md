@@ -324,3 +324,59 @@ review. It applies `decisions.md` "AD-30 delivery rule" (11:51).
 | LOW-2 | Repair | The wording becomes "the first frame in each slot" (the code is kept: the slot's first frame is the earliest measurement and does not wait for the slot to end). Quantisation uses integer arithmetic: the value is rounded to an integer number of quanta, and the result is rounded to the quantum's decimal precision |
 | LOW-3 | Record | `latencyNs` covers the element's WP-12 `computeLatency` for `motion-sensor-model`, so AD-30 declares the sensor delay once |
 | LOW-4 | Record | Cite the AD-30 delivery rule: the hub delivers at the first step boundary at or after `deliverAtNs`, so the declared latency is rounded up to whole steps, and the declaration states both values |
+
+## Finding 5: result of the finding 4 repairs (2026-10-24 11:56:26; repair commit `7a8d8cd`)
+
+**Commands.** `tests/test_motion_sensor.py`: 49 passed (40 before). Whole suite with the rc.1 profiles:
+123 passed. `check_topology.py`: exit 0. Host load 6.3. No live run, no CARLA; the loop10 worktrees and
+the pinned live environment were not touched.
+
+**HIGH-1, repaired (`decisions.md` "AD-30 delivery rule").**
+- **Episode-relative keying.** The slot is `(originNs − episodeOriginNs) // samplingPeriodNs`, and the
+  noise key is that slot. The absolute `originNs` and `deliverAtNs` stamps are kept for the hub, U5 and
+  offline joins.
+- **Late binding.** `bind_origin(ns)` binds the origin once, from the first frame. It refuses a
+  non-integer, negative or bool value; the same value is idempotent and a different value is refused.
+  Until it is bound, every item is refused (`origin-unbound`), and an item before the origin is refused
+  (`before-episode`).
+- **Test.** `test_pair1_with_two_different_world_epochs` runs the same episode-relative trajectory at
+  world epochs of 1000 s and 1600.03 s (30 ms out of phase), with a 100 ms grid. The two arms sample the
+  same frames and give identical values, and their absolute stamps differ by the epoch. The pre-fix
+  module (`329eaf4`), run in scratch on this trajectory, **gives different streams**
+  (`pre-fix pair equal: False`), so the test fails before the fix.
+- Finding 1 §1.2's grid sentence is corrected in place, with a marker.
+
+**LOW-1, repaired.**
+- `noise()` uses a declared Box–Muller transform (cosine branch):
+  `std · sqrt(−2 ln u1) · cos(2π u2)`, with `u1 = 1 − random()` in (0, 1] and `u2 = random()`. Both
+  draws come from `random.Random(int(SHA-256(schema | seed | slot | channel)[:8]))`.
+- CPython keeps the Mersenne Twister `random()` sequence for an integer seed stable across versions.
+  `gauss()` is outside that guarantee and is no longer used, which an AST test checks.
+- A test recomputes one draw from the declared formula.
+
+**LOW-2, repaired.**
+- The wording is now "the first frame in each slot", and finding 1 is corrected in place with the
+  original text. The code is kept, because the slot's first frame is the earliest measurement and does
+  not wait for the slot to end. A test shows frames 0 and 100 ms sampled, and 50 and 150 ms not, on a
+  100 ms grid.
+- `quantise` rounds to an integer number of quanta, then to the quantum's decimal precision. For
+  example, 9.95 at quantum 0.01 is exactly `9.95`, with no float artefact.
+
+**LOW-3, recorded.** `latencyNs` covers the element's WP-12 `computeLatency` for `motion-sensor-model`,
+which is declared once under AD-30. It is stated in the module docstring.
+
+**LOW-4, recorded.** Under the AD-30 delivery rule the hub delivers F10 at the first simulator-step
+boundary at or after `deliverAtNs`. The declared latency is therefore rounded up to whole steps (for
+example, 20 ms becomes 50 ms on a 50 ms step), and the declaration states both values.
+
+**Residuals (replaces finding 2's list).**
+1. **Model values and their class-J justification sources** (AD-27), with the declared and the rounded
+   latency (AD-30 delivery rule). The seed comes from the P-4 lists.
+2. **No Phase 8 fault hook.** A later hook goes in this U2 stage and is evidence-only.
+3. **Hub and U2 wiring** (WP-10, WP-13): `bind_origin(episode_ns)` at the first frame; F03 items to the
+   sensor; F10 delivered at the step boundary at or after `deliverAtNs`, with the element latency not
+   added a second time.
+4. **The oracle** (WP-17): the separation test is structural; repeat the V14 scan when it exists.
+5. **Time-base split:** absolute stamps on messages; episode-relative grid and noise.
+
+The next step is a focused re-review of `7a8d8cd`, then acceptance and merge. Neither has happened.
