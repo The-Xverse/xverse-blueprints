@@ -6,6 +6,8 @@ of the installed X-Verse Lite wheel:
 - **drift**: the committed documents under ``xdl/<arm>/<form>/`` equal the generator output of ``topology.py``;
 - **V01**: each arm and form validates and compiles; the plan digest is deterministic; the declared elements are
   present (units, element instances, both radar flows, IVI without instance or endpoint, the exclusions);
+- **unit-commands**: every generated unit command runs with ``-S -s -B`` and declares ``PYTHONDONTWRITEBYTECODE``
+  (WP-12b; thesis row "WP-09 #3 unit isolation", R-1);
 - **V02**: the authority rules A-1 to A-7 of the design record (§3.3) over every declared message;
 - **D-4a**:
   - unbound element instances are accepted next to the bound unit instances (``prepare_lifecycle``);
@@ -497,6 +499,39 @@ def check_drift(report: Report) -> None:
                note="interpreter digest drift is a host observation, not a topology failure")
 
 
+#: R-1 of the thesis row "WP-09 #3 unit isolation", stated independently of the generator (review-wp12b finding 1).
+REQUIRED_FLAGS = ["-S", "-s", "-B"]
+REQUIRED_NAMES = {"HOME", "PATH", "PYTHONDONTWRITEBYTECODE", "PYTHONPATH"}
+INFERENCE_NAMES = {"ORT_DISABLE_TELEMETRY", "OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS"}
+
+
+def check_unit_command(docs: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return the problems of the unit commands of one deployment: the isolation flags, the module and the names."""
+
+    problems = []
+    for binding in docs["deployment.json"]["spec"]["bindings"]:
+        unit = binding["id"].removesuffix("-binding")
+        process = binding["extensions"][T.RUNTIME]["process"]
+        want_args = [*REQUIRED_FLAGS, "-m", "assured_aeb.units." + unit.replace("-", "_")]
+        want_names = sorted(REQUIRED_NAMES | (INFERENCE_NAMES if unit == "adas-hpc" else set()))
+        if process["arguments"] != want_args:
+            problems.append({"unit": unit, "arguments": process["arguments"], "expected": want_args})
+        if process["environmentNames"] != want_names:
+            problems.append({"unit": unit, "environmentNames": process["environmentNames"], "expected": want_names})
+    return problems
+
+
+def check_unit_commands(report: Report) -> None:
+    for arm in T.ARMS:
+        for form in T.FORMS:
+            problems = check_unit_command(load(arm, form))
+            report.add("unit-commands", not problems, arm=arm, form=form, problems=problems)
+    docs = T.documents(T.VARIANT_7, T.read_pins(), form="maestro")
+    problems = check_unit_command(docs)
+    report.add("unit-commands", not problems, arm=T.VARIANT_7, form="maestro", problems=problems,
+               units=len(docs["deployment.json"]["spec"]["bindings"]))
+
+
 def expected_elements(arm: str) -> dict[str, Any]:
     return {"units": sorted(T.uid(u) for u in T.units_of(arm)), "elements": sorted(T.elements_of(arm)),
             "flows": sorted(T.flows_of(arm))}
@@ -759,6 +794,7 @@ def run(profile_dir: Path) -> Report:
     schema_paths = schemas(profile_dir)
     report.add("platform", True, **platform_identity(), profiles=str(profile_dir))
     check_drift(report)
+    check_unit_commands(report)
     compiled = check_v01(report, schema_paths)
     check_v02(report)
     if all((arm, form) in compiled for arm in T.ARMS for form in T.FORMS):
