@@ -528,3 +528,86 @@ It is a design addition and is recorded for the design owner's acceptance.
 
 The next step is a focused re-review of `5e53a54` against finding 3, then acceptance and merge. Neither
 has happened.
+
+## Finding 6: independent re-review of findings 4 and 5 (2026-10-24 11:31:41)
+
+**Reviewer and method.**
+- The finding 3 reviewer, read-only. Read `c4987e8`, `5e53a54` and `518b50f` against `301117a`, and the
+  thesis `decisions.md` row "WP-12 design-owner items" (281), read-only.
+- Same environment as finding 3: the rc.1 profiles from the scratch `git archive` export of `64ff9d3eb`.
+- Commands:
+  - `check_topology.py`: exit 0, 50 checks, all PASS;
+  - pytest with `XVERSE_PLATFORM_PROFILES`: 74 passed; without it, 44 passed and 30 skipped;
+  - `topology.py --write` in a scratch `git archive` copy: `diff -r` against the committed `xdl/` is
+    empty.
+- Probes ran in memory: the cycles in every arm with each delay point removed in turn, CC-1 edge cases,
+  the freeze bound, and the contract carrier. Nothing in the worktree changed except this entry. No CARLA,
+  no live run, no unit process.
+
+### Verdict: **PASS WITH NOTES. Nothing blocks the merge.**
+
+HIGH-1 is repaired, and MEDIUM-1 to MEDIUM-3 and LOW-1 to LOW-4 are repaired or recorded as disposed.
+The merge still awaits acceptance.
+
+### Items of finding 3
+- **HIGH-1: closed.**
+  - `check_fault_admission` (check_topology.py 218–294) admits a member of an admitted set only when
+    every member of the set is frozen with the same trigger (kind, at, unit, time domain) and the same
+    duration.
+  - Probes on `mloc`, all refused for `vc-functional-unit`:
+    - a lone freeze;
+    - a pair whose onsets are in different domains;
+    - a pair with durations 10 and 20;
+    - a concurrent pair plus an extra freeze at 300 (only that extra freeze is refused).
+  - The concurrent pair is admitted. In the comparator, `vc-functional-unit` is always refused.
+  - Finding 5 corrects finding 2's D-4a row and leaves finding 2 as recorded.
+- **MEDIUM-1: closed.**
+  - `HUB_DELAYED` (topology.py 230) declares `hubDelay` (one simulator step) on F04, F14, F15b and F17.
+    `check_cycles` (check_topology.py 296) runs Tarjan's algorithm on the full graph of forward, return
+    and intra-unit messages.
+  - Probe, in every arm: no cross-unit strongly connected component. Removing the delay of F04, F17 or
+    (MLOC arms) F14 reopens exactly one cross-unit loop.
+  - Removing F15b's delay reopens none, because F14 already cuts that loop. F15b's delay is needed only
+    for XDL acyclicity, and `test_f15b_return_flow_is_needed_for_xdl_acyclicity` shows it. That matches
+    finding 5, which claims necessity for F17, F14 and F04 only. See LOW-A.
+  - The remaining intra-unit components (U5 and U2) are listed and handed to WP-13/WP-14.
+- **MEDIUM-2: closed.**
+  - The optional `FreezeBound(thaw_bound_s, max_cycle_s)` refuses a freeze longer than
+    `floor(thaw / max_cycle)` ticks. This is conservative: a freeze of N ticks lasts at most
+    N · max_cycle.
+  - Probe at (3.26 s, 0.1 s): 32 ticks is admitted and 33 is refused.
+  - Nothing is hard-coded, and the report states that the bound is not applied without the D-4c cycle.
+  - Residual 5 names the enforcement duty of WP-10 and WP-16.
+- **MEDIUM-3: closed, and it matches the accepted design-owner items** (`decisions.md` 281).
+  - (1) `vc-ingress` (topology.py 147, an `evidence-router` that emits only `radar-evidence` and
+    `adas-cycle`) receives F09 and F11 (191, 193). It fans out intra-unit to `radar-fallback` and
+    `evidence-validator` (radar), and to `functional-arbiter` and `evidence-validator` (ADAS cycle)
+    (245–248). The V01 fan-out check and the degraded-path test pin this, and `vc-ingress` is in the
+    VC-HPC dependency (287).
+  - (2) F15c `transition-verifier → safety-monitor` (203) is on net-u6, which then has 4 routes, the cap.
+  - (3) The F03 deviation is recorded with its reason.
+  - (4) The delay points on F17, F14, F04 and F15b are as accepted.
+  - A-5 still holds for `vc-ingress`: an evidence router emits no command.
+- **LOW-1: closed.** `forms_difference` (343) is empty in every arm, and `test_forms_difference_can_fail`
+  shows it detects a mutation. `d4a-topology-form-maestro` now fails unless the topology form is refused
+  with `ML-TIME`.
+- **LOW-2: closed** (residual 4).
+- **LOW-3: closed.** `contract_owner` ranks producers by authority class (386); `proposal` is carried by
+  `proposer`.
+- **LOW-4: closed as disposed.** The A-4 wrong-consumer negative is rejected, and
+  `stepScheduleTolerance` has a source. The A-7 name match is recorded as residual 9.
+- **Residuals 1–9** of finding 5 are accurate. The configuration sizes agree with the thesis row
+  (150 053, 174 586 and 186 358 B).
+
+### New notes (LOW, none blocking)
+- **LOW-A: F15b's one-step delay is an XDL artefact.**
+  - It is required by L-2 (XDL acyclicity), not by the full-graph loops. The proposer therefore sees
+    the committed configuration one simulator step late, in every MLOC arm.
+  - It is accepted (row 281). It should still be listed with F04, F14 and F17 in the AD-30 latency
+    declaration (`TODO: author decision (AD-30)`), so the extra step is accounted for, not incidental.
+- **LOW-B: `FreezeBound` does not validate its inputs.** `max_cycle_s = 0` raises `ZeroDivisionError`,
+  and a non-positive or non-finite bound is not refused. Optional: refuse those in `__post_init__`
+  before WP-10 calls it.
+
+### Recommendation
+Ready for acceptance and merge. LOW-A is an AD-30 input, and LOW-B is optional.
