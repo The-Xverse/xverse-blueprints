@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:xverse:assured-aeb:projection-pins:1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "protocolRecordSha256",
+    "tableSha256",
+    "units"
+  ],
+  "properties": {
+    "schema": {
+      "const": "assured-aeb.projection-pins/1"
+    },
+    "protocolRecordSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "not": {
+        "pattern": "[\\r\\n]"
+      }
+    },
+    "tableSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "not": {
+        "pattern": "[\\r\\n]"
+      }
+    },
+    "units": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+        "not": {
+          "anyOf": [
+            {
+              "const": "projection-pins"
+            },
+            {
+              "pattern": "[\\r\\n]"
+            }
+          ]
+        }
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sha256",
+          "identifiers"
+        ],
+        "properties": {
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "not": {
+              "pattern": "[\\r\\n]"
+            }
+          },
+          "identifiers": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][A-Za-z0-9]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+$",
+              "not": {
+                "pattern": "[\\r\\n]"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
