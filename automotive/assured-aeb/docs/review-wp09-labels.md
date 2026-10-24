@@ -855,3 +855,9 @@ membership/order. No product file or scientific value changed. The genuine `labe
 `git diff --check` passes. No pytest runner or framework inference/training was run. The previous **526 passed**
 result belongs to `92dfe5a`, not this repair; repeat the complete owning suite on the new candidate. Independent
 review, acceptance and merge remain outstanding, with all recorder #6 and training-consumer notes preserved.
+
+## Independent successor verification and delegated acceptance (Codex, 2026-10-24)
+
+Reviewed exact candidate `85df0ad285a050e2a689308954491ae5c65af310` and its test-only successor diff. The corrected test independently exercises the approved production contract; source behavior is unchanged by that repair. Actual complete owning suite: **527 passed in 31.47s**, no skips. Receipt and full log: thesis `specs/002-assured-aeb/review/codex-successor-verification-20261024/dataset-labels/` (log SHA-256 `66141867e175418d307b2b73b6f6c2a6e820ed1987ecde0603536a96aabdc176`). The prior failure remains retained and is not counted as a pass.
+
+Accepted under the recorded author engineering delegation, flagged for author review, for isolated main assembly and complete assembled-suite verification. Scope: Offline manifest/3, named two-file label-code closure, supplied-label provenance and traversed-section partition checks. Actual recorder traversal completeness and observer/map/source-parameter binding remain recorder#6 obligations; training must validate consumed label shapes and semantics. No live dataset acceptance. Carried review limits remain; no protocol freeze, live execution or scientific acceptance follows.
