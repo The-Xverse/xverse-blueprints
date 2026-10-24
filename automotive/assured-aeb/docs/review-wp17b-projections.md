@@ -156,3 +156,36 @@ provenance and live/principal admission remain separate gates.
 The finding 3 review was committed separately before this design. Implement next, run only AST/JSON parsing and tiny
 standard-library probes while the platform regression owns the heavy-test slot, then commit the repair distinctly.
 The coordinator will independently review the repaired delta; focused and full owning pytest remain queued.
+
+## Finding 5: publication successor implemented; independent re-review and suite pending (2026-10-24)
+
+Implemented finding 4 after separate design commit `13c0e9e` and the independent review commit `8eacecf`:
+- `write_bundle` now requires explicit admitted `expected_table_sha256` and `protocol_record_sha256` arguments.
+  It validates the closed receipt schema/member set, both expected pins and receipt digest fields, exact unit
+  inventory and per-unit hash/identifier structure before creating a directory.
+- Each output is decoded through `verified_projection` against its expected unit, protocol, digest and identifier
+  list; hash-coherent but structurally foreign output cannot create an apparently complete bundle.
+- Immutable output-byte and canonical receipt snapshots are checked and published, preventing caller mutations
+  between validation and file writes from replacing the checked content. All serialisation and checks precede
+  directory creation; an existing directory is never overwritten. Later I/O failure retains the stated unaccepted
+  diagnostic-partial-artifact behaviour, without a new durability or table-authentication claim.
+- `projection-pins` is reserved before generation/publication, and the table schema expresses that restriction.
+  New `protocol/projection-pins.schema.json` defines the receipt's closed representation. `PROJECTIONS.md` documents
+  the new required pins, their external trust boundary and fresh-publication semantics; existing calls are updated.
+
+Added 7 regression test functions, parametrised across receipt members/pins/identifiers, decoded
+output mutations, absent and wrong external pins, reserved names, publication snapshots and schema coherence.
+The prior coherent-publication, changed-bytes and existing-directory controls remain. All membership and parameter
+values are TEST-ONLY, and no real approved table or projection was authored.
+
+Performed **17 tiny standard-library probes** on pinned CPython 3.13.13 with `-S -s -B` and blueprint-only
+`PYTHONPATH`: positive exclusive publication; existing-path refusal; missing/foreign receipt pins, wrong receipt
+identifiers/schema/extra fields and duplicates; independently wrong admitted pins; changed decoded output fields;
+reserved-name refusal before any directory; generator reserved-name refusal; and controlled post-validation caller
+mutation confirming the checked snapshots are what was written. Temporary probe artifacts were removed.
+AST parsing passed for both modules and the test file; all schema files parse as JSON; `git diff --check` passes.
+
+No pytest, full JSON Schema validator, numerical framework, live/principal run, acceptance or merge was executed.
+The full platform regression owns the heavy-test slot. Run the finding 3 focused and full owning-suite commands
+when released, then independently review this repaired delta and its exact-source evidence. Actual freeze membership,
+full process-delivery provenance, global literal inventory and approval authority remain outside this successor.

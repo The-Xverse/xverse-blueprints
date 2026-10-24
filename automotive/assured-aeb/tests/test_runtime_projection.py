@@ -1,6 +1,7 @@
 """WP-17b own-unit projection checks; all parameter/membership values TEST-ONLY."""
 
 import ast
+import copy
 import hashlib
 import json
 from pathlib import Path
@@ -133,16 +134,17 @@ def test_projection_values_are_private_and_publication_is_exclusive(tmp_path):
     obj, table = fixture()
     outputs, receipt = build(obj, table)
     directory = tmp_path / "bundle"
-    B.write_bundle(directory, outputs, receipt)
+    pins = {"expected_table_sha256": sha(F.encoded(table)), "protocol_record_sha256": obj.digest}
+    B.write_bundle(directory, outputs, receipt, **pins)
     assert {p.name for p in directory.iterdir()} == {"adas-hpc.json", "vc-functional.json", "projection-pins.json"}
     for unit, data in outputs.items():
         assert (directory / (unit + ".json")).read_bytes() == data
     with pytest.raises(FileExistsError):
-        B.write_bundle(directory, outputs, receipt)
+        B.write_bundle(directory, outputs, receipt, **pins)
     changed = dict(outputs)
     changed["adas-hpc"] += b" "
     with pytest.raises(R.ProjectionRefused, match="PROJECTION-DIGEST"):
-        B.write_bundle(tmp_path / "bad", changed, receipt)
+        B.write_bundle(tmp_path / "bad", changed, receipt, **pins)
     assert not (tmp_path / "bad").exists()
 
 
@@ -158,3 +160,170 @@ def test_runtime_module_cannot_import_whole_record_or_offline_modules():
             roots.add(node.module.split(".")[0])
     assert roots <= {"__future__", "copy", "hashlib", "json", "math", "re", "typing"}
     assert not roots & {"protocol", "projection_builder", "topology", "oracle"}
+
+
+# Publication successor cases; every table, pin and value below is TEST-ONLY.
+
+def publication_pins(obj, table):
+    # Independent admitted inputs, deliberately not reconstructed from the receipt under test.
+    return {"expected_table_sha256": sha(F.encoded(table)), "protocol_record_sha256": obj.digest}
+
+
+@pytest.mark.parametrize("kind", [
+    "missing-table", "extra-member", "wrong-schema", "missing-units", "units-list", "foreign-protocol",
+    "foreign-table", "bad-table-hash", "bad-record-hash", "missing-unit", "extra-unit",
+    "wrong-identifiers", "duplicate-identifiers", "identifiers-object", "missing-unit-hash",
+    "missing-unit-identifiers", "extra-unit-member", "bad-unit-hash",
+])
+def test_publication_refuses_incoherent_receipt_before_creating_directory(tmp_path, kind):
+    obj, table = fixture()
+    outputs, receipt = build(obj, table)
+    changed = copy.deepcopy(receipt)
+    unit = changed["units"]["adas-hpc"]
+    if kind == "missing-table":
+        changed.pop("tableSha256")
+    elif kind == "extra-member":
+        changed["extra"] = True
+    elif kind == "wrong-schema":
+        changed["schema"] = "other/1"
+    elif kind == "missing-units":
+        changed.pop("units")
+    elif kind == "units-list":
+        changed["units"] = []
+    elif kind == "foreign-protocol":
+        changed["protocolRecordSha256"] = "f" * 64
+    elif kind == "foreign-table":
+        changed["tableSha256"] = "f" * 64
+    elif kind == "bad-table-hash":
+        changed["tableSha256"] = "invalid"
+    elif kind == "bad-record-hash":
+        changed["protocolRecordSha256"] = "invalid"
+    elif kind == "missing-unit":
+        changed["units"].pop("vc-functional")
+    elif kind == "extra-unit":
+        changed["units"]["unknown"] = dict(unit)
+    elif kind == "wrong-identifiers":
+        unit["identifiers"] = ["oracle.notSent"]
+    elif kind == "duplicate-identifiers":
+        unit["identifiers"] *= 2
+    elif kind == "identifiers-object":
+        unit["identifiers"] = {"aeb.marginM": True}
+    elif kind == "missing-unit-hash":
+        unit.pop("sha256")
+    elif kind == "missing-unit-identifiers":
+        unit.pop("identifiers")
+    elif kind == "extra-unit-member":
+        unit["filePath"] = "other.json"
+    elif kind == "bad-unit-hash":
+        unit["sha256"] = "invalid"
+    directory = tmp_path / "refused"
+    with pytest.raises(R.ProjectionRefused):
+        B.write_bundle(directory, outputs, changed, **publication_pins(obj, table))
+    assert not directory.exists()
+
+
+@pytest.mark.parametrize("kind", ["schema", "protocol", "unit", "missing-identifier", "extra-identifier", "member", "json"])
+def test_publication_decodes_output_even_if_its_receipt_hash_was_updated(tmp_path, kind):
+    obj, table = fixture()
+    outputs, receipt = build(obj, table)
+    record = json.loads(outputs["adas-hpc"])
+    if kind == "schema":
+        record["schema"] = "other/1"
+    elif kind == "protocol":
+        record["protocolRecordSha256"] = "f" * 64
+    elif kind == "unit":
+        record["unit"] = "vc-functional"
+    elif kind == "missing-identifier":
+        record["entries"].clear()
+    elif kind == "extra-identifier":
+        record["entries"]["extra.value"] = 1
+    elif kind == "member":
+        record["foreign"] = True
+    outputs["adas-hpc"] = b'{"duplicate":1,"duplicate":2}' if kind == "json" else F.encoded(record)
+    receipt["units"]["adas-hpc"]["sha256"] = sha(outputs["adas-hpc"])
+    directory = tmp_path / "refused"
+    with pytest.raises(R.ProjectionRefused):
+        B.write_bundle(directory, outputs, receipt, **publication_pins(obj, table))
+    assert not directory.exists()
+
+
+@pytest.mark.parametrize("field", ["expected_table_sha256", "protocol_record_sha256"])
+def test_publication_requires_each_explicit_admitted_pin(tmp_path, field):
+    obj, table = fixture()
+    outputs, receipt = build(obj, table)
+    pins = publication_pins(obj, table)
+    pins.pop(field)
+    directory = tmp_path / "missing-pin"
+    with pytest.raises(TypeError):
+        B.write_bundle(directory, outputs, receipt, **pins)
+    assert not directory.exists()
+
+
+@pytest.mark.parametrize("field", ["expected_table_sha256", "protocol_record_sha256"])
+@pytest.mark.parametrize("value", [None, "invalid", "f" * 64])
+def test_publication_checks_the_external_pin_not_just_the_receipt(tmp_path, field, value):
+    obj, table = fixture()
+    outputs, receipt = build(obj, table)
+    pins = publication_pins(obj, table)
+    pins[field] = value
+    directory = tmp_path / "wrong-pin"
+    with pytest.raises(R.ProjectionRefused, match="PROJECTION-DIGEST"):
+        B.write_bundle(directory, outputs, receipt, **pins)
+    assert not directory.exists()
+
+
+def test_reserved_unit_name_is_refused_before_bundle_creation_and_by_builder(tmp_path):
+    obj, table = fixture()
+    outputs, receipt = build(obj, table)
+    record = json.loads(outputs["adas-hpc"])
+    record["unit"] = "projection-pins"
+    payload = F.encoded(record)
+    collision = {"projection-pins": payload}
+    changed = copy.deepcopy(receipt)
+    changed["units"] = {"projection-pins": {"sha256": sha(payload), "identifiers": ["aeb.marginM"]}}
+    directory = tmp_path / "reserved"
+    with pytest.raises(R.ProjectionRefused, match="PROJECTION-UNIT"):
+        B.write_bundle(directory, collision, changed, **publication_pins(obj, table))
+    assert not directory.exists()
+    roles = {role: "projection-pins" if unit == "adas-hpc" else unit for role, unit in ROLES.items()}
+    for role, definition in table["roles"].items():
+        definition["unit"] = roles[role]
+    with pytest.raises(R.ProjectionRefused, match="PROJECTION-UNIT"):
+        build(obj, table, roles=roles)
+
+
+def test_publication_uses_checked_snapshots_if_caller_mutates_after_validation(tmp_path, monkeypatch):
+    obj, table = fixture()
+    outputs, receipt = build(obj, table)
+    expected_outputs, expected_receipt = dict(outputs), F.encoded(receipt)
+    directory = tmp_path / "snapshot"
+    mkdir = Path.mkdir
+    def mutate_after_validation(path, *args, **kwargs):
+        if path == directory:
+            outputs.clear()
+            receipt["units"].clear()
+            receipt["tableSha256"] = "f" * 64
+        return mkdir(path, *args, **kwargs)
+    monkeypatch.setattr(Path, "mkdir", mutate_after_validation)
+    B.write_bundle(directory, outputs, receipt, **publication_pins(obj, table))
+    assert (directory / "projection-pins.json").read_bytes() == expected_receipt
+    assert {p.name for p in directory.iterdir()} == {*(unit + ".json" for unit in expected_outputs), "projection-pins.json"}
+    for unit, data in expected_outputs.items():
+        assert (directory / (unit + ".json")).read_bytes() == data
+
+
+def test_publication_receipt_and_table_schemas_match_the_closed_contract():
+    import jsonschema
+    obj, table = fixture()
+    _, receipt = build(obj, table)
+    directory = Path(__file__).resolve().parents[1] / "protocol"
+    receipt_validator = jsonschema.Draft202012Validator(json.loads((directory / "projection-pins.schema.json").read_text()))
+    assert not list(receipt_validator.iter_errors(receipt))
+    for changed in ({**receipt, "unknown": True}, {k: v for k, v in receipt.items() if k != "tableSha256"}):
+        assert list(receipt_validator.iter_errors(changed))
+    reserved = copy.deepcopy(receipt)
+    reserved["units"] = {"projection-pins": receipt["units"]["adas-hpc"]}
+    assert list(receipt_validator.iter_errors(reserved))
+    table_validator = jsonschema.Draft202012Validator(json.loads((directory / "projection-table.schema.json").read_text()))
+    table["roles"]["proposer"]["unit"] = "projection-pins"
+    assert list(table_validator.iter_errors(table))

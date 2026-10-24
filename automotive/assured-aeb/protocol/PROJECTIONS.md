@@ -11,10 +11,18 @@ protocol digest, own unit id and exact own consumed identifier set. Missing/extr
 changed bytes and ambiguous/non-finite JSON are refused. It returns the existing closed WP-13 projection record;
 typed value/range validation remains with the role's parameter declarations. It receives no full record or table.
 
-`write_bundle` writes one file per unit to a fresh directory and its hash receipt last. It never overwrites an
-existing bundle. A failed write leaves a partial artifact for diagnosis; a file or receipt alone grants no execution
-or scientific authority. The owner delivers each runtime unit only its own file and admitted pin, outside the full
-record/table/evidence working directory.
+`write_bundle(directory, outputs, receipt, *, expected_table_sha256, protocol_record_sha256)` requires both
+independent admitted pins, with no defaults. It validates the closed `projection-pins.schema.json` receipt contract,
+compares its table/protocol digests with those pins, and checks every decoded file's schema, unit, protocol digest,
+byte hash and exact identifier set before creating a directory. The receipt's own claims cannot authenticate the
+reviewed table; admitted pins come from the owner's verified inputs, not a runtime message or a mutated receipt.
+
+The helper snapshots immutable output bytes and canonical receipt bytes, then writes one file per unit to a fresh
+directory and the checked receipt last. It never overwrites an existing bundle. The unit name `projection-pins` is
+reserved for the receipt filename and refused before publication (also by the builder/table schema). A later I/O
+failure leaves an unaccepted partial artifact for diagnosis; no durability, execution or scientific authority follows
+from a file or receipt alone. The owner delivers each runtime unit only its own file and admitted pin, outside the
+full record/table/evidence working directory.
 
 Full V21 requires the unit wiring audit of argv, environment, working directory, inbound flows and parameter
 provenance. A successful file-generation or import test does not establish that composition boundary.
