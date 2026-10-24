@@ -373,3 +373,18 @@ residual 5, as for WP-05.
 - Record MEDIUM-1 as WP-10, WP-13 and D-4 obligations, with a `boxLog2` bound.
 - Record LOW-1 to LOW-4.
 - Then acceptance and merge.
+
+## Finding 4: disposition of finding 3 (2026-10-24 15:16:50; recorded before any change)
+
+This disposition is the coordinator's, under the author's delegation: repair now. It is flagged for the author's
+review.
+
+| Item | Disposition | Planned change |
+| --- | --- | --- |
+| MEDIUM-1 | Record and repair | Record as WP-10/WP-13 obligations: (a) F05 is delivered at a simulation time independent of the processing duration; (b) no role unit derives an indicator from host time. Record the per-frame host budget of the U2 stage and the U3 camera as a D-4c TODO. `boxLog2` and `sharpnessBoxLog2` get an enforced **tool upper bound** of 4, based on the finding 3 measurements (49 ms at 2^2, 151 ms at 2^5 and 913 ms at 2^8, against a 50 ms step). It is recorded as a tool limit, not a protocol value |
+| MEDIUM-2 | Repair | Compute the high-frequency indicator on the frame interior, excluding the box's 2^(s−1) margin rows and columns, so a uniform frame gives 0 at any brightness. Test across brightness levels. Declare the stage-side blur darkening (zero edges) in the fidelity limits |
+| MEDIUM-3 | Repair | Add upper bounds `maxStdLuma` and `maxHighFrequencyVariance` (D-3; no defaults), so noise trips a check. Test each corruption kind against its check |
+| LOW-1 | Repair | Refuse min ≥ max in the threshold records, and fractions outside [0, 1]. Remove `maxAgeNs` from the camera and radar checks: the age bound is the front zone's AD-06 window. The age indicator and the logical future-origin check remain |
+| LOW-2 | Repair | The radar plausibility tolerance adds the descriptor's rounding half-unit (6 decimals for altitude and azimuth, 3 for depth and velocity; compat `sensors.py` 62). Test at a 35° field of view |
+| LOW-3 | Record | Complete the fidelity limits: the first and last pixels take zeros; two flooring passes bias the blur by up to −(w − 1)/2w levels per pass; the inverse-CDF noise is truncated at about ±2.9σ |
+| LOW-4 | Record | The host libm (`math.log`, `math.sqrt` in `NormalDist.inv_cdf`) is a reproducibility condition, beside the interpreter pin |
