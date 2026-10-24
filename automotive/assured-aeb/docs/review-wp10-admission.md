@@ -385,3 +385,11 @@ The next step is acceptance and a merge. Neither has happened.
 ### Recommendation
 Ready for acceptance and merge as the interim admission path. Relabel the tick-cap reading (LOW-A) in
 residual 5. LOW-B is optional.
+
+## 7. Acceptance (written at 15:28:30 2026-10-24)
+
+- **Accepted** under the author's delegation of 2026-10-24 (thesis `specs/002-assured-aeb/decisions.md` §G, §J,
+  §K and the rows cited in this log). It is flagged for the author's review.
+- **Basis:** findings 3 and 6 (both PASS WITH NOTES), repairs in findings 4-5; suite 205 passed, checker exit 0.
+- This is the interim admission path: every fault schedule refuses until option (A) is merged. Residual 5 is relabelled: the tick cap is a redundant consistency check, implied by the section 4 inequality when `max_step_host_s >= max_cycle_s`, not a conservative bound. If D-4c does not confirm that, the cap counts ticks as `ceil(host_seconds / max_cycle)`. LOW-B (integer step arithmetic) is optional.
+- **Merged** into blueprints main and pushed (see the merge commit).
