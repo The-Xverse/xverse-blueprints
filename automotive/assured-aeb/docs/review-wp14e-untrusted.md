@@ -327,3 +327,47 @@ The full owning/assembled suite remains queued with the coordinator's recorded c
 repaired at candidate source level, pending independent re-review; this worker grants no acceptance or merge.
 Actual whole-inbox unit entry, transport attestation, unit projection composition, principal token/numeric freeze
 and independent gate/manager authority remain their recorded later gates.
+
+## Finding 7: independent narrow successor re-review, PASS WITH NOTES (Codex, 2026-10-24)
+
+Reviewed exact source successor `050259ce224e264f91a272be761b8e0d4284dab9` against independent finding 4,
+coordinator dispositions and repair-design checkpoints `8370576`/`3c5cbd7`. **R14e-1 and R14e-2 are closed at source
+level; no new blocker found in this narrow pass.** This is independent review, not acceptance/merge or a full-suite
+pass. Only this review entry is changed; no product/test repair is made. Fresh thesis fetch succeeded, HEAD/upstream
+`d97fdd1`, no incoming canonical-note change, working-note blob `ba244ddb` unchanged.
+
+R14e-1: both canonical simulator time and step must now strictly advance on every role call. The comparisons happen
+before either clock is updated, before message IDs/stream watermarks/cache/current/terminal/decisions or events can
+change. A first valid empty call also consumes that cycle. Repeated time, repeated step and exact duplicate calls
+are caller-contract refusals even with new valid records; a later proper cycle can consume the previously refused
+actual IDs. This is the explicitly dispositioned whole-inbox once-per-cycle API: 14f still must collect the complete
+inbox and uphold it in the genuine entry point. No experimental cadence or interval value is introduced.
+
+R14e-2: each member of an admitted ambiguous batch now uses the existing goal-interpreter rejection path. Canonical
+Delivered members retain their own actual message IDs/digests and available objectiveId; noncanonical bytes retain
+only the explicit diagnostic digest with no fabricated source/binding identity. The previous accepted goal and
+stream watermarks/identities remain intact. Local actual-prior-event causation and proposal-created versus actual
+receiver ownership remain correct. A first/later append failure propagates and poisons the shared adapter; only
+acknowledged earlier references remain, and no complete rejected-batch package is falsely returned. Existing byte-cap
+refusals likewise propagate rather than truncating references or pretending a smaller event represented every item.
+
+The same explicitly admitted maximum_accepted_messages now bounds objective-batch membership. Above-bound input is
+a caller-contract exception **before clock/effects**, not a claimed per-member rejection; exactly at the bound is a
+fully referenced ambiguous rejection. Count/byte values remain supplied engineering limits. Source vocabulary,
+nominal-return/hold mapping, gate authority, field/schema/event kinds, source-identity separation, private copies,
+absolute objective freshness and terminal-lockout behavior are unchanged.
+
+**Actual checks:** eleven exact focused stdlib methods passed: the nine new cadence/empty-cycle/at-bound/above-bound/
+mixed-canonical/first-append/later-append/byte-cap regression methods plus the existing genuine typed chain and
+terminal-latch controls. These include the real SmartRadar/FrontZone/FusionRiskAeb producer shapes; synthetic
+perception stays explicitly model-free. A separate independent control retried all three repeated-coordinate forms,
+verified no goal/current/watermark/event effects and then used the exact refused objective ID/reference successfully
+at the next proper cycle. Two source/test AST checks and `git diff --check` passed. No pytest/framework import,
+durable Argus, socket/simulator, training, download, factory or live work occurred. The author's full 28-method
+claim is not relabelled as this review's suite result.
+
+Remaining notes/gates: root-scheduled complete owning/assembled verification, accepted-main reconciliation and
+independent delivery acceptance; genuine 14f whole-inbox/clock/error supervision, transport attribution and run-unique
+prefixes; own-U4 unit projection composition and principal one-token admission; actual author vocabulary/numeric
+freeze; independent gate/manager/AD-08 guard enforcement. No source-level pass establishes these or scientific/live
+readiness. Sol/high remains recommended for the next cross-role/unit-entry review; no model switch is claimed.
