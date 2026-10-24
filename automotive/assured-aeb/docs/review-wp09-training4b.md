@@ -481,3 +481,66 @@ Authorize only this bounded worker/driver/supervisor/affected-test repair after 
 Required tiny genuine fresh-rn FD controls and ownership/refusal probes precede independent source review and
 root-scheduled owning/genuine framework rerun. Preserve the original failed attempt. Model4c/export/calibration,
 real data, protocol values, live/M1/scientific gates and implementation acceptance remain unchanged/pending.
+
+## Finding 13: inherited namespace repair source checkpoint and actual small controls (Codex, 2026-10-24)
+
+Accepted detailed design3df0bff/finding12c008200 precedes source checkpoint
+b6f7e0bcf86c2655a57a1d006c7c5e9cc8989abc. **Candidate repaired, independent source review and full owning/genuine
+framework verification pending.** No rebase/integration of newly delivered main was attempted during this repair.
+
+Worker provides typed NS_GET_NSTYPE/dev/inode checks, original-parent capture and mandatory adopted child proof;
+driver pre-opens the two actual parent handles, supplies explicit close_fds/pass_fds via the unchanged-ownership
+supervisor and retains actual before/after proof observations. Child validates both original references and its
+actual self net/user identities, fresh UID0/loopback, flags/preload/caches/parent and closes proof copies before
+environment verification or frameworks. Both own namespace identities/UID0/loopback are rechecked before output.
+There is no parent-proc read, network-owner=user-parent inference, text-only/plain/-cn fallback or optional valid
+proof. Old raw-string CLI is removed; malformed/bad-job API tests retain mandatory keyword but cannot succeed with
+their invalid sentinel. CLI lease cleanup is separate from job-before-isolation/output/framework effect ordering.
+
+Only actual typed declared namespace fds transfer into owned FileIO handles. Wrong ordinary file/pipe/socket/std
+resources remain unadopted/caller-owned; no blanket numeric cleanup. Wrong typed namespace identities are adopted
+and closed on refusal. A closed/recycled number cannot cause a later self/sentinel fd to be closed; FileIO close
+is idempotent. Early malformed/unavailable unadopted descriptors in the one-shot CLI close on process exit, with
+no framework/output path. Parent contexts enclose capture/receipt cleanup, preserve the original signal/spawn
+ownership and close on acquisition/capture/interrupt errors. The generic supervisor's empty pass_fds remains only
+for its unrelated controls; genuine training driver always supplies exactly two mandatory proof descriptors.
+
+All three4a files are byte-identical to20af418; closure remains
+d83ba1f5e7ce1056d82a924157aad617d64db84862e4be4005abf47fcf1a3e32. training_network/weights/loop bytes are also
+unchanged. The explicitly rotated four-file4b closure is
+99de5a1c70cb684ca9df0cc9f24054ce067a20a121a3ac014d7488d7ab845020
+(previous009804472ccd52670758bd9ee21595a4f9520c47e85dda770d3f3420a692c6eb). Existing stage bytes/failure artifacts
+are not repinned. No learned output/report field is added: namespace/PID/fd observations live only in operational
+command/capture evidence. Actual repeated learned-byte equality remains a genuine framework verification gate.
+
+**Actually passed on final source:18 stdlib unittest methods in5.910s, rc0.** Ten namespace/FD methods include a
+real unshare -rn child checking both actual typed inherited/self identities and closing proof with parent-proc
+access explicitly forbidden; real -rn flags/preload/parent/cache refusals; bad-job/stage refusal before the
+isolation/effects seam while CLI lease closes; original-parent handle lifecycle; namespace identity/type mismatch;
+file/AF_UNIX socket/pipe/std/noninteger/duplicate/refusal/recycled-number/idempotent ownership; second-acquisition
+failure; exact two-fd inheritance and interrupt cleanup before and after Popen assignment. A deliberately -r-only
+**negative** control refuses: it is never a training fallback. Same-user and unsupported-ioctl/self-observation/
+UID/extra-interface error controls are explicitly emulated/source controls, not kernel membership successes.
+The genuine positive and other -rn cases use real namespace kernel paths, not patched equality predicates.
+
+The same run includes all eight existing real tiny supervisor controls: normal/nonzero distinctions, timed-out
+partial output, TERM-ignoring descendant KILL/reap/group disappearance, spawn/post-assignment interruptions,
+missing executable/drift, no-overwrite diagnostics and decisive real nonfinite-refusal classification. No model
+was fitted by those generic subprocesses, and failed worker statuses are not reclassified as model success.
+
+Exact command/environment/runner/status/source hashes and log are retained in
+`docs/evidence/training4b-namespace-controls-20261024/{receipt.json,unittest.log}`. External complete records are
+`codex-20261024/scratch/review_compat_envs/training4b-namespace-successor-controls-20261024/`: command.json,
+runner.py, result.json, unittest.stdout/stderr and eleven namespace/FD operational capture receipts with actual
+command/status/cleanup/input identities. Actual stderr SHA256 is
+95922c98d01a77c4417d30b51e6502b76f2bdecde9a0d7ef832e102b0566fa25; stdout is empty. Six changed/related Python
+sources parse; whitespace diff check passes; fixed-file hashes prove unchanged4a and rotated4b without an
+environment-tree walk. Preliminary8namespace/8supervisor direct passes remain separate observations; only this
+retained18-method run is bound to the final checkpoint. Original failed attempt remains byte-preserved.
+
+The recorded runner asserts pytest/Torch/NumPy/ONNX/ORT remain unimported. There was no compiler, environment-tree
+walk, framework fit, pytest, C1, simulator/factory/live run, scientific value, acceptance or merge. All new data/
+caches/TMPDIR are loop10. Root independently reviews the exact source successor before its owning suite and the
+original genuine3success/held-out-invariance/nonfinite workers in fresh directories. Use the exact command and
+source/environment pins from a new root receipt; do not overwrite the failed genuine-attempt/case-0. Sol/high is
+recommended for that source/FD custody review;4c–4e and all principal/scientific gates remain unchanged/pending.
