@@ -284,3 +284,30 @@ the newly shortened retained validity and was correctly refused; its related TES
 before the successful reproduction, with no source change. No pytest runner, framework import, socket exchange,
 full owning suite or scientific record was executed. The coordinator retains repairs/disposition and serialized
 owning verification; acceptance/merge/freeze remain outstanding.
+
+## Finding 5: accepted narrow repair design before code (Codex, 2026-10-24)
+
+The coordinator accepted R17d-1 and R17d-2 in independent review commit `68c14a4`. Repair scope:
+
+- Preserve static `C <= T <= V_retained`, included confirmation and every equation/numeric domain. Do not add T+C
+  or an event-time input/default. The offline table has no actual request, selector, loss-detection or evidence times.
+- Make each applicable runtime obligation intersect its event-relative deadline with **all applicable absolute
+  retained-evidence expiries**: transition uses request+T; confirmation uses request+T and selector+C; fallback/MRC
+  request uses lossDetection+its declared deadline. These intersections use the evidence's existing `validUntilNs`,
+  potentially from origins before the request/detection/selector event. None grants a fresh V at that event.
+- Emit explicit symbolic `runtimeExpiryTerms` alongside readable `runtimeObligation`. The terms are an offline
+  composition contract, not a runtime message or calculated absolute time. `retainedEvidenceValidUntilNs[*]` means
+  every applicable retained-path evidence expiry, not an optional zero-age estimate or only one arbitrary item.
+  Include the retainedValidity Protocol entry in confirmation-row provenance, as for the other affected rows.
+  Runtime must verify support/timeliness and enforce the earliest applicable term; the generator does not prove this.
+- Add `check.unit` to each comparison, defaulting to the row's result unit. The zero-speed envelope keeps its
+  nullable bound `value` and result `unit: ns` but compares the constant distance budget with `check.unit: m`.
+  Finite speed retains `check.unit: ns`. Unbounded/no-solution/zero-budget handling and no Infinity remain unchanged.
+- Add TEST-ONLY aged-evidence contract controls: request/selector/detection event times after evidence origin,
+  more than one absolute expiry and a completion/request allowed by relative clocks but after the earliest evidence
+  expiry. Assert the emitted terms and their mathematical minimum, without implementing a new runtime evaluator.
+  Assert metre comparisons for both valid and refused zero-speed reports and ns comparisons for finite bounds.
+
+Sol at high reasoning is recommended for this scope-preserving repair and its independent re-review; this is an
+informational task judgment. No scientific values are selected. Syntax and tiny stdlib probes only until the root
+scheduler executes owning verification. Independent re-review, acceptance, dependency reconciliation and merge remain.
