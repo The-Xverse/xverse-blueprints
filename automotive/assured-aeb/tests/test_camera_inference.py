@@ -429,7 +429,7 @@ def test_genuine_smart_camera_and_front_zone_forms_remain_usable(statistical_fai
     delivered, raw = stage.process(item, PIXELS)
     camera = chain.SmartCamera(chain.SmartCameraParams.from_record({"schema": chain.CAMERA_CHECKS, "frameFormat": fmt,
         "stats": {"statsStride": 1, "darkLevel": 8, "brightLevel": 247, "sharpnessBoxLog2": 1},
-        "thresholds": {"minMeanLuma": 255.0 if statistical_failure else 0.0, "maxMeanLuma": 255.0,
+        "thresholds": {"minMeanLuma": 254.0 if statistical_failure else 0.0, "maxMeanLuma": 255.0,
                        "minStdLuma": 0.0, "maxStdLuma": 255.0, "maxDarkFraction": 1.0, "maxBrightFraction": 1.0,
                        "minHighFrequencyVariance": 0.0, "maxHighFrequencyVariance": 65536.0}}))
     front = zone.FrontZone(zone.FrontZoneParams.from_record({"schema": zone.FRONT_ZONE,

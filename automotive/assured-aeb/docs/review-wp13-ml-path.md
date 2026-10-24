@@ -373,3 +373,20 @@ and above this fixture's observed mean. Keep the valid producer, actual statisti
 outcome. No production threshold or scientific parameter changes. Re-run the exact seven named direct controls,
 then the full genuine-runtime suite when the heavy slot is released. The parent review record is corrected above;
 no passing result is claimed for the failed invocation.
+
+## Finding 9: TEST-ONLY bound repair and exact direct-control results (Codex, 2026-10-24)
+
+Changed only the genuine failing producer fixture's TEST-ONLY lower mean bound from 255 to 254, preserving the
+upper bound 255. The real producer now accepts that declared interval and reports the intended statistical failure.
+Ran the exact seven named controls directly with the pinned `-S -s -B` interpreter and AST-selected undecorated test
+functions: undeclared fourth class, contradictory front integrity, genuine producer pass, genuine producer fail,
+and contradictory logical/plausibility/statistical pass-with-failed-code forms. **All seven returned successfully**.
+Neither pytest nor NumPy/ORT/torch was imported. The full suite and nine numerical probes remain unrun.
+
+**Additional test-coverage finding, before any further repair:** the malformed-check tests do not yet place a frame
+in their spool. Therefore their no-inference/UNCERTAIN expectations could also pass at the later missing-frame guard
+if the earlier diagnostic rejection regressed. The genuine producer controls and the separate source review still
+exercise a valid frame, but those named malformed-input regression cases need a usable frame to be decisive.
+Recommend `_spool_file(tmp_path)` in the contradictory-class, extra-class, front-integrity and earlier invalid-input
+setups, then demonstrate that the pre-repair diagnostic logic fails them. This is a TEST-ONLY setup repair; do not
+change production diagnostics, thresholds or methods to make a test pass. Coordinator disposition is pending.
