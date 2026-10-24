@@ -245,3 +245,17 @@ descriptor, although `ArmDescriptor` carries `durationNs`.
   increments #3 and #5, and MEDIUM-3 for increment #4.
 - Optionally repair MEDIUM-1 and MEDIUM-2 now (small, offline) with the probes as tests.
 - Record LOW-1 to LOW-3.
+
+## Finding 4: disposition of finding 3 (2026-10-24 15:20:02; recorded before any change)
+
+This disposition is the coordinator's, under the author's delegation: repair now. It is flagged for the author's
+review.
+
+| Item | Disposition | Planned change |
+| --- | --- | --- |
+| MEDIUM-1 | Repair | Require simulation-time keying of the **trigger and the duration of every fault**, message faults included: domain `carla-simulation` and both units in `ns/us/ms/s`. Tests: a tick-keyed F09 `stale`, and a freeze with a tick trigger and a millisecond duration, both refuse with (A) injected |
+| MEDIUM-2 | Repair | The inequality counts whole steps: `ceil(D / step_s) × max_step_host_s + 2 × handshake_s ≤ thaw_bound_s`. Test with the 1201 ms probe |
+| MEDIUM-3 | Repair | `HubArmingRecheck` takes the whole armed batch, and applies the CC-1 rule: a member of an admitted set that is not individually admitted is armable only when every member is in the batch with the same onset and duration. A lone `vc-functional` is refused |
+| LOW-1 | Repair | Apply the FreezeBound tick cap in admission: a freeze's duration in Maestro ticks, `ceil(D/step)` steps, must not exceed `FreezeBound.max_ticks`. A bound allowing 0 ticks refuses a 500 ms freeze (test) |
+| LOW-2 | Record | The `platform`, `prepare_fn` and `admit_fn` parameters are test seams. The increment #5 run command must not pass them: the real harness uses the imported `xverse.faults` module and the real prepare and admit. Documented in the docstring |
+| LOW-3 | Repair | The hub re-check repeats the simulation-time duration bound for each freeze descriptor, when the bound is given |
