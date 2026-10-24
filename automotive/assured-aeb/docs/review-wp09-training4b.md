@@ -544,3 +544,26 @@ caches/TMPDIR are loop10. Root independently reviews the exact source successor 
 original genuine3success/held-out-invariance/nonfinite workers in fresh directories. Use the exact command and
 source/environment pins from a new root receipt; do not overwrite the failed genuine-attempt/case-0. Sol/high is
 recommended for that source/FD custody review;4c–4e and all principal/scientific gates remain unchanged/pending.
+
+
+## Finding14: independent namespace repair source review (coordinator, 2026-10-24)
+
+PASS sourceb6f7e0bcf86c2655a57a1d006c7c5e9cc8989abc at clean review/evidence832efc33. Independently inspected actual
+worker/driver/supervisor/tests and accepted3df/c008 design. Parent original net/user handles are held across exact
+capture, typed matching identities are explicitly passed, child validates actual self distinction/parent/flags/
+UID0/loopback and closes proof before environment/framework work. No inaccessible parent-proc lookup, guessed
+string-only comparison, inherited mask, arbitrary/std/recycled-number close or success fallback is introduced.
+Operational proof stays out of learned reports; both own namespaces are rechecked before output. Limits remain
+trusted original launcher/immutable input, not hostile-worker containment.
+
+Independent actual stdlib run:18methods pass in6.665s,exit0. Includes genuine fresh-rn positive with self-only
+procfs guard, real flags/preload/parent/cache refusals, declared-r-only NEGATIVE, emulated same-user/UID/interface/
+ioctl checks, bad-job/stage ordering and descriptor custody/interrupt/TERM-ignore cleanup. Complete real log and
+command/status/environment retained at docs/evidence/training4b-namespace-independent-20261024; full11operational
+namespace-control receipts remain external scratch/training4b-independent-namespace-20261024/receipts/.
+
+Four-module closure recomputes99de5a1c70cb684ca9df0cc9f24054ce067a20a121a3ac014d7488d7ab845020; allthree4a files
+and network/weights/loop equal reviewed03987. Actual model fitting/repeat/held-out-invariance/nonfinite refusal
+remain UNPROVEN. Root now separately admits full owning plus genuine fresh isolated three-success/one-nonfinite
+verification; keep original failed attempt and use fresh directories/new actual source-stage pins. No acceptance,
+merge, real-data, export/calibration/4c–4e/live/protocol/scientific approval is implied.

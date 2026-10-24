@@ -1,0 +1,26 @@
+{
+  "command": [
+    "/usr/bin/python3",
+    "-B",
+    "-m",
+    "unittest",
+    "test_training_namespace",
+    "test_training_supervisor",
+    "-v"
+  ],
+  "cwd": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/worktrees/xverse-blueprints/phase8-wp09-training4b-20261024/automotive/assured-aeb",
+  "revision": "832efc33dc137a87e61916b685aa2d7f9452a29a",
+  "returncode": 0,
+  "elapsed_seconds": 6.7812538258731365,
+  "log_sha256": "9591a674e07a4b47997f46a2826bdfcb6db72606e7ec1fdde8986e63c7ffb93a",
+  "environment": {
+    "TMPDIR": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/training4b-independent-namespace-20261024",
+    "PYTHONPATH": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/worktrees/xverse-blueprints/phase8-wp09-training4b-20261024/automotive/assured-aeb:/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/worktrees/xverse-blueprints/phase8-wp09-training4b-20261024/automotive/assured-aeb/tests:/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/repositories/xverse-compat/src",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "XVERSE_NAMESPACE_CONTROL_ROOT": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/training4b-independent-namespace-20261024/receipts",
+    "XVERSE_COMPAT_SRC": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/repositories/xverse-compat/src"
+  },
+  "accepted": false,
+  "merged": false,
+  "framework_execution": false
+}
