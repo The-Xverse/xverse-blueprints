@@ -113,3 +113,117 @@ None of the last three has happened yet.
 - The F19 route cap in the authorization-bypass arm (WP-16).
 - Simulator-time fault onset (WP-10): faults compile only in Maestro ticks today.
 - Unit executables are declared module paths that do not exist yet (WP-13 to WP-17). Nothing runs.
+
+## Finding 2: implementation result (commit `3aed505`; check report `docs/evidence/wp12-check-3aed505.json`)
+
+**Environment and commands.**
+- Interpreter: `/dev/shm/compat-p6-venv/bin/python -I` (CPython 3.13.13; wheel `xverse_xdl-0.4.0`, sha256
+  `cea5ced4…`; its `xverse` and `xverse_xdl` sources equal tag `xverse-lite-v1.0.0-rc.1`).
+- Profile schemas: from `git archive xverse-lite-v1.0.0-rc.1 xdl` into a scratch directory. The
+  platform checkout was only read.
+- Commands:
+  - `python -I check_topology.py --platform-profiles <export>/xdl/profiles`: exit 0, 42 checks passed;
+  - `XVERSE_PLATFORM_PROFILES=<export>/xdl/profiles python -I -m pytest tests`: 52 passed. Without the
+    variable, 24 pass and the 28 platform-backed tests are skipped.
+- Host load at the end: 5.57.
+- Nothing ran a unit, a simulator, Maestro or CARLA.
+
+### 2.1 Results
+
+**Compile per arm (V01).** All four arms validate and compile in both forms, with no diagnostic. Each
+plan digest is identical across two compilations, and the committed documents equal the generator
+output.
+
+| Arm | Units | Element instances (unbound) | Forward flows | Return flows | Intra-unit messages |
+| --- | --- | --- | --- | --- | --- |
+| comparator | 5 (U1–U5) | 22 | 12 | 1 (F04) | 24 |
+| mloc | 6 (U1–U6) | 27 | 17 | 2 (F04, F15b) | 27 |
+| authorization-bypass | 6 | 27 | 18 (with F19) | 2 | 27 |
+| verification-bypass | 6 | 27 | 17 | 2 | 27 |
+
+- Both radar flows are declared from `front-zone`: F08 to `fusion-risk-aeb` (U4) and F09 to
+  `evidence-validator` (U5).
+- IVI is a node with no instance and no endpoint.
+- No legacy-VCU, stimulus, observer or oracle instance is declared.
+
+**V02.** Rules A-1 to A-7 hold in every arm. The negative fixtures are rejected with the expected rules:
+a proposer authorizing, a front-zone command, a raw camera item reaching perception, the relay feeding
+the manager outside its ablation, the gate braking, an intra-unit message across units, an IVI
+instance and an evaluation-only instance. The F19 exception holds only in `authorization-bypass`.
+
+**D-4a.**
+
+| Check | Result |
+| --- | --- |
+| Unbound element instances | Accepted. `prepare_lifecycle` on the Maestro form derives exactly the bound unit instances (5 or 6) next to 22 or 27 unbound element instances |
+| Provider routes (`bind`) | `xcom_plan` status `activatable` in every arm. Per provider: net-adapter-link 3 (+ return F04 = 4), net-u2-returns 2, net-u3 2, net-u4 3 (+ return F15b = 4), net-u5 4, net-u6 3. Only refusal: **F19 `route_capacity_exhausted` on net-u5** in `authorization-bypass`, the expected WP-16 residual (§K) |
+| CC-1 concurrent freezes | Two `freeze` entries at the same tick on `vc-functional-unit` and `vc-assurance-unit` pass `validate_static` and `prepare_lifecycle` (2 entries); the blueprint rule admits the pair |
+| Freeze-target rule | The blueprint refuses a freeze of U1 or U2, a freeze of an element instance (`safety-gate`), a `crash` and `loss` on F07. **The platform admits each of these statically**, so the blueprint rule is load-bearing. `stale` on F09 is admitted by both |
+
+**Admission dry run.** Live parameters (cadence 5 s, S = 4, per-unit 2 s, poll 0.05 s, 8192/8192,
+action timeouts, horizon 600). `admit_schedule` agrees with `(2n + S + 1)·op < cadence` in all 12 cases.
+
+| n | op (s) | Admitted | period / scan (s) | Thaw bound (s) | Reserve (s) | Requests / events | Config bytes, full Maestro form | Config bytes, slim alternative |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 5 | 0.38 | no (`HEALTH-CAPACITY`) | — | — | — | — | — | — |
+| 5 | 0.29 | yes | 2.10 / 1.45 | 3.55 | 22.73 | 1621 / 1525 | 146 458 | 65 951 |
+| 5 | 0.25 | yes | 2.50 / 1.25 | 3.75 | 21.25 | 1579 / 1420 | 146 433 | — |
+| 5 | 0.20 | yes | 3.00 / 1.00 | 4.00 | 19.40 | 1543 / 1330 | 146 429 | — |
+| 6 | 0.38 | no | — | — | — | — | — | — |
+| 6 | 0.29 | yes | 1.81 / 1.74 | 3.26 | 26.76 | 1767 / 1898 | 170 503 | 75 605 |
+| 6 | 0.25 | yes | 2.25 / 1.50 | 3.50 | 25.00 | 1697 / 1718 | 170 463 | — |
+| 6 | 0.20 | yes | 2.80 / 1.20 | 3.80 | 22.80 | 1641 / 1574 | 170 477 | — |
+| 7 | 0.38 | no | — | — | — | — | — | — |
+| 7 | 0.29 | no | — | — | — | — | — | — |
+| 7 | 0.25 | yes | 2.00 / 1.75 | 3.25 | 28.75 | 1838 / 2082 | 182 273 | 87 866 |
+| 7 | 0.20 | yes | 2.60 / 1.40 | 3.60 | 26.20 | 1758 / 1872 | 182 302 | — |
+
+- The derived values of WP-11 are confirmed by the platform: the 6-unit reserve of 26.8 s and thaw
+  bound of 3.26 s at 0.29 s.
+- **The 64 KiB limit refuses every Phase 8 case, including 5 units** (the expected C1 dependency).
+  `encode_configuration` embeds every contributing XDL document. The full Maestro form, with 22 to 27
+  element Components, therefore needs 146–182 KB.
+- The slim alternative drops the element instances and Components, so the unit allocation would live
+  outside the Maestro plan. It needs 66–88 KB, which is about 10 KiB per unit, consistent with S1a.
+  Its 5-unit case exceeds 65 536 by 415 bytes, so after S1b the old 5-unit figure no longer holds even
+  for the slim form.
+
+### 2.2 Platform limits found (recorded; not repaired here)
+
+| ID | Limit | Consequence and handling |
+| --- | --- | --- |
+| L-1 | `prepare_lifecycle` admits exactly one time domain (`projection.py` 274–276), and the plan lists every declared System domain (`experiment_plan.py` 1232–1272) | A plan with `carla-simulation` and Maestro ticks cannot be prepared. The documents come in two forms from one source: `topology` (both domains, flows; compiled and bound) and `maestro` (one `experiment-time` domain, no flows; prepared). The hub binds the flows, as the Phase 7 loop does (R-5) |
+| L-2 | XDL orders instances by flow and refuses a cycle (`XDL1-PLAN-DEPENDENCY-CYCLE`, `experiment_plan.py` 1340–1404). A closed loop has cycles | The minimal feedback set, F04 `actuation-command` and F15b `configuration-state-proposer`, is declared as hub-bound return flows in the System extension. Both still count against their consumer's 4-route provider |
+| L-3 | Deployment `networkBindings` admit no extension. The X-COM profile allows `network-provider` only on targets or networkBindings, and `_select_provider` picks providers by network through Profile references | One provider target per segment, keyed by one selector Profile per segment (`profile-net-*.json`) |
+| L-4 | An X-COM contract id is the interface id, and the X-COM profile admits no System attachment | One Component per interface (the first producer in name order) carries the `interface-policy` |
+| L-5 | X-COM Scenario observers must target routes | Scenario observers are hub flow-evidence taps. The ground-truth observer and the offline metrics (`A_DQ`, minimum gap) are declared in the Scenario extension (`scenario-evaluation`) and are never planned |
+| L-6 | A Scenario with step and observer domains needs a declared mapping, but D6-4 admits only identity or offset | The pair `experiment-time` → `carla-simulation` is declared `unmapped:frames-per-tick-measured-per-run`. Its tolerance of 0 ticks is a schema-required number, not a protocol value |
+| L-7 | The platform admits, statically, a freeze of an element instance or of a never-frozen unit, a `crash`, and `loss` on any flow | The blueprint `check_fault_admission` rule refuses them, and it must run before any schedule is admitted (WP-10/WP-16) |
+| L-8 (WP-10) | A fault keyed to `carla-simulation` at 1.5 s compiles to `atTicks` 1 500 000 000 (nanosecond canonical unit). `validate_static` refuses it (`XVERSE-FAULT-HORIZON`), and only the one-domain Maestro form is preparable | Simulator-time fault onset (§K) needs a platform or hub mechanism. It is not available at rc.1 |
+| L-9 | The experiment profile requires an integer scenario seed | Seed 0 is a declared structural placeholder; the seed lists are TODO (P-4) |
+
+### 2.3 Representation of TODO values
+- XDL v1alpha1 has no placeholder mechanism.
+- Every latency, freshness, deadline and acceptance value is a string `TODO: <author decision|measurement|engineering
+  verification|design> (<ref>)` in `io.xverse.assured-aeb`, and the extension schema enforces that pattern.
+- Flow `quality` is omitted.
+- The engineering parameters needed to compile (action timeouts, stop grace, stderr cap, flow-policy
+  queue depth 4, the 600-tick capacity horizon, the observe tick, seed 0, the probe tick and duration of
+  the D-4a fault probes) carry their source in `topology.ENGINEERING_SOURCES` or in the check notes.
+
+### 2.4 Residuals
+1. **C1 sizing.** The 64 KiB limit refuses every Phase 8 configuration. C1 must cover at least 182 302 B
+   (7 units, full Maestro form) plus margin, or about 88 KB if the slim form is adopted. This is
+   **larger than "enough for 7 units" at S1a's per-unit rate**, because the documents dominate. It is a
+   decision for the C1 increment and the author; it is not resolved here.
+2. **F19 route cap** (WP-16).
+3. **Simulator-time fault and freeze onset** (WP-10; L-8).
+4. **Two-form projection (L-1, L-2).** The Maestro form omits flows. The flow plan, verdicts and return
+   flows are the hub's responsibility (WP-10, WP-13), and its fidelity to the topology form must be
+   checked when the hub exists.
+5. **Declared but non-existent.** The unit module paths, working directories, the perception model digest
+   (WP-09) and the U4 inference venv (WP-08). No live execution is authorized.
+6. **Interpreter pins** are host digests at generation (`xdl/pins.json`); the check reports drift.
+
+No platform file was changed. This is engineering evidence only: not M1, not AEB evidence and not
+X-Verse fitness for purpose. An independent read-only review comes next, then acceptance and merge.
