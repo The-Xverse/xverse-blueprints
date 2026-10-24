@@ -496,3 +496,39 @@ no default.
 | --- | --- | --- |
 | MEDIUM-A | Repair (late binding) | `BrakeCommandReader` no longer takes the origin at construction. The U2 loop binds it once, from the first frame, with `bind_origin(ns)`. A second bind with a different value is refused; the same value is idempotent. While a command is held and the origin is unbound, the reader returns `None`. Before any command it returns 0.0, bound or not (WP-03 B-3). Tests include the compat `LiteVehicleLoop` order: the driver is called at tick 0 with `sim_s` = 0.0, before the first frame (`live/loop.py` 83–115 at `855878a`) |
 | LOW-A | Declared | A newer-sequence command whose origin lies in the reader's future displaces an older fresh one, so the reader returns `None` until that origin is reached. This fails closed (throttle cut, brake held). Under the AD-30 delivery rule the hub delivers at the first step boundary at or after `deliverAtNs`, so this arises only if a command is delivered before its origin |
+
+## Finding 8: result of the finding 7 dispositions (2026-10-24 11:53:53; commit `2bd7683`)
+
+**Commands.** `tests/test_brake_esc.py`: 48 passed. Whole suite with the rc.1 profiles: 122 passed.
+`check_topology.py`: exit 0. No live run, no CARLA; the loop10 worktrees and the pinned live environment
+were not touched.
+
+**MEDIUM-A, repaired (late binding, `decisions.md` "AD-30 delivery rule").**
+- `BrakeCommandReader(params)` no longer takes the origin.
+- `bind_origin(ns)` binds it once. It refuses a non-integer, negative or bool value; re-binding the same
+  value is idempotent, and a different value is refused.
+- `__call__` returns:
+  - 0.0 before any command, bound or not (B-3);
+  - `None` when a command is held and the origin is unbound;
+  - otherwise, the finding 5 age rule (stale or a future origin gives `None`).
+- **Tests.**
+  - The bind rules.
+  - An unbound origin gives 0.0 without a command, `None` with one, and the value once bound.
+  - The compat `LiteVehicleLoop` order (`live/loop.py` 83–115 at `855878a`): the driver is called at tick
+    0 with `sim_s` 0.0 before the first frame, which then binds the origin. The driver sees
+    `[0.0, 0.0, 0.0, 1.0, 1.0, 1.0]` for requests `[0, 0, 1, 1, 1, 0]` at a 1000 s world epoch. The
+    frame-*k* request reaches the driver at tick *k + 1* (one hub step) and is applied over the next step.
+  - The finding 5 tests now bind the origin explicitly.
+- **WP-10 obligation (replaces "construct the reader with the origin before the first driver call").**
+  The U2 loop calls `bind_origin(episode_ns)` when the first frame arrives (for example through
+  `on_motion` or right after `episode_ns` is set).
+
+**LOW-A, declared.** A newer-sequence command whose origin lies in the reader's future displaces an older
+fresh one, and the reader returns `None` until that origin is reached. This fails closed (throttle cut,
+brake held). Under the AD-30 delivery rule the hub delivers at the first step boundary at or after
+`deliverAtNs`, so this arises only if a command is delivered before its origin.
+
+**Residuals.** Finding 5's list stands, with residual 3's origin item replaced by the `bind_origin`
+obligation above, and with the AD-30 delivery rule as the latency rounding (residual 6).
+
+The next step is acceptance and a merge. Neither has happened.
