@@ -186,3 +186,43 @@ The module is standard library at import, with numpy imported inside `apply` onl
    order and V-3 budget.
 4. The #1 amendment request: accept the not-evaluated perception-output form.
 5. V-5 inference time, with the real model, is D-4c.
+
+## Finding 2: continuation design and interface reconciliation (Codex, 2026-10-24; before code changes)
+
+The two untracked Claude drafts were inspected and preserved as inputs before this continuation:
+- `camera_inference.py`: SHA-256 `a889fd770a4d1ef4ef3b2b47d666ce9a11a718f7c7d0e5cfe5202b64fb02a050`;
+- `postprocess.py`: SHA-256 `f22e545d9190c28275d8254ce481a2b4dbf3361e7159ca6aa8c63fce9c51826b`.
+
+The parent coordinator confirmed these scope clarifications before implementation:
+1. **Runtime provenance:** repaired WP-13 #1 requires exactly `modelDigest`, `preprocessParamsSha256` and
+   `postprocessSha256`, all bare HEX64. The draft's five members and `sha256:`-prefixed model value do not satisfy
+   that contract. Keep the three-key runtime form, validate the declared `sha256:<hex>` before normalization,
+   and retain preprocessing/postprocessing code and runtime identities in a separate digest-bound audit record.
+   No evaluation, fault or run-kind marker is added to a runtime message.
+2. **Refuse before session:** add a standard-library `model_contract.py` inspector over the exact digest-verified
+   ONNX bytes. It supports only the declared bounded local subset: ordinary protobuf wire types, static float
+   tensor I/O, one graph, IR 7/opset 13, and the V-1 operators. Reject malformed/truncated/unsupported wire forms,
+   repeated singular identities, duplicate metadata or I/O names, custom operator domains, external tensor data
+   and unsupported graph constructs rather than claiming a general ONNX parser. All reads are bounded by actual
+   verified bytes. Validate actual static I/O against the mandatory schema, shared preprocessing and postprocessing
+   metadata before calling the existing pinned loader, which independently rechecks the same declared digest.
+3. **Code binding:** `metadata_entry` also writes a postprocessing-code SHA-256 metadata key; the load path checks
+   it and the shared preprocessing binding before session construction. The fixture generator binds the current
+   owned code, not an accepted scientific method. The runtime audit record includes these bindings and its own
+   canonical SHA-256. Actual calibration/OOD method choices and numeric values remain AD-03 TODOs.
+4. **Input evidence:** verify the complete current F07 shape, non-negative frame/timestamps/sequence, freshness and
+   source ordering reports, closed known quality-indicator fields and explicit statistical `pass`/`fail`.
+   Missing/not-evaluated quality cannot be nominal. Preserve null inference fields for not-evaluated outputs;
+   fusion's existing refusal of that form remains a separately tracked #1 reconciliation. An inference error or
+   malformed/non-finite output yields `UNCERTAIN`, not fabricated probabilities.
+5. **Spool:** open/pin the absolute root directory and resolve the digest prefix and file relative to directory
+   descriptors with no-follow semantics. Refuse non-regular files and read at most the declared frame length plus
+   one byte, then verify length and digest. No spool writer is added.
+6. **Tests:** complete the standard-library tiny IR-7/V-1 logits fixture generator, fixed-byte fixture, independent
+   NumPy forward reference and unit-pattern subprocess probe. Ordinary tests cover parsing, before-session refusals,
+   the spool and state table without ORT. Full runtime cases use genuine compat loader/preprocess with the pinned
+   U4 venv inside `unshare -rn`, isolated `-S -s -B` processes and no downloads. All fixture values are TEST-ONLY.
+
+No heavy test or inference/build process is authorized until the parent releases the host test slot. The current
+platform full regression and midnight rc.1 soak remain protected. The continuation does not accept or merge any
+candidate and does not select a scientific model, method, threshold, tolerance or protocol value.
