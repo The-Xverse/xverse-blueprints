@@ -8,7 +8,7 @@ signature. Characterisation access never admits principal evidence or a live run
 from __future__ import annotations
 
 import copy
-from datetime import datetime, timezone
+from datetime import datetime
 import hashlib
 import json
 import math
@@ -27,6 +27,21 @@ H2_IDENTIFIERS = (
 )
 RUNTIME_LIMIT = "runtime.pathLimit"
 _ADMITTED = object()
+UTCInstant = tuple[int, int, int, int, int, int, str]
+UTC_TIMESTAMP = re.compile(
+    r"([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2})"
+    r"(?:\.([0-9]+))?(?:Z|\+00:00)\Z"
+)
+PLACEHOLDER_TOKEN = re.compile(r"(?:TODO|TBD|NEEDS\s+DATA)\b", re.IGNORECASE)
+PLACEHOLDER_WRAPPERS = (
+    ("[", "]"), ("(", ")"), ("{", "}"), ("<", ">"),
+    ("**", "**"), ("__", "__"), ("~~", "~~"), ("`", "`"),
+    ("*", "*"), ("_", "_"), ('"', '"'), ("'", "'"),
+)
+PENDING_STATUS = re.compile(
+    r"PENDING(?:\s+(?:MEASUREMENT|AUTHOR\s+DECISION|VALIDATION|APPROVAL|DATA|REVIEW|FREEZE))?\Z",
+    re.IGNORECASE,
+)
 
 
 class ProtocolRefused(ValueError):
@@ -94,19 +109,24 @@ def _json(data: bytes, code: str) -> dict:
     return value
 
 
-def _time(value: Any, code: str) -> datetime:
+def _time(value: Any, code: str) -> UTCInstant:
+    """A lossless UTC comparison key, preserving arbitrarily precise fractional seconds."""
     if not isinstance(value, str):
         _refuse(code, "explicit UTC timestamp required")
+    match = UTC_TIMESTAMP.fullmatch(value)
+    if match is None:
+        _refuse(code, "expected YYYY-MM-DDTHH:MM:SS[.digits]Z or +00:00")
+    year, month, day, hour, minute, second = (int(v) for v in match.groups()[:6])
     try:
-        result = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        # Validate only the integer components; datetime must not truncate the fraction.
+        datetime(year, month, day, hour, minute, second)
     except ValueError:
         _refuse(code, "invalid UTC timestamp")
-    if result.tzinfo is None or result.utcoffset() != timezone.utc.utcoffset(result):
-        _refuse(code, "timestamp must have an explicit UTC offset")
-    return result
+    fraction = (match.group(7) or "").rstrip("0")
+    return year, month, day, hour, minute, second, fraction
 
 
-def _approval(value: Any) -> datetime:
+def _approval(value: Any) -> UTCInstant:
     _members(value, {"reference", "acceptedAt"}, "PROTOCOL-UNSIGNED")
     if not _text(value["reference"]):
         _refuse("PROTOCOL-UNSIGNED", "approval decision reference is missing")
@@ -115,8 +135,17 @@ def _approval(value: Any) -> datetime:
 
 def _placeholder(value: Any) -> bool:
     if isinstance(value, str):
-        word = value.strip().upper()
-        return word.startswith(("TODO", "NEEDS DATA", "PENDING"))
+        word = value.strip()
+        while True:
+            for left, right in PLACEHOLDER_WRAPPERS:
+                if len(word) >= len(left) + len(right) and word.startswith(left) and word.endswith(right):
+                    word = word[len(left):-len(right)].strip()
+                    break
+            else:
+                break
+        return (PLACEHOLDER_TOKEN.match(word) is not None
+                or PENDING_STATUS.fullmatch(word) is not None
+                or re.match(r"PENDING\s*:", word, re.IGNORECASE) is not None)
     if isinstance(value, dict):
         return any(_placeholder(v) for v in value.values())
     if isinstance(value, list):
@@ -253,14 +282,18 @@ class Protocol:
             _refuse("PROTOCOL-PILOT-POLICY", "pilot approval supplied for a non-pilot declaration")
         return cls(record, expected_digest, "characterisation", _admission=_ADMITTED)
 
-    def value(self, identifier: str) -> Any:
+    def entry(self, identifier: str) -> dict:
+        """Return one checked, privately copied entry for an offline identifier consumer."""
         if identifier not in self._record["entries"]:
             _refuse("PROTOCOL-IDENTIFIER", f"missing identifier {identifier!r}; no default")
         entry = self._record["entries"][identifier]
         allowed = ("final",) if self.kind == "principal" else ("final", "provisional")
         if entry["status"] not in allowed or _placeholder(entry["value"]):
             _refuse("PROTOCOL-NONFINAL", identifier)
-        return copy.deepcopy(entry["value"])
+        return copy.deepcopy(entry)
+
+    def value(self, identifier: str) -> Any:
+        return self.entry(identifier)["value"]
 
     def metadata(self) -> dict:
         result = {"runKind": self.kind, "protocolRecordSha256": self.digest,

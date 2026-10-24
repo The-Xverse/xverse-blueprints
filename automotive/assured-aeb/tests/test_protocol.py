@@ -223,7 +223,7 @@ def test_closed_schemas_match_synthetic_valid_examples():
     directory = Path(__file__).resolve().parents[1] / "protocol"
     for filename, example in [("record.schema.json", record()), ("pin.schema.json", pin(record()))]:
         schema = json.loads((directory / filename).read_text())
-        validator = jsonschema.Draft202012Validator(schema)
+        validator = jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker())
         assert not list(validator.iter_errors(example))
         changed = {**example, "unknown": True}
         assert list(validator.iter_errors(changed))
@@ -253,3 +253,155 @@ def test_numeric_literal_exceptions_are_source_bound_and_never_hide_new_constant
 def test_audit_rejects_paths_outside_scope(tmp_path):
     with pytest.raises(P.ProtocolRefused, match="PROTOCOL-AUDIT"):
         numeric_literals(tmp_path, ["../other.py"], [])
+
+
+# Independent-review successor regressions. Every value remains TEST-ONLY.
+WRAPPED_MARKERS = [
+    "[NEEDS DATA]", "[TODO: author decision]", "**[NEEDS DATA]**", "__TBD__",
+    "~~TODO: measurement~~", "`[TODO: decision]`", "(TODO)", "{NEEDS DATA}",
+    "<TBD>", '\"TODO\"', "pending measurement", "PENDING: data", "[PENDING]", "**pending review**",
+]
+
+
+@pytest.mark.parametrize("marker", WRAPPED_MARKERS)
+def test_wrapped_h2_marker_cannot_be_promoted_by_final_status(marker):
+    rec = record()
+    rec["entries"]["h2.statisticalMethod"]["value"] = marker
+    authority = pin(record())  # independently formed valid pin; do not fail inside a fixture helper
+    authority["recordSha256"] = sha(encoded(rec))
+    with pytest.raises(P.ProtocolRefused, match="PROTOCOL-H2-UNRESOLVED"):
+        principal(rec, authority)
+    with pytest.raises(P.ProtocolRefused, match="PROTOCOL-H2-UNRESOLVED"):
+        P.policy_digest(rec["entries"])
+
+
+@pytest.mark.parametrize("value", [
+    {"nested": ["**[NEEDS DATA]**"]}, ["known", {"nested": "`TBD: measurement`"}],
+    {"nested": ["(PENDING AUTHOR DECISION)"]},
+])
+def test_nested_markers_are_refused_in_both_modes(value):
+    rec = record()
+    rec["entries"]["aeb.marginM"]["value"] = value
+    with pytest.raises(P.ProtocolRefused, match="PROTOCOL-NONFINAL"):
+        principal(rec)
+    obj = P.Protocol.characterisation(encoded(rec), expected_digest=sha(encoded(rec)), started_at=PRINCIPAL)
+    for read in (obj.value, obj.entry):
+        with pytest.raises(P.ProtocolRefused, match="PROTOCOL-NONFINAL"):
+            read("aeb.marginM")
+
+
+@pytest.mark.parametrize("text", [
+    "Pending proposals are rejected with a record.", "This rule records pending measurements separately.",
+    "Measurements pending validation are excluded.", "Pending measurement is excluded from final data.",
+    "TODOLOGY", "TBDimension", "Needs dataset partitioning before use.",
+])
+def test_ordinary_final_prose_and_non_token_words_remain_usable(text):
+    rec = record()
+    rec["entries"]["h2.invalidRunRule"]["value"] = text
+    assert principal(rec).value("h2.invalidRunRule") == text
+
+
+def test_pre_pilot_acceptance_one_nanosecond_late_is_refused():
+    rec = record()
+    authority = pin(rec)
+    authority["prePilotPolicy"]["acceptance"]["acceptedAt"] = "2026-10-02T00:00:00.000000002Z"
+    with pytest.raises(P.ProtocolRefused, match="PROTOCOL-PILOT-POLICY"):
+        principal(rec, authority, pilot="2026-10-02T00:00:00.000000001Z")
+
+
+def test_final_acceptance_one_nanosecond_before_declaration_is_refused():
+    rec = record()
+    rec["declaredAt"] = "2026-10-03T00:00:00.000000002Z"
+    authority = pin(rec)
+    authority["acceptance"]["acceptedAt"] = "2026-10-03T00:00:00.000000001Z"
+    with pytest.raises(P.ProtocolRefused, match="PROTOCOL-CHRONOLOGY"):
+        principal(rec, authority)
+
+
+def test_final_acceptance_one_nanosecond_after_principal_start_is_refused():
+    rec = record()
+    authority = pin(rec)
+    authority["acceptance"]["acceptedAt"] = "2026-10-05T00:00:00.000000002Z"
+    with pytest.raises(P.ProtocolRefused, match="PROTOCOL-CHRONOLOGY"):
+        P.Protocol.principal(encoded(rec), encoded(authority), started_at="2026-10-05T00:00:00.000000001Z",
+                             first_pilot_at=PILOT)
+
+
+def test_equivalent_fractional_instants_with_trailing_zeroes_compare_equal():
+    rec = record()
+    rec["declaredAt"] = "2026-10-03T00:00:00.100000000000Z"
+    authority = pin(rec)
+    authority["acceptance"]["acceptedAt"] = "2026-10-03T00:00:00.1+00:00"
+    authority["prePilotPolicy"]["acceptance"]["acceptedAt"] = "2026-10-01T00:00:00.01000Z"
+    assert principal(rec, authority).kind == "principal"
+
+
+def test_arbitrary_fractional_precision_does_not_round_an_earlier_declaration_late():
+    rec = record()
+    rec["declaredAt"] = "2026-10-03T00:00:00." + "0" * 100 + "1Z"
+    authority = pin(rec)
+    authority["acceptance"]["acceptedAt"] = "2026-10-03T00:00:00." + "0" * 100 + "2Z"
+    assert principal(rec, authority).kind == "principal"
+
+
+@pytest.mark.parametrize("stamp", [
+    "2026-10-03 00:00:00Z", "2026-10-03T00:00:00+01:00", "2026-10-03T00:00:00-00:00",
+    "2026-10-03T00:00:00", "2026-10-03T00:00:00Z\n", "2026-02-30T00:00:00Z",
+    "2026-10-03T00:00:60Z", "2026-10-03T00:00:00.000000001z",
+])
+def test_unsupported_or_invalid_utc_timestamp_is_explicitly_refused(stamp):
+    rec = record()
+    rec["declaredAt"] = stamp
+    with pytest.raises(P.ProtocolRefused, match="PROTOCOL-CHRONOLOGY"):
+        principal(rec)
+
+
+def test_timestamp_schemas_enforce_the_supported_utc_representation():
+    import jsonschema
+    directory = Path(__file__).resolve().parents[1] / "protocol"
+    for filename, example, field in [
+        ("record.schema.json", record(), "declaredAt"),
+        ("pin.schema.json", pin(record()), "acceptedAt"),
+    ]:
+        validator = jsonschema.Draft202012Validator(json.loads((directory / filename).read_text()),
+                                                   format_checker=jsonschema.FormatChecker())
+        changed = copy.deepcopy(example)
+        target = changed if field == "declaredAt" else changed["acceptance"]
+        target[field] = "2026-10-03T00:00:00.0000000001+00:00"
+        assert not list(validator.iter_errors(changed))
+        for stamp in ("2026-10-03 00:00:00Z", "2026-10-03T00:00:00+01:00", "2026-10-03T00:00:00Z\n"):
+            target[field] = stamp
+            assert list(validator.iter_errors(changed))
+
+
+def test_entry_metadata_and_nested_value_are_private_copies():
+    obj = principal()
+    got = obj.entry("h2.seeds")
+    assert got == record()["entries"]["h2.seeds"]
+    got["value"].append(999)
+    got["source"]["reference"] = "altered"
+    got["category"], got["status"] = "runtime", "provisional"
+    assert obj.entry("h2.seeds") == record()["entries"]["h2.seeds"]
+    assert obj.value("h2.seeds") == [11, 12]
+
+
+@pytest.mark.parametrize("mode", ["principal", "characterisation"])
+def test_entry_missing_identifier_has_the_same_no_default_gate(mode):
+    rec = record()
+    obj = principal(rec) if mode == "principal" else P.Protocol.characterisation(
+        encoded(rec), expected_digest=sha(encoded(rec)), started_at=PRINCIPAL)
+    with pytest.raises(P.ProtocolRefused, match="PROTOCOL-IDENTIFIER"):
+        obj.entry("absent.identifier")
+
+
+@pytest.mark.parametrize("status", ["provisional", "unresolved"])
+def test_entry_characterisation_status_gate_matches_value(status):
+    rec = record()
+    rec["entries"]["aeb.marginM"]["status"] = status
+    obj = P.Protocol.characterisation(encoded(rec), expected_digest=sha(encoded(rec)), started_at=PRINCIPAL)
+    if status == "provisional":
+        assert obj.entry("aeb.marginM") == rec["entries"]["aeb.marginM"]
+    else:
+        for read in (obj.value, obj.entry):
+            with pytest.raises(P.ProtocolRefused, match="PROTOCOL-NONFINAL"):
+                read("aeb.marginM")

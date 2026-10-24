@@ -80,3 +80,166 @@ fixture plus changed-byte refusal; `git diff --check`. No pytest, numerical fram
 The platform full regression owns the heavy-test slot. Owning full-suite verification and independent re-review
 remain required before acceptance. Global literal/provenance coverage and run-kind wiring remain 17b/17f gates;
 the numeric scanner alone is deliberately not reported as a complete scientific-literal audit.
+
+## Finding 3: independent read-only review (Codex `/root/review_wp15`, 2026-10-24), CHANGES REQUIRED
+
+Input: `c80774360d60c7b1278be1fc5927fd58141e25cd`. Reviewed both complete modules, both JSON Schemas,
+representation README and all synthetic tests against WP-17 O-1 and the explicitly recorded ordering amendment.
+No product repair was made during this review. No pytest/heavy process was run while the full platform regression
+was active. AST parsing passed for both modules and `tests/test_protocol.py`.
+
+### R17a-1, MAJOR: ordinary bracketed project placeholders pass principal admission
+
+`protocol._placeholder()` checks only the raw string's starting word. With an otherwise valid synthetic record and
+pins, final `h2.statisticalMethod = "[NEEDS DATA]"` or `"[TODO: author decision]"` passes `policy_digest()` and
+`Protocol.principal()` and is returned unchanged by identifier. Plain `"TODO: citation needed"` is refused as a
+control. These are explicit unresolved project markers, not actual selected final method values. Principal admission
+must not be enabled by assigning a final status to a bracketed marker. The same helper is used for nested values
+and characterisation consumption, so its supported marker contract should be explicit and tested across those paths.
+
+Recommendation: recognise the explicit TODO/NEEDS DATA/TBD marker vocabulary through ordinary bracket/Markdown
+wrappers and nested values. Preserve legitimate final prose that merely contains an ordinary word such as
+“pending” in a sentence. State exactly which markers are recognised; do not claim automatic recognition of every
+unresolved human decision. Add negative wrapped/nested cases and positive prose controls, without choosing a real
+statistical method or supplying a scientific value.
+
+### R17a-2, MEDIUM: timestamp truncation can reverse required approval chronology
+
+`protocol._time()` accepts arbitrary fractional-second strings through `datetime.fromisoformat()`, which retains
+only microseconds. Reproduced on the pinned CPython 3.13.13 interpreter:
+- pre-pilot approval `2026-10-02T00:00:00.000000002Z` is admitted for pilot start
+  `2026-10-02T00:00:00.000000001Z`;
+- final approval `2026-10-03T00:00:00.000000001Z` is admitted for record declaration
+  `2026-10-03T00:00:00.000000002Z`;
+- the control with policy approval one second after pilot start is refused as `PROTOCOL-PILOT-POLICY`.
+
+The first two are out of order but compare equal after truncation. The JSON Schemas do not restrict fractional
+precision, so they do not establish representability either. This is approval metadata representation, not a new
+scientific deadline or simulator-time parameter.
+
+Recommendation: explicitly select and document a lossless timestamp representation. Either reject precision the
+comparison type cannot retain, or compare arbitrary fractional seconds exactly. Align the schemas and tests with
+that choice. Do not silently round a later approval into an earlier/equal instant. Cover record declaration/final
+acceptance, acceptance/principal start and pre-policy acceptance/pilot start, with ordered controls.
+
+### Boundaries assessed without a new blocker
+
+- Exact original record bytes are hashed before parsing. Duplicate JSON members and non-finite floating values are
+  refused; large finite JSON integers remain a typed-consumer responsibility as explicitly designed.
+- The external pin is a trusted decision-reference input, not an authenticated signature. The loader and README
+  state that limitation; this review does not infer author identity, validate a cited source or create a real pin.
+- The stable H2 subset includes metadata and provenance in its canonical digest. Final freeze may follow the pilot,
+  while the stable policy acceptance precedes pilot data, as required by the ordering amendment.
+- Principal/characterisation APIs and metadata remain distinct; characterisation does not create principal or live
+  execution authority. The 17f harness must still bind `is_pilot` and actual pilot chronology to run kind; caller
+  omission is not an implementation of that future integration gate.
+- The literal scanner reports numeric AST constants for an explicit file inventory and checks source/literal-bound
+  exception drift. It does not establish global inventory completeness or qualitative-parameter provenance, and the
+  README correctly carries those 17b/AD-27 gates. A small fixture is not a global no-scientific-literal proof.
+- Entry reads and returned principal-limit metadata are private copies. No runtime unit imports this whole-record
+  loader in this increment; future projection membership remains 17b's responsibility.
+
+### Reproduction and deferred verification
+
+Small standard-library probes used CPython 3.13.13 with `-S -s -B`, `PYTHONDONTWRITEBYTECODE=1`, and `PYTHONPATH`
+pointing only at this blueprint. Every fixture value and timestamp was TEST-ONLY. Positive valid-policy admission
+and plain-TODO/one-second-late refusal controls passed; the two defects above remain reproducible.
+
+The complete owning suite is **not run by this reviewer** and remains required after repairs:
+`env PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 XVERSE_PLATFORM_PROFILES=<rc.1>/xdl/profiles
+XVERSE_AEB_SENSOR_SITE=<pinned-sensor-site> /dev/shm/compat-p6-venv/bin/python -I -B -m pytest -q -p no:cacheprovider tests --tb=short`
+from `automotive/assured-aeb`, after the full platform regression releases the heavy-test slot. A focused run is
+`... -m pytest -q -p no:cacheprovider tests/test_protocol.py --tb=short` under the same environment.
+
+Record dispositions/design before code, then independently re-review repaired code and source-bound suite evidence.
+This candidate is not accepted or merged. Real protocol values, author approval, AD-27, projection membership,
+principal/live admission, M1 and scientific claims remain outside this review.
+
+## Finding 4: separately recorded successor design before code (2026-10-24)
+
+The coordinator dispositioned both independent findings before repair and requested one identifier-access addition
+for the later offline projection builder. This successor changes no scientific parameter, policy selection,
+projection membership, approval authority or runtime import boundary.
+
+### R17a-1 marker contract
+
+Unwrap balanced ordinary brackets (`[]`, `()`, `{}`, `<>`), quote marks and Markdown emphasis/strike/code wrappers,
+repeatedly, then recognise case-insensitive leading **tokens** `TODO`, `TBD` or `NEEDS DATA`. Nested JSON object/list
+values receive the same check. A token boundary is required, so unrelated words that merely start with those letters
+are not markers. Preserve `PENDING` as an explicit whole status, a `PENDING:` directive, or exactly a status phrase
+with measurement, author decision, validation, approval, data, review or freeze. Merely containing the word pending,
+including ordinary prose beginning “Pending proposals ...”, is not a placeholder. Tests will state both the supported
+marker forms and non-marker prose. This is an explicit vocabulary check, not a classifier for arbitrary unresolved
+human decisions.
+
+### R17a-2 exact UTC chronology representation
+
+Compare UTC instants exactly at arbitrary fractional-second precision. Accept the strict supported form
+`YYYY-MM-DDTHH:MM:SS[.digits](Z|+00:00)` with a valid Gregorian date/time; reject malformed/unsupported syntax rather
+than silently normalising it. Validate integer date/time components with the standard library, but store comparisons
+as the integer-second component tuple followed by fractional digits with trailing zeroes removed. Lexicographic
+comparison of those normalised fractional strings preserves exact order and equality without float conversion or
+microsecond truncation. No rounding, precision cap or coarser scientific timing policy is introduced.
+
+Align each timestamp property in the record/pin JSON Schemas and the README with that representation. Regress late
+pre-policy acceptance below a microsecond, final acceptance before declaration below a microsecond, acceptance after
+principal start below a microsecond, equal fractions with trailing zeroes, and the existing one-second-late control.
+
+### Identifier-only metadata access for WP-17b
+
+Add `Protocol.entry(identifier)` for the offline projection builder. It returns a private deep copy of exactly that
+entry's existing metadata and value after the same missing/status/placeholder checks used by `value(identifier)`.
+Make `value` delegate to the checked single-entry path so the gates cannot drift. The builder can then read category,
+status and provenance without accessing `_record`; it still must fix its own reviewed allow-lists in WP-17b and never
+expose the complete record or import this loader in runtime units. Add private-copy, missing-identifier and nonfinal
+entry tests in both modes. This interface addition does not choose an identifier's projection membership.
+
+Implementation follows this separate design commit. Only small standard-library probes, AST/schema JSON parsing and
+whitespace checks may run while the platform regression is active; pytest remains queued. A separate independent
+review of the repaired delta and the owning suite are required before acceptance.
+
+## Finding 5: successor implementation and bounded checks (2026-10-24); independent re-review and pytest pending
+
+Implemented the separate finding 4 design after commit `798c259464aef9246e5cb811c44f090fa98ea5c0`:
+- **R17a-1:** explicit leading TODO/TBD/NEEDS DATA tokens are recognised after balanced bracket, quote and Markdown
+  wrappers, recursively in nested values. PENDING follows the documented explicit-status/directive/phrase contract;
+  ordinary prose such as “Pending proposals are rejected with a record” remains usable. This recognises the stated
+  marker vocabulary only; it does not authenticate or infer missing human decisions.
+- **R17a-2:** strict supported UTC syntax is parsed into integer date/time components and normalised fractional
+  digits. Calendar validation uses datetime only for integer components, never fractional conversion. Comparisons
+  preserve arbitrary fractional precision and equality of trailing-zero forms. The record/pin timestamp schema
+  properties and README now state the same UTC syntax; no precision cap or scientific timing choice is introduced.
+- **WP-17b API:** `Protocol.entry(identifier)` returns a private deep copy of one mode/status/placeholder-checked
+  entry. `value(identifier)` delegates to that same path. Metadata access selects no projection membership and
+  remains offline; runtime units still receive separate projections.
+
+Added 13 regression test functions (with parametrised marker, prose, syntax and mode cases) in
+`tests/test_protocol.py`. The cases include the two original bracketed-marker failures, nested reads in both modes,
+legitimate final prose, all three sub-microsecond chronology boundaries, equal trailing-zero forms, arbitrary long
+fractions, invalid/unsupported UTC forms, schema syntax alignment, entry private copies, missing identifiers and
+characterisation status. The existing one-second-late control remains.
+
+Performed **29 tiny standard-library checks** on pinned CPython 3.13.13 with `-S -s -B`,
+`PYTHONDONTWRITEBYTECODE=1`, and blueprint-only `PYTHONPATH`: supported/non-marker forms, exact fractional ordering
+and equality, positive principal admission, entry-copy isolation, and both sub-microsecond/one-second late approval
+refusals. Every fixture value was TEST-ONLY. AST parsing passed for both modules and the test file; both schemas parse
+as JSON; `git diff --check` passes. These checks are not a substitute for pytest or full JSON Schema validation.
+
+No pytest, external numerical framework, real record/pin, live execution, approval, acceptance or merge was produced.
+The full platform regression still owns the heavy-test slot. Run the finding 3 focused and owning-suite commands when
+that slot is released, then independently re-review this repaired delta and its exact-source evidence before acceptance.
+Global inventory/qualitative audit, projection membership and actual pilot/run-kind bindings remain 17b/17f gates.
+
+## Finding 6: independent parent successor review, PASS; full suite queued (2026-10-24)
+
+Reviewed worker successor `d1446c77cf571c36a04cf14b6d787938a59deb80` against separate design `798c259` and
+independent finding 3. The parent did not author this successor. Balanced-marker removal and token boundaries
+refuse the stated wrapped project markers while preserving ordinary final prose. The exact UTC ordering key
+compares integer date/time and normalized fractional strings; it does not truncate to datetime microseconds.
+Reviewed the private-copy entry API and schemas/documentation changes. No product repair was made in this pass.
+
+Tiny direct checks independently exercise the original wrapped markers, all three sub-microsecond chronology
+boundaries, trailing-zero equality, arbitrary precision, neighboring fractional ordering and entry-copy isolation.
+All pass, and `git diff --check` passes. No pytest or heavy check was started while platform regression is active.
+R17a-1/R17a-2 are closed at source-review level. Full schema/owning-suite verification remains mandatory before
+acceptance. Actual membership/provenance audit and pilot/run-kind composition remain the recorded downstream gates.
