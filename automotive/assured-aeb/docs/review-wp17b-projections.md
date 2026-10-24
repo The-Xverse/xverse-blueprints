@@ -189,3 +189,18 @@ No pytest, full JSON Schema validator, numerical framework, live/principal run, 
 The full platform regression owns the heavy-test slot. Run the finding 3 focused and full owning-suite commands
 when released, then independently review this repaired delta and its exact-source evidence. Actual freeze membership,
 full process-delivery provenance, global literal inventory and approval authority remain outside this successor.
+
+## Finding 6: independent parent publication-successor review, PASS; full suite queued (2026-10-24)
+
+Reviewed worker successor `02b787ca3726dc89cd5f21d7bcbcb48e9e63f1ed` against separate design `13c0e9e` and
+independent finding 3. The parent did not author this publication repair. Closed receipt checks, external admitted
+pins, decoded own-unit output/identifier validation and reserved-name denial all precede directory creation. The
+checked byte/receipt snapshots are the objects published; an existing artifact is never overwritten. The receipt
+remains evidence of these bindings, not authentication of author approval or full runtime provenance.
+
+Independent tiny probes publish one valid bundle and reproduce all three original negative controls (missing table
+pin, foreign protocol digest and inconsistent identifier receipt); each negative is refused before any directory
+exists. The complete source/test/schema delta and snapshot mutation test were read. `git diff --check` passes.
+No pytest or heavy check was started during platform regression. The publication findings are closed at source
+review level; full schema/owning-suite verification is required before acceptance. Actual freeze membership and
+the complete V21 process/data provenance audit remain open integration obligations.
