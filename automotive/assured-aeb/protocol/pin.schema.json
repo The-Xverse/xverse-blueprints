@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:xverse:assured-aeb:protocol-pin:1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "recordSha256",
+    "acceptance",
+    "prePilotPolicy"
+  ],
+  "properties": {
+    "schema": {
+      "const": "assured-aeb.protocol-pin/1"
+    },
+    "recordSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reference",
+        "acceptedAt"
+      ],
+      "properties": {
+        "reference": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "acceptedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "prePilotPolicy": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sha256",
+            "acceptance"
+          ],
+          "properties": {
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "acceptance": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "reference",
+                "acceptedAt"
+              ],
+              "properties": {
+                "reference": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S"
+                },
+                "acceptedAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

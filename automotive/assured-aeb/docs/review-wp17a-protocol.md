@@ -38,7 +38,7 @@ acceptance. It will not require pilot-derived repetitions to exist before the pi
 - Pre-pilot policy binds a digest of the six H2 entries, including their metadata, plus its own acceptance.
   Identifier constants: `h2.safetyMetric`, `h2.nonInferiorityMargin`, `h2.minimumBenefit`, `h2.seeds`,
   `h2.invalidRunRule`, `h2.statisticalMethod`. These are implementation names, not selected scientific values.
-- AD-21 identifier: `runtime.pathLimit`, a required final declaration copied into admitted principal-run metadata.
+- AD-21 identifier: `runtime.pathLimit`, a required final declaration `{path: lite, m1Admitted: false, limitation: <non-empty text>}` copied into admitted principal-run metadata. This encodes the already decided path boundary, not a new protocol value.
 - A principal admission refuses: absent bytes; absent pin; mismatched digest; malformed JSON/record/pin; unresolved
   or provisional entries; any missing H2 member; absent/empty AD-21 limit; an acceptance after principal start;
   and, if pilot data exist, missing/mismatched H2 policy pin or policy acceptance after first pilot start.
@@ -66,3 +66,17 @@ All values are synthetic TEST-ONLY. Full owning suite and independent review fol
 currently owns the heavy-test slot: implementation and syntax checks may proceed, pytest waits its turn.
 SADS disposition: existing P8-T06 allocation is preserved; this is a partial FR-024/V17/V35 implementation,
 not complete P8-T06, fitness or runtime projection delivery.
+
+## Finding 2: implementation ready for independent review; full suite queued
+
+Implemented `assured_aeb.protocol`, `protocol_audit`, closed record/pin schemas and representation documentation,
+plus synthetic `tests/test_protocol.py`. Exact record-byte pins, final-entry/H2 presence gates, declared non-M1
+metadata, stable pre-pilot H2 policy chronology, characterisation-only access, private-copy reads and numeric
+literal inventory are represented. The ordering amendment is recorded in the thesis decision record and overlaid
+on WP-17 O-1. No real record, pin, policy number or final projection membership was produced.
+
+Performed: AST parsing of both modules and the test file; a tiny standard-library positive principal-admission
+fixture plus changed-byte refusal; `git diff --check`. No pytest, numerical framework or live workload was run.
+The platform full regression owns the heavy-test slot. Owning full-suite verification and independent re-review
+remain required before acceptance. Global literal/provenance coverage and run-kind wiring remain 17b/17f gates;
+the numeric scanner alone is deliberately not reported as a complete scientific-literal audit.
