@@ -104,6 +104,19 @@ def chain(interpreter, proposer, now=1_000, obj=None, configuration=None, basis=
     return goal,proposal
 
 
+def role_snapshot(role, writer):
+    """Only mutable role/event state, so caller-contract refusal can prove zero effects."""
+    result = {key: copy.deepcopy(getattr(role, key)) for key in ("sequence", "last_now", "last_step", "last_decision")}
+    if isinstance(role, U.GoalInterpreter):
+        result.update(current=copy.deepcopy(role.current), stream=copy.deepcopy(vars(role.stream)))
+    else:
+        result.update(cached=copy.deepcopy(role.cached), terminal=role.terminal,
+                      streams={name: copy.deepcopy(vars(stream)) for name, stream in role.streams.items()})
+    result.update(events=copy.deepcopy(writer.records), event_sequence=role.events.sequence,
+                  event_ids=list(role.events.event_ids), poisoned=role.events.poisoned)
+    return result
+
+
 class U4UntrustedTests(unittest.TestCase):
     def test_genuine_typed_chain_has_only_nominal_candidate_and_actual_reference_events(self):
         interpreter,proposer,writer=roles()
@@ -178,10 +191,11 @@ class U4UntrustedTests(unittest.TestCase):
 
     def test_ambiguous_objectives_replay_redefinition_and_capacity_are_refused(self):
         i,p,w=roles(capacity=1);goal=i.step(1_000,step=1,objectives=[delivery(objective())])
-        for now,items in ((1_000,[delivery(objective())]),(1_001,[delivery(objective(1_001,2)),delivery(objective(1_001,3))]),
-                          (1_002,[delivery(objective(1_002,4,identifier=goal["objectiveId"]))]),(1_003,[delivery(objective(1_003,5))])):
-            self.assertIsNone(i.step(now,step=2,objectives=items));self.assertEqual(i.current,goal)
-        self.assertEqual(len(w.records),4)
+        for step,(now,items) in enumerate(((1_001,[delivery(objective())]),
+                          (1_002,[delivery(objective(1_002,4,identifier=goal["objectiveId"]))]),
+                          (1_003,[delivery(objective(1_003,5))])), start=2):
+            self.assertIsNone(i.step(now,step=step,objectives=items));self.assertEqual(i.current,goal)
+        self.assertEqual(len(w.records),3)
 
     def test_future_stale_and_regressing_messages_invalidate_cache_without_reproposal(self):
         for stream in ("goal","configuration","basis"):
@@ -229,7 +243,7 @@ class U4UntrustedTests(unittest.TestCase):
 
     def test_each_new_candidate_requires_a_new_basis_and_inputs_are_detached(self):
         i,p,w=roles();goal,proposal=chain(i,p)
-        self.assertIsNone(p.step(1_000,step=1))
+        with self.assertRaises(C.ContractError):p.step(1_000,step=1)
         changed=config(1_001,2)
         self.assertIsNone(p.step(1_001,step=2,configurations=[delivery(changed)]))
         changed["configuration"]="S_MRC_REQUESTED"
@@ -293,6 +307,111 @@ class U4UntrustedTests(unittest.TestCase):
         with self.assertRaises(C.ContractError):
             U.GoalInterpreter(policy=U.U4Policy(projection()),binding=C.EndpointBinding("objective","ivi","goal-interpreter"),
                               events=i.events,identity_prefix="test",maximum_accepted_messages=10)
+
+    def test_goal_duplicate_cycle_with_distinct_fresh_ids_has_no_effect_or_watermark_consumption(self):
+        i,p,w=roles();first=i.step(1_000,step=1,objectives=[delivery(objective())])
+        before=role_snapshot(i,w)
+        for now,step in ((1_000,1),(1_001,1),(1_000,2)):
+            incoming=delivery(objective(now,2))
+            with self.assertRaisesRegex(C.ContractError,"strictly advancing"):
+                i.step(now,step=step,objectives=[incoming])
+            self.assertEqual(role_snapshot(i,w),before)
+        second=i.step(1_002,step=2,objectives=[delivery(objective(1_002,2))])
+        self.assertNotEqual(second["goalId"],first["goalId"])
+        self.assertEqual((i.sequence,i.last_now,i.last_step),(2,1_002,2))
+
+    def test_proposer_duplicate_cycle_with_new_genuine_basis_has_no_effect_or_second_event(self):
+        i,p,w=roles();goal,first=chain(i,p)
+        before=role_snapshot(p,w)
+        for now,step in ((1_000,1),(1_001,1),(1_000,2)):
+            incoming=delivery(genuine_basis(now,2))
+            with self.assertRaisesRegex(C.ContractError,"strictly advancing"):
+                p.step(now,step=step,bases=[incoming])
+            self.assertEqual(role_snapshot(p,w),before)
+        second=p.step(1_002,step=2,bases=[delivery(genuine_basis(1_002,2))])
+        self.assertNotEqual(second["proposalId"],first["proposalId"])
+        self.assertEqual(len(w.records),2)
+        self.assertEqual((p.last_now,p.last_step),(1_002,2))
+
+    def test_initial_empty_role_call_consumes_its_cycle_and_refusal_keeps_next_cycle_available(self):
+        i,p,w=roles()
+        for role in (i,p):
+            self.assertIsNone(role.step(0,step=0))
+            before=role_snapshot(role,w)
+            with self.assertRaises(C.ContractError):role.step(0,step=0)
+            self.assertEqual(role_snapshot(role,w),before)
+        self.assertIsNotNone(i.step(1_000,step=1,objectives=[delivery(objective())]))
+        self.assertIsNone(p.step(1_000,step=1))
+
+    def test_ambiguous_objectives_at_bound_retain_every_real_id_digest_and_prior_goal(self):
+        i,p,w=roles(capacity=2);first=i.step(1_000,step=1,objectives=[delivery(objective())])
+        incoming=[delivery(objective(1_001,2)),delivery(objective(1_001,3))]
+        stream_before=copy.deepcopy(vars(i.stream))
+        self.assertIsNone(i.step(1_001,step=2,objectives=incoming))
+        self.assertEqual(i.current,first);self.assertEqual(vars(i.stream),stream_before)
+        self.assertEqual(len(w.records),2)
+        for event,message in zip(w.records,incoming):
+            payload=event["extensions"][E.EXTENSION]
+            self.assertEqual((payload["kind"],payload["reason"]),("rejection","objective-batch-ambiguous"))
+            self.assertEqual(payload["bindings"],{"objectiveId":message.payload["objectiveId"]})
+            self.assertEqual(payload["sourceRefs"],[{"messageId":message.message_id,"sha256":E.payload_digest(message.payload)}])
+            self.assertEqual(payload["payloadSha256"],E.payload_digest(message.payload))
+        self.assertEqual(w.records[1]["causation_id"],w.records[0]["event_id"])
+        # Rejected batch members did not consume accepted-message identities or sequence watermarks.
+        self.assertIsNotNone(i.step(1_002,step=3,objectives=[incoming[0]]))
+
+    def test_oversized_objective_batch_is_caller_refusal_before_clock_state_or_events(self):
+        i,p,w=roles(capacity=2)
+        incoming=[delivery(objective(1_000,n)) for n in (1,2,3)]
+        before=role_snapshot(i,w)
+        with self.assertRaisesRegex(C.ContractError,"member bound"):
+            i.step(1_000,step=1,objectives=incoming)
+        self.assertEqual(role_snapshot(i,w),before)
+        # Exactly at the bound remains an admitted ambiguous batch with complete actual references.
+        self.assertIsNone(i.step(1_000,step=1,objectives=incoming[:2]))
+        self.assertEqual(len(w.records),2)
+
+    def test_mixed_ambiguous_batch_never_invents_noncanonical_payload_references(self):
+        i,p,w=roles(capacity=3)
+        canonical=[delivery(objective(1_000,n)) for n in (1,2)]
+        malformed=U.Delivered({"objectiveId":"must-not-be-invented","bytes":b"noncanonical"},"objective-source","test-malformed")
+        self.assertIsNone(i.step(1_000,step=1,objectives=[canonical[0],malformed,canonical[1]]))
+        payloads=[event["extensions"][E.EXTENSION] for event in w.records]
+        self.assertEqual(len(payloads),3)
+        self.assertEqual(payloads[1]["sourceRefs"],[]);self.assertEqual(payloads[1]["bindings"],{})
+        self.assertEqual(payloads[1]["payloadSha256"],E.payload_digest({"role":"goal-interpreter","reason":"objective-batch-ambiguous"}))
+        for payload,message in zip((payloads[0],payloads[2]),canonical):
+            self.assertEqual(payload["sourceRefs"],[{"messageId":message.message_id,"sha256":E.payload_digest(message.payload)}])
+
+    def test_ambiguous_batch_rejection_append_failure_propagates_and_poisoning_is_preserved(self):
+        i,p,w=roles(capacity=2);w.fail=True
+        incoming=[delivery(objective(1_000,n)) for n in (1,2)]
+        with self.assertRaises(OSError):i.step(1_000,step=1,objectives=incoming)
+        self.assertTrue(i.events.poisoned);self.assertEqual(w.records,[])
+        self.assertIsNone(i.current);self.assertEqual(i.sequence,0)
+        with self.assertRaises(C.ContractError):i.step(1_001,step=2,objectives=incoming)
+
+    def test_later_ambiguous_rejection_append_failure_preserves_only_acknowledged_real_references(self):
+        i,p,w=roles(capacity=2)
+        incoming=[delivery(objective(1_000,n)) for n in (1,2)]
+        append=w.append_event
+        def fail_second(**event):
+            if w.records:raise OSError("TEST-ONLY second append failure")
+            return append(**event)
+        w.append_event=fail_second
+        with self.assertRaises(OSError):i.step(1_000,step=1,objectives=incoming)
+        self.assertTrue(i.events.poisoned);self.assertEqual(len(w.records),1)
+        payload=w.records[0]["extensions"][E.EXTENSION]
+        self.assertEqual(payload["sourceRefs"],[{"messageId":incoming[0].message_id,"sha256":E.payload_digest(incoming[0].payload)}])
+        self.assertIsNone(i.current);self.assertEqual(i.sequence,0)
+
+    def test_ambiguous_member_references_respect_existing_event_byte_cap_without_fabricated_fallback(self):
+        i,p,w=roles(capacity=2)
+        incoming=[delivery(objective(identifier="test-"+"x"*9_000)),delivery(objective(sequence=2))]
+        with self.assertRaisesRegex(C.ContractError,"engineering byte bound"):
+            i.step(1_000,step=1,objectives=incoming)
+        self.assertEqual(w.records,[]);self.assertFalse(i.events.poisoned)
+        self.assertIsNone(i.current);self.assertEqual(i.sequence,0)
 
     def test_runtime_import_and_authority_boundary(self):
         source=Path(U.__file__).read_text();tree=ast.parse(source)

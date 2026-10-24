@@ -2,6 +2,7 @@
 
 Only a selected own-unit parameter projection and delivered runtime messages enter
 these roles. Actual objective tokens, freshness and validity are explicit inputs.
+Each role is called once with its whole cycle inbox: both simulator time and step must strictly advance.
 """
 from __future__ import annotations
 
@@ -116,9 +117,9 @@ class _Role:
         self.last_decision = None
 
     def _clock(self, now_ns, step):
-        if (not _uint(now_ns) or not _uint(step) or (self.last_now is not None and now_ns < self.last_now)
-                or (self.last_step is not None and step < self.last_step)):
-            raise C.ContractError("nonnegative nonregressing simulator time and step are required")
+        if (not _uint(now_ns) or not _uint(step) or (self.last_now is not None and now_ns <= self.last_now)
+                or (self.last_step is not None and step <= self.last_step)):
+            raise C.ContractError("nonnegative strictly advancing simulator time and step are required; one complete role call per cycle")
         self.last_now, self.last_step = now_ns, step
 
     def _decision(self, now_ns, step, outcome, reason):
@@ -152,6 +153,10 @@ class GoalInterpreter(_Role):
         self._decision(now_ns, step, "rejected", reason)
 
     def step(self, now_ns, *, step, objectives=()):
+        # The existing admitted identity capacity also bounds per-call rejection work. This is a caller error,
+        # before the cycle is consumed; it is not a claim that each member was rejected with runtime evidence.
+        if isinstance(objectives, (list, tuple)) and len(objectives) > self.maximum:
+            raise C.ContractError("objective batch exceeds the admitted engineering member bound")
         self._clock(now_ns, step)
         if not isinstance(objectives, (list, tuple)):
             self._reject(now_ns, step, "objective-batch-malformed")
@@ -160,7 +165,8 @@ class GoalInterpreter(_Role):
             self._decision(now_ns, step, "no-output", "no-new-objective")
             return None
         if len(objectives) != 1:
-            self._reject(now_ns, step, "objective-batch-ambiguous")
+            for incoming in objectives:
+                self._reject(now_ns, step, "objective-batch-ambiguous", incoming)
             return None
         incoming = objectives[0]
         try:

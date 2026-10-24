@@ -293,3 +293,37 @@ no pytest/framework/heavy work, acceptance or merge. Sol/high remains the recomm
 batch membership cap. Oversized batches are caller-contract refusals before clock/state/events, not claimed
 per-member runtime rejections. At the bound, every admitted ambiguous member retains its canonical references;
 above it, no effects are permitted. Existing Argus byte caps/poisoning stay. Add both boundary regressions.
+
+## Finding 6: scoped repair candidate, pending independent re-review (2026-10-24)
+
+Implemented after repair design `8370576` and explicit engineering count disposition `3c5cbd7`.
+`_Role._clock` now requires both simulator coordinates to strictly advance, atomically checking before it updates
+either. Goal and proposer steps invoke it before processing messages or changing decisions/streams/caches/events.
+GoalInterpreter additionally rejects a list/tuple larger than its existing maximum_accepted_messages before even
+consuming the cycle. That explicit engineering count now bounds objective batch membership as well as retained
+accepted identities; oversized input is a caller-contract exception, not a claimed per-member runtime rejection.
+The dated strict-cycle contract supersedes finding1's former nonregressing-time wording. 14f must collect the
+whole role inbox and call once per canonical cycle; another fresh ID never authorizes another same-cycle call.
+
+Every admitted ambiguous objective member now uses the existing `_reject` with its own actual delivery. Canonical
+members retain their actual message ID/payload digest and objective ID when present. Noncanonical payloads keep
+only the existing explicit diagnostic digest and no invented references/bindings. The prior current goal and
+accepted stream state remain unchanged. Local acknowledged event causation, event byte cap and poisoning remain
+with the unchanged shared RoleEvents adapter. No event kind, schema, target vocabulary, authority, numeric rate,
+deadline or default changes. Reference sets are not truncated or replaced with a misleading batch success.
+
+Nine new stdlib methods verify distinct valid same-time/same-step objective and genuine-fusion proposal attempts,
+either clock coordinate repeated, exact no-effect snapshots and later use of unconsumed source IDs, initial empty
+cycle consumption, at-bound ambiguity references/causation/prior-goal preservation, above-bound zero-effect refusal,
+mixed noncanonical members, first/later append failures and the unchanged engineering event byte cap. Two existing
+tests now obey advancing cycles and expect caller refusal for a repeated call. The TEST-ONLY reference snapshots
+include clocks, counters, caches/terminal/current state, stream identities/watermarks and shared event state.
+
+**Performed on final source:** all **28** existing/new stdlib test methods called directly and passed, including
+their assertion subcases and actual SmartRadar/FrontZone/FusionRiskAeb producers; AST parsing of both changed
+Python files and `git diff --check` passed. No pytest runner, numerical framework, durable Argus store, socket,
+simulator, training, download, factory or live run occurred. All fixture clocks/values/IDs are TEST-ONLY.
+The full owning/assembled suite remains queued with the coordinator's recorded command above. R14e-1/R14e-2 are
+repaired at candidate source level, pending independent re-review; this worker grants no acceptance or merge.
+Actual whole-inbox unit entry, transport attestation, unit projection composition, principal token/numeric freeze
+and independent gate/manager authority remain their recorded later gates.
