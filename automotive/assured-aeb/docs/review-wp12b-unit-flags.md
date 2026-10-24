@@ -196,3 +196,21 @@ None of the last three has happened yet.
      this when it is built (as WP-08 and WP-09 #3 did for U4).
    - **R-4.** The Phase 7/S1 units are unchanged (a declared 1.0 limit; S1e after the soak).
 7. **Status.** This is ready for an independent read-only review. It has not been reviewed, accepted or merged.
+
+## Finding 3: independent read-only Codex review (2026-10-24), PASS
+
+Reviewed candidate `793dc0a020e26ead1164dceb1e91dbac68ef6c68` against the isolated-command decision,
+the complete generator/checker/test diff and the regenerated deployment documents. No product repair was made.
+The checker states argv and environment requirements independently of the generator. Existing pins and non-deployment
+XDL documents are unchanged. The harness remains responsible for supplying the values; this is no claim of a live
+unit launch. Finding 2 residuals R-1 to R-4 are carried.
+
+Re-ran the complete blueprint suite from `automotive/assured-aeb`, using rc.1 profile schemas exported read-only
+from platform tag `xverse-lite-v1.0.0-rc.1` and the pinned test interpreter:
+`env PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 XVERSE_PLATFORM_PROFILES=<rc.1>/xdl/profiles
+/dev/shm/compat-p6-venv/bin/python -I -B -m pytest -q -p no:cacheprovider tests --tb=short`.
+Result: **399 passed**, no skip, in 31.01 s. Separately ran `check_topology.py` with the same profile directory:
+exit 0, **59 PASS lines**, no failing check. `git diff --check` passes.
+The generated-form digest and sizing changes remain recorded in finding 2; historical measurements are not rewritten.
+No protocol values, Phase 7/S1 commands, rc.1 worktrees or soak inputs changed.
+Suite-log SHA-256: `397dcccbb6d773c659a072aadfc51f2d07e70a478cb9084abc0eddfdb158cf19`.
