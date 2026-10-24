@@ -11,13 +11,21 @@
 6. ``admit_schedule``.
 
 The first refusing stage stops the run: no later stage is called. Offline engineering code; it authorizes no run.
+
+Repairs of review finding 3 (finding 4): every fault's trigger and duration must be keyed to simulation time
+(PAIR-1); the inequality counts whole simulator steps, ``ceil(D / step_s)``; the FreezeBound tick cap is applied
+(each simulator step counts as at least one dispatcher cycle under the lockstep hub, a conservative reading); the hub
+re-check applies the CC-1 rule over the armed batch and repeats the duration bound.
+
+Test seams: ``platform``, ``prepare_fn`` and ``admit_fn`` exist for the tests only. The increment #5 run command must
+not pass them; the real harness uses the imported ``xverse.faults`` module and the real prepare and admit.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 import math
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
 
 import check_topology as C
 import topology as T
@@ -47,21 +55,55 @@ class SimTimeFreezeBound:
         return [f"{name} must be a known finite number > 0 (got {getattr(self, name)!r})"
                 for name in ("thaw_bound_s", "step_s", "max_step_host_s", "handshake_s") if not _positive(getattr(self, name))]
 
-    def host_seconds(self, duration_ns: int) -> float:
-        """Host time from apply to clear: ``D / step`` steps at the maximum step time, plus two handshakes."""
+    def steps(self, duration_ns: int) -> int:
+        """Whole simulator steps held by a freeze of ``duration_ns``: ``ceil(D / step)`` (AD-30 delivery rule)."""
 
-        return duration_ns / 1e9 / self.step_s * self.max_step_host_s + 2 * self.handshake_s
+        return math.ceil(duration_ns / 1e9 / self.step_s - 1e-12)
+
+    def host_seconds(self, duration_ns: int) -> float:
+        """Host time from apply to clear: ``ceil(D / step)`` steps at the maximum step time, plus two handshakes."""
+
+        return self.steps(duration_ns) * self.max_step_host_s + 2 * self.handshake_s
+
+
+def _ns(value: Any, unit: Any) -> int | None:
+    if unit not in TIME_UNITS_NS or type(value) not in (int, float) or not math.isfinite(value) or value < 0:
+        return None
+    return round(value * TIME_UNITS_NS[unit])
+
+
+def sim_keying(fault: dict[str, Any]) -> tuple[int, int] | None:
+    """``(onset_ns, duration_ns)`` of a fault whose time trigger and duration are both in simulation time, else ``None``
+    (review finding 3, MEDIUM-1: every fault, message faults included)."""
+
+    intent = fault.get("extensions", {}).get(T.EXPERIMENT, {})
+    trigger, duration = intent.get("trigger", {}), intent.get("duration", {})
+    if intent.get("timeDomainId") != SIM_DOMAIN or trigger.get("kind") != "time":
+        return None
+    onset, length = _ns(trigger.get("at"), trigger.get("unit")), _ns(duration.get("value"), duration.get("unit"))
+    return None if onset is None or length is None else (onset, length)
 
 
 def sim_duration_ns(fault: dict[str, Any]) -> int | None:
-    """The declared duration of a fault in simulation-time ns, or ``None`` if it is not simulation-time keyed."""
+    """The declared duration of a simulation-time-keyed fault in ns, or ``None``."""
 
-    intent = fault.get("extensions", {}).get(T.EXPERIMENT, {})
-    duration, domain = intent.get("duration", {}), intent.get("timeDomainId")
-    unit, value = duration.get("unit"), duration.get("value")
-    if domain != SIM_DOMAIN or unit not in TIME_UNITS_NS or type(value) not in (int, float) or not math.isfinite(value) or value < 0:
-        return None
-    return round(value * TIME_UNITS_NS[unit])
+    keying = sim_keying(fault)
+    return None if keying is None else keying[1]
+
+
+def freeze_duration_problems(entry_id: str, duration_ns: int, sim_bound: SimTimeFreezeBound,
+                             freeze_bound: "C.FreezeBound | None" = None) -> list[str]:
+    """The duration rules for one freeze: the WP-10 §4 inequality in whole steps, and the FreezeBound tick cap."""
+
+    problems = []
+    steps = sim_bound.steps(duration_ns)
+    if sim_bound.host_seconds(duration_ns) > sim_bound.thaw_bound_s:
+        problems.append(f"{entry_id}: {duration_ns} ns = {steps} steps needs {sim_bound.host_seconds(duration_ns):.3f} s of host "
+                        f"time, above the thaw bound {sim_bound.thaw_bound_s} s")
+    if freeze_bound is not None and steps > freeze_bound.max_ticks:
+        problems.append(f"{entry_id}: {steps} steps exceed the FreezeBound tick cap {freeze_bound.max_ticks} "
+                        f"({freeze_bound.thaw_bound_s} s / {freeze_bound.max_cycle_s} s per tick)")
+    return problems
 
 
 def option_a_available(platform: Any = None) -> bool:
@@ -120,18 +162,16 @@ def admit_run(arm: str, faults: list[dict[str, Any]], *, freeze_bound: "C.Freeze
         if freezes and sim_bound is None:
             return refuse("bound-inputs", ["a freeze needs the simulation-time FreezeBound inputs (WP-10 §4)"])
         run.append("sim-duration")
-        problems = []
+        problems = [f"{f['id']}: trigger and duration must both be keyed to simulation time ({SIM_DOMAIN}); PAIR-1 needs it"
+                    for f in faults if sim_keying(f) is None]
+        if problems:
+            return refuse("sim-duration", problems)
         if freezes:
             problems = list(sim_bound.problems())
             if problems:
                 return refuse("sim-duration", [f"simulation-time freeze bound unknown or invalid: {p}" for p in problems])
             for fault in freezes:
-                duration = sim_duration_ns(fault)
-                if duration is None:
-                    problems.append(f"{fault['id']}: freeze duration is not keyed to simulation time ({SIM_DOMAIN}); PAIR-1 needs it")
-                elif sim_bound.host_seconds(duration) > sim_bound.thaw_bound_s:
-                    problems.append(f"{fault['id']}: {duration} ns needs {sim_bound.host_seconds(duration):.3f} s of host time, above "
-                                    f"the thaw bound {sim_bound.thaw_bound_s} s")
+                problems += freeze_duration_problems(fault["id"], sim_duration_ns(fault), sim_bound, freeze_bound)
             if problems:
                 return refuse("sim-duration", problems)
         run.append("fault-admission")
@@ -164,23 +204,47 @@ class ArmDescriptor:
 
 
 class HubArmingRecheck:
-    """The hub's second line: it repeats the target and kind rule for each descriptor before arming it."""
+    """The hub's second line: before arming, it repeats the target and kind rule, the CC-1 set rule over the whole
+    armed batch, and (when given) the duration bound (review finding 3, MEDIUM-3 and LOW-3)."""
 
-    def __init__(self, topology_docs: dict[str, dict[str, Any]]) -> None:
-        self.docs = topology_docs
+    def __init__(self, topology_docs: dict[str, dict[str, Any]], sim_bound: SimTimeFreezeBound | None = None,
+                 freeze_bound: "C.FreezeBound | None" = None) -> None:
+        self.docs, self.sim_bound, self.freeze_bound = topology_docs, sim_bound, freeze_bound
 
-    def recheck(self, descriptor: ArmDescriptor) -> list[str]:
+    def recheck(self, batch: Iterable[ArmDescriptor]) -> list[str]:
+        """Re-check one armed batch; empty means every descriptor is armable."""
+
+        batch = list(batch)
         ext = self.docs["system.json"]["extensions"][T.EXT]
         flows = {f["id"]: f for f in self.docs["system.json"]["spec"].get("flows", [])}
         freeze = ext["freezeTargets"]
-        if descriptor.kind == "freeze":
-            allowed = set(freeze["admitted"]) | {u for group in freeze["admittedSets"] for u in group}
-            return [] if descriptor.target_element in allowed else [f"{descriptor.entry_id}: freeze of {descriptor.target_element} not armable"]
-        if descriptor.target_element in flows:
-            admitted = flows[descriptor.target_element].get("extensions", {}).get(T.EXT, {}).get("faultAdmission", [])
-            if descriptor.kind in admitted:
-                return []
-        return [f"{descriptor.entry_id}: {descriptor.kind} on {descriptor.target_element} not armable (decisions.md §K)"]
+        single, sets = set(freeze["admitted"]), [tuple(g) for g in freeze["admittedSets"]]
+        freezes = [d for d in batch if d.kind == "freeze"]
+        refusals = []
+        for d in batch:
+            if d.kind == "freeze":
+                if d.target_element in single:
+                    pass
+                elif any(d.target_element in group for group in sets):
+                    complete = any(d.target_element in group and all(
+                        any(o.target_element == member and (o.onset_ns, o.duration_ns) == (d.onset_ns, d.duration_ns) for o in freezes)
+                        for member in group) for group in sets)
+                    if not complete:
+                        refusals.append(f"{d.entry_id}: freeze of {d.target_element} not armable alone (CC-1: every member, "
+                                        "same onset and duration)")
+                else:
+                    refusals.append(f"{d.entry_id}: freeze of {d.target_element} not armable")
+                if self.sim_bound is not None and not self.sim_bound.problems():
+                    refusals += freeze_duration_problems(d.entry_id, d.duration_ns, self.sim_bound, self.freeze_bound)
+                elif self.sim_bound is not None:
+                    refusals.append(f"{d.entry_id}: duration bound unknown ({'; '.join(self.sim_bound.problems())})")
+                continue
+            if d.target_element in flows:
+                admitted = flows[d.target_element].get("extensions", {}).get(T.EXT, {}).get("faultAdmission", [])
+                if d.kind in admitted:
+                    continue
+            refusals.append(f"{d.entry_id}: {d.kind} on {d.target_element} not armable (decisions.md §K)")
+        return refusals
 
     def arm(self, descriptor: ArmDescriptor) -> None:
         raise NotImplementedError("WP-10 increment #4: the hub relay and its control channel are not implemented yet")

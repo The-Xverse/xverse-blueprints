@@ -30,6 +30,12 @@ def _sim(fault, duration_ms):
     return fault
 
 
+def _msg(fault_id, kind, flow, parameters=None):
+    """A simulation-time-keyed message fault (1 s onset, 100 ms duration; test values)."""
+
+    return _sim(C.fault("mloc", fault_id, kind, flow, 1_000, 100, unit="ms", domain="carla-simulation", parameters=parameters), 100)
+
+
 def cc1(duration_ms=500):
     return [_sim(sim_freeze("a", "vc-functional-unit"), duration_ms), _sim(sim_freeze("b", "vc-assurance-unit"), duration_ms)]
 
@@ -78,6 +84,7 @@ def test_tick_keyed_freeze_is_refused_under_option_a():
 
 def test_long_duration_breaks_the_inequality():
     # 500 ms -> 10 steps x 0.1 s + 2 x 0.2 s = 1.4 s <= 3.26 s; 1500 ms -> 30 x 0.1 + 0.4 = 3.4 s > 3.26 s
+    # (the tick cap of TEST_FREEZE, 3.26 / 0.1 = 32 ticks, admits both step counts)
     assert run(cc1(500), platform=WITH_A)[0].admitted
     result, _, admit = run(cc1(1_500), platform=WITH_A)
     assert result.stage == "sim-duration" and "above the thaw bound" in result.refusals[0] and admit.calls == 0
@@ -100,10 +107,10 @@ def test_rc1_platform_does_not_provide_option_a():
     [_sim(sim_freeze("f", "front-zone-unit"), 500)],
     [_sim(sim_freeze("h", "adas-hpc-unit"), 500)],
     [_sim(sim_freeze("g", "vc-assurance-unit"), 500)],
-    [C.fault("mloc", "s", "stale", "f09-radar-vc", 100, 10)],
-    [C.fault("mloc", "l", "loss", "f09-radar-vc", 100, 10, parameters=C.EVERY_ONE)],
-    [C.fault("mloc", "u", "assurance.proposal-unsafe", "f12-proposal", 100, 10)],
-    [C.fault("mloc", "e", "assurance.evidence-loss", "f13-qualified-evidence", 100, 10)],
+    [_msg("s", "stale", "f09-radar-vc")],
+    [_msg("l", "loss", "f09-radar-vc", parameters=C.EVERY_ONE)],
+    [_msg("u", "assurance.proposal-unsafe", "f12-proposal")],
+    [_msg("e", "assurance.evidence-loss", "f13-qualified-evidence")],
 ])
 def test_every_fault_admission_refuses_until_option_a_exists(faults):
     result, prepare, admit = run(faults)  # the real rc.1 capability probe
@@ -140,9 +147,63 @@ def test_sim_duration_units():
 def test_hub_recheck_and_arm_stub():
     hub = A.HubArmingRecheck(C.load("mloc", "topology"))
     ok = A.ArmDescriptor("s", "f09-radar-vc", "stale", 1_000 * MS, 100 * MS)
-    assert hub.recheck(ok) == []
-    assert hub.recheck(A.ArmDescriptor("x", "f07-camera-adas", "loss", 0, 1))
-    assert hub.recheck(A.ArmDescriptor("y", "carla-adapter-unit", "freeze", 0, 1))
-    assert hub.recheck(A.ArmDescriptor("z", "vc-functional-unit", "freeze", 0, 1)) == []  # set membership; pairing is admission's
+    assert hub.recheck([ok]) == []
+    assert hub.recheck([A.ArmDescriptor("x", "f07-camera-adas", "loss", 0, 1)])
+    assert hub.recheck([A.ArmDescriptor("y", "carla-adapter-unit", "freeze", 0, 1)])
     with pytest.raises(NotImplementedError, match="increment #4"):
         hub.arm(ok)
+
+
+# ---- finding 4 repairs ---------------------------------------------------------------------------------------
+
+def test_tick_keyed_message_fault_is_refused_under_option_a():  # MEDIUM-1
+    result, prepare, admit = run([C.fault("mloc", "s", "stale", "f09-radar-vc", 100, 10)], platform=WITH_A)
+    assert result.stage == "sim-duration" and "simulation time" in result.refusals[0] and admit.calls == 0
+
+
+def test_freeze_with_tick_trigger_and_ms_duration_is_refused():  # MEDIUM-1
+    mixed = _sim(C.fault("mloc", "m", "freeze", "adas-hpc-unit", 100, 10, domain="carla-simulation"), 500)  # trigger unit tick
+    result, _, admit = run([mixed], platform=WITH_A)
+    assert result.stage == "sim-duration" and "simulation time" in result.refusals[0] and admit.calls == 0
+
+
+def test_sim_keyed_message_fault_passes_to_the_gate():
+    stale = C.fault("mloc", "s", "stale", "f09-radar-vc", 1_000, 10, unit="ms", domain="carla-simulation")
+    stale["extensions"]["io.xverse.experiment"]["duration"] = {"value": 100, "unit": "ms"}
+    assert run([stale], platform=WITH_A)[0].admitted
+    assert run([stale])[0].refusals == [A.INTERIM]
+
+
+def test_inequality_uses_whole_steps():  # MEDIUM-2: 1201 ms -> ceil(24.02) = 25 steps
+    bound = A.SimTimeFreezeBound(thaw_bound_s=2.85, step_s=0.05, max_step_host_s=0.1, handshake_s=0.2)
+    assert bound.steps(1_201 * MS) == 25 and bound.steps(1_200 * MS) == 24
+    assert math.isclose(bound.host_seconds(1_201 * MS), 2.9)  # fractional steps would give 2.802 s
+    result, _, admit = run(cc1(1_201), sim_bound=bound, platform=WITH_A)
+    assert result.stage == "sim-duration" and "25 steps" in result.refusals[0] and admit.calls == 0
+    assert run(cc1(1_200), sim_bound=bound, platform=WITH_A)[0].admitted  # 24 x 0.1 + 0.4 = 2.8 s <= 2.85 s
+
+
+def test_freeze_bound_tick_cap_is_applied():  # LOW-1: a bound allowing 0 ticks refuses a 500 ms freeze
+    zero = C.FreezeBound(thaw_bound_s=0.001, max_cycle_s=1.0)
+    assert zero.max_ticks == 0
+    result, _, admit = run(cc1(500), freeze_bound=zero, platform=WITH_A)
+    assert result.stage == "sim-duration" and "tick cap 0" in result.refusals[0] and admit.calls == 0
+
+
+def test_hub_recheck_applies_cc1_over_the_batch():  # MEDIUM-3
+    hub = A.HubArmingRecheck(C.load("mloc", "topology"))
+    u5 = A.ArmDescriptor("a", "vc-functional-unit", "freeze", 1_000 * MS, 500 * MS)
+    u6 = A.ArmDescriptor("b", "vc-assurance-unit", "freeze", 1_000 * MS, 500 * MS)
+    assert hub.recheck([u5]) and "CC-1" in hub.recheck([u5])[0]  # lone vc-functional
+    assert hub.recheck([u5, u6]) == []
+    late = A.ArmDescriptor("b", "vc-assurance-unit", "freeze", 1_050 * MS, 500 * MS)
+    longer = A.ArmDescriptor("b", "vc-assurance-unit", "freeze", 1_000 * MS, 550 * MS)
+    assert hub.recheck([u5, late]) and hub.recheck([u5, longer])
+    assert hub.recheck([u6]) == []  # vc-assurance is individually admitted
+
+
+def test_hub_recheck_repeats_the_duration_bound():  # LOW-3
+    d = A.ArmDescriptor("h", "adas-hpc-unit", "freeze", 0, 1_500 * MS)
+    assert A.HubArmingRecheck(C.load("mloc", "topology")).recheck([d]) == []  # no bound given
+    assert "thaw bound" in A.HubArmingRecheck(C.load("mloc", "topology"), sim_bound=KNOWN).recheck([d])[0]
+    assert "unknown" in A.HubArmingRecheck(C.load("mloc", "topology"), sim_bound=UNKNOWN).recheck([d])[0]
