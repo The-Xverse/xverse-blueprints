@@ -134,4 +134,32 @@ Repeat the full owning suite and actual eight-form authority checks; independent
 The independent source review has additionally inspected typed closed records, projected versus received versus
 payload sources, unchanged productive aliases, acknowledged-only local causation, append-failure poisoning,
 one-writer claims and digest-only offline joins. No additional source blocker is recorded at this pass. Unit-entry
-opening/projection wiring remains14f; supplying a local allow-list does not independently prove process isolation.
+opening/projection wiring remains 14f; supplying a local allow-list does not independently prove process isolation.
+
+## Finding 6: independent review of genuine Argus fixture successor (2026-10-24), PASS
+
+Independent worker review of root-authored `d57d9762747b4754c9b6d8648d1ca484752217fb`, after design
+`4225156d4c9287b301613116805c1b56ac50d324`. Reviewed the complete test-only delta and unchanged adapter/Argus
+open/append boundary. The genuine Argus API builds `declared_domains` from explicitly validated opening clocks;
+plan time domains do not implicitly declare a writer clock. The fixture now states its TEST-ONLY simulator/ns
+clock and registers each writer for teardown before adapter construction. No product refusal, topology domain,
+epoch mapping, parameter, role authority or default changes.
+
+The new genuine writer controls attempt both absent and wrong clock declarations twice and obtain the declared
+clock refusal each time before the writer claim. Matching clocks admit a real role event and the real reader
+returns its simulator/ns 100 stamp. The earlier role-chain/source/causation/poisoning tests stay intact. No remaining
+source blocker was found in this narrow successor. This pass did not run pytest or alter product code.
+
+Root serial verification, inspected independently: exact candidate owning suite **488 passed in 34.38s**, no skips;
+`check_topology.py` **59/59 checks passed**, report `ok=true`. Receipts are thesis-owned at
+`specs/002-assured-aeb/review/codex-integration-successor-verification-20261024/role-contract/receipt.json`
+(log SHA256 `4a6c9a10aeba6709e6b7ab119e9082b7213acfff87e550d90042043672947020`) and
+`role-topology/receipt.json` (log SHA256 `bfec0b0796d6a96d4409739f7e76c07423fbbdfeaeadc107616c396781b611ce`),
+with `role-topology-report.json` containing all checks. Both bind candidate `d57d976` and return code 0.
+These are the coordinator's actual runs, not a new run by this reviewer.
+
+Verdict: PASS for this test-fixture repair and prior source-review scope; no acceptance or merge by this reviewer.
+The installed accepted Argus namespace/API and explicit selected roles are exercised. A local allow-list does not
+prove process isolation or independently attest transport identity. Unit-entry/projection composition remains 14f,
+monitor/gate/manager semantics remain later increments, and no scientific clock mapping, live safety claim,
+availability credit or experiment acceptance follows. Assembled-main regression remains an integration gate.
