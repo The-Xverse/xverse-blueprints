@@ -323,3 +323,65 @@ real prepare and admit.
 6. **The run command** (increment #5) calls `admit_run` without the test seams.
 
 The next step is acceptance and a merge. Neither has happened.
+
+## Finding 6: independent re-review of findings 4 and 5 (2026-10-24 15:27:30)
+
+**Reviewer and method.**
+- The finding 3 reviewer, read-only. Read `581b91e`, `c61a2bc` and `1972efe` against `d5e4acf`.
+- Commands:
+  - `tests/test_admission.py`: 34 passed;
+  - the whole suite with the rc.1 profiles: 205 passed;
+  - `check_topology.py`: exit 0.
+- In-memory probes, with spies and an injected (A) stand-in only:
+  - the step count at 1200, 1201 and 50k ms, and +1 ns;
+  - a sweep of the tick cap against the inequality;
+  - a tick-keyed F09 fault.
+- Nothing in the worktree changed except this entry. No CARLA, no live run.
+
+### Verdict: **PASS WITH NOTES. Nothing blocks the merge.**
+
+### Items of finding 3
+- **MEDIUM-1: closed.**
+  - `sim_keying` requires `timeDomainId == carla-simulation`, a `time` trigger, and both the trigger and the
+    duration in ns, us, ms or s. Stage 3 applies it to **every** fault before the freeze rules.
+  - Probe: the finding 3 tick-keyed F09 `stale` fault now stops at `sim-duration`. The mixed tick-trigger,
+    ms-duration freeze is refused (test).
+  - A simulation-keyed message fault passes to the gate, and on rc.1 it gets `INTERIM`.
+- **MEDIUM-2: closed.**
+  - `steps = ceil(D/step − 1e-12)`. The 1201 ms probe gives 25 steps and 2.9 s; 1200 ms gives 24, and the
+    test bound of 2.85 s separates the two.
+  - The epsilon is safe: `D` has 1 ns resolution, so a genuine fraction is at least 2e-8 of a step. Every
+    multiple of 50 ms from 50 ms to 3 s counts exactly, and +1 ns adds a step.
+- **MEDIUM-3: closed.**
+  - `recheck(batch)` applies the CC-1 rule over the batch: a member of an admitted set is armable only if every
+    member is armed with the same onset and duration.
+  - A lone `vc-functional` is refused; the pair is accepted; a later onset or a longer partner is refused; a
+    lone `vc-assurance` is accepted.
+  - This matches design §3: "at `start` it arms the hub boundary with each entry", so the batch is the run's
+    whole armed set.
+- **LOW-1: closed in behaviour; the reading needs relabelling (see LOW-A).** The tick cap is applied, and a
+  `FreezeBound` allowing 0 ticks now refuses the 500 ms pair.
+- **LOW-2: closed.** The module docstring and residual 6 state that the test seams are for tests only and
+  that the increment #5 run command must not pass them.
+- **LOW-3: closed.** The hub re-check repeats the duration bound when given one: an over-long freeze is
+  refused, an unknown bound refuses, and no bound means no check, as documented.
+- **Residuals 1–6** are accurate and now carry the gate-lift conditions (3) and the tick-cap reading (5).
+
+### New notes (LOW, not blocking)
+- **LOW-A: the tick cap is not "conservative". It is implied by the inequality under its own assumption.**
+  - Finding 5 counts "each simulator step as at least one dispatcher cycle". That makes `steps` a *lower*
+    bound on the dispatcher ticks during the hold, so `steps ≤ max_ticks` cannot guarantee
+    `ticks ≤ max_ticks`.
+  - Under the same assumption (`max_step_host_s ≥ max_cycle_s`), the §4 inequality already implies the cap:
+    `steps · max_cycle ≤ steps · max_step_host ≤ thaw`. A sweep over 1–79 steps and cycles of 0.05, 0.08 and
+    0.1 s with `max_step_host` 0.1 s found **0** cases where the inequality admits and the cap refuses.
+  - The §4 inequality is the real guard, so this is not a safety gap. But residual 5 and the docstring should
+    say that the cap is a redundant consistency check under the lockstep assumption, not a conservative one.
+    D-4c should confirm `max_step_host_s ≥ max_cycle_s`. If it is not confirmed, the cap needs ticks
+    (`ceil(host_seconds / max_cycle)`), not steps.
+- **LOW-B (optional): integer step arithmetic.** `ceil(duration_ns / step_ns)`, with `step_ns` an integer,
+  would avoid the epsilon altogether.
+
+### Recommendation
+Ready for acceptance and merge as the interim admission path. Relabel the tick-cap reading (LOW-A) in
+residual 5. LOW-B is optional.
