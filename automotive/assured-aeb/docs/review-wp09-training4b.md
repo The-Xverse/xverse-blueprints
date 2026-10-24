@@ -455,3 +455,29 @@ whitespace check passes. No product module was imported to compute these tiny fi
 Fresh thesis fetch --prune origin succeeded; HEAD/upstream d97fdd1167bbd48b97aad5d4071ad59403665f42 and unchanged
 fully read working-note blob ba244ddb7df388386455524ab7667d4a1e86d5a3, no incoming note/pull. Unrelated dirty
 work is preserved; no canonical-note mutation. No runtime verification outcome is inferred from these checks.
+
+
+## Finding12: independent coordinator namespace-proof design disposition (2026-10-24)
+
+Reviewed exact design-only3df0bff40fe273454607464d303e3f484a703160, actual failed worker source/order, operational
+proof grammar/lifetime, current driver/supervisor ownership and primary Linuxv6.8 nsfs source/UAPI plus actual
+local nsfs/sched headers. PASS AS IMPLEMENTATION DESIGN under the standing engineering delegation, flagged for
+review; no actual namespace success or training acceptance is claimed. The kernel's typed namespace ioctl and
+namespace device/inode identity support the proposed FD comparison without privileged parent-proc traversal:
+[nsfs implementation](https://raw.githubusercontent.com/torvalds/linux/v6.8/fs/nsfs.c),
+[UAPI](https://raw.githubusercontent.com/torvalds/linux/v6.8/include/uapi/linux/nsfs.h).
+
+Adopt the explicit TWO original-launcher handles and actual parent reference; each child inherited net/user
+identity must match its parent observation and differ from its corresponding typed actual self handle. Preserve
+UID0/loopback/flags/preload/admission/source/environment invariants. No namespace-text-only/plain-process/-cn/
+missing-facility fallback. The owned launcher observation is trusted, not cryptographic proof against a malicious
+launcher. Validate/adopt only the declared nonstandard descriptors; no fd-range/std/arbitrary sentinel closure,
+number reuse or silent proof omission. Parent owns both across the existing capture and closes in finally; child
+closes adopted proof/self handles on all refusal/success paths before framework verification/import, with actual
+own-user and own-net identity stability checked before output. Keep all operational proof fields outside learned
+bytes, and rotate the four-module4b stage closure explicitly while all three4a files stay byte-identical.
+
+Authorize only this bounded worker/driver/supervisor/affected-test repair after this recorded detailed design.
+Required tiny genuine fresh-rn FD controls and ownership/refusal probes precede independent source review and
+root-scheduled owning/genuine framework rerun. Preserve the original failed attempt. Model4c/export/calibration,
+real data, protocol values, live/M1/scientific gates and implementation acceptance remain unchanged/pending.
