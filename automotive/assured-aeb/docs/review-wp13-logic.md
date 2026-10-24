@@ -318,3 +318,46 @@ epoch shifted by 7 s gives the same stream relative to its epoch.
    - `fusion.distanceBinEdgesM` must equal the label bin edges.
 
 **Status.** Engineering evidence on the candidate only. The independent review, acceptance and the merge are pending.
+
+## Finding 3: independent read-only Codex review (2026-10-24), CHANGES REQUIRED
+
+Input: `a74cd38ab5f38ad2ead524795f2f001dcd5bb948`. No code changed during this review. Adversarial probes used
+only the existing TEST-ONLY values and real U3 message builders in `tests/test_aeb_logic.py`.
+
+- **R13-1, MAJOR:** `FusionRiskAeb.step` counts unusable perception as an absent hypothesis. After a valid fired
+  cycle, three decision cycles with fresh positive radar and stale camera output produce brake requests
+  `[1.0, 1.0, 1.0, 0.0]`, final state `UNCERTAIN`, reason `camera-unusable`. Unknown evidence is not an observed
+  disappearance; the absence-release counter must not advance on unusable inputs. The same defect exists when
+  fallback radar qualification fails. This is separate from the arbiter's expressly decided bounded hold policy.
+- **R13-2, MEDIUM:** `_perception_ok` does not validate most of its declared members. A record with string `frame`,
+  NaN `oodScore`, string `binProbabilities` and null `provenance` is accepted as `NOMINAL` and fires a brake request.
+  Finding 1 §1.5 says all members are checked. Validate structural types, finite probabilities/OOD evidence,
+  declared bin names and digest provenance, without selecting any calibration method or tolerance.
+- **R13-3, MEDIUM:** removing the radar sensor's `statistical` check yields `NOMINAL` with no failure. Missing or
+  not-evaluated check evidence must be `UNCERTAIN`; an explicit statistical `fail` may remain `DEGRADED`.
+- **R13-4, MEDIUM:** a qualified ego speed of `-100.0` is accepted as `NOMINAL` and fires fallback. Speed is a
+  non-negative magnitude (WP-05); malformed negative evidence cannot satisfy the degraded-ODD bound.
+- **R13-5, carried integration obligation:** terminal behaviour is not decided here. The existing `arbiter.mrcSource`
+  alternatives differ from WP-15 DN-1's proposed hold-at-entry rule. Keep terminal wiring unaccepted until WP-15
+  is decided and the implementation reconciled. No new terminal policy is selected by this review.
+
+The initial candidate is not accepted or merged.
+
+## Finding 4: repair design, before code (Codex, 2026-10-24)
+
+Repair R13-1 to R13-4 only. An uncertain decision holds the latch and clears its absence counter so uncertainty
+cannot complete a consecutive observed-absence sequence. The absence-release rule otherwise stays unchanged;
+no-source simulator steps keep their existing non-decision hold semantics. Fusion uses this uncertain path for
+unusable camera/radar input and unresolved positive-camera disagreement; fallback uses it when radar or ego-speed
+qualification is unusable. Ordinary corroboration, the arbiter's state forwarding and its selected-source-only
+bounded hold are unchanged.
+
+Validate every perception member structurally: non-negative integer frame, finite occupancy/bin probabilities in
+[0, 1], finite OOD score, boolean OOD flag, declared bin name, JSON-safe quality object, the three digest provenance
+members, known state and optional string reason. Probability normalization tolerance and model bin-count binding
+remain WP-13 #3/WP-14 integration obligations; no tolerance is invented here. Missing/not-evaluated radar statistical
+checks become uncertain. Negative ego speed becomes unknown. Add regression cases using the existing test-only
+projection and independently stated expected outputs. Run the full owning suite with rc.1 profiles.
+
+After repair, a fresh independent re-review is still required before delegated acceptance or merge. Do not amend
+unrelated worktrees or the canonical dynamic note, and do not supply a protocol value.
