@@ -401,3 +401,130 @@ result is finding 5.
 | LOW-1 | Repair | A real assertion that the topology and Maestro forms are equal apart from `form` and `unplannedFlows`, with a test that shows it can fail. `d4a-topology-form-maestro` must fail if the topology form becomes preparable |
 | LOW-2 | Record | Extend residual 4: the hub reads the relay faults and the flow evidence from the topology form |
 | LOW-3, LOW-4 | Optional | LOW-3: pick the contract carrier by authority class rather than name order. LOW-4: add the A-4 wrong-consumer negative, and the tolerance-0 source entry |
+
+## Finding 5: result of the finding 4 repairs (2026-10-24 11:28:30; repair commit `5e53a54`; report `docs/evidence/wp12-check-5e53a54.json`)
+
+**Commands.** Same environment as finding 2. `check_topology.py`: exit 0, 50 checks passed. pytest:
+74 passed. Without `XVERSE_PLATFORM_PROFILES`, 44 pass and 30 are skipped. Host load 5.79. No unit,
+simulator, Maestro run or CARLA was involved.
+
+### 5.1 Per item
+
+**HIGH-1, repaired.** `check_fault_admission` now admits a member of an `admittedSet` that is not
+individually admitted only when every member of the set is frozen with the same onset (trigger kind, at,
+unit, time domain) and the same duration. The following are refused:
+- a lone `vc-functional-unit` freeze;
+- the pair at onsets 100 and 300;
+- the pair with durations 10 and 20;
+- `vc-functional-unit` in the comparator, where the set does not exist.
+
+The concurrent pair is admitted, and the platform still prepares it (2 entries). Tests:
+`test_lone_vc_functional_freeze_is_refused`, `test_non_concurrent_cc1_pair_is_refused` (2 cases),
+`test_concurrent_cc1_pair_is_admitted` and `test_cc1_pair_is_refused_in_the_comparator_…`.
+
+**Correction to finding 2's D-4a "freeze-target rule" row.** The rule as recorded there admitted a lone
+or non-concurrent freeze of `vc-functional-unit` (finding 3). That row's claim, that the rule refuses
+everything outside design §5, was wrong for that case at `3aed505`, and holds from `5e53a54`.
+
+**MEDIUM-1, corrected.**
+- **Wording.** The `RETURN_FLOWS` comment and L-2 now say that F04 and F15b break only the cycles
+  visible to XDL (forward flows). F15b is needed for XDL acyclicity
+  (`test_f15b_return_flow_is_needed_for_xdl_acyclicity`: adding it as a forward flow gives
+  `XDL1-PLAN-DEPENDENCY-CYCLE`).
+- **Hub delay points**, each declared as `hubDelay: {unit: simulator-step, value: 1}` in the flow
+  extension:
+  - **F17** `brake-command`, the brake loop U2→U3→U4→U5→U2;
+  - **F14** `authorization`, the MLOC authorization loop U5→U6→U5;
+  - **F04** and **F15b**, the return flows, which are hub-delayed by construction.
+
+  F14, not F15a, is the cut. F14 is the only U6→U5 flow, and delaying F15a alone would leave the loop
+  through F13 and F14 closed.
+- **`check_cycles`.** It takes the strongly connected components of the full graph (forward, return and
+  intra-unit messages) after removing the delay points.
+  - No cross-unit component remains in any arm.
+  - Removing the delay of F17, F14 or F04 reopens its loop (`test_each_delay_point_is_necessary`).
+  - Two intra-unit components remain:
+    - U5: arbiter, chassis zone, brake node, manager, verifier, supervisor, validator and related roles;
+    - U2: gateway and driver profile.
+
+    They are resolved by each unit's own step order (WP-13, WP-14) and are listed in the report.
+- The one-step value is the hub's lockstep semantics, with its source in `ENGINEERING_SOURCES`
+  (`hubDelayTicks`). Its relation to the AD-30 latency declaration is `TODO: author decision (AD-30)`.
+
+**MEDIUM-2, residual and rule extension.**
+- `check_fault_admission(docs, faults, freeze_bound)` takes an optional `FreezeBound(thaw_bound_s,
+  max_cycle_s)`. The thaw bound is `cadence − health_scan_seconds` of the admitted schedule (3.26 s at
+  6 units and op 0.29 in the dry run). The maximum cycle is the D-4c measurement.
+- Both are supplied by the caller and nothing is hard-coded. The test derives the thaw bound from
+  `admit_schedule`, and uses 0.1 s as a labelled stand-in cycle.
+- Without a bound, durations are not checked, and the check report says so.
+
+**MEDIUM-3, repaired or recorded.**
+
+| Flow | Design §4 | Now | Status |
+| --- | --- | --- | --- |
+| F09 `radar-vc` | `radar-fallback` and `evidence-validator` | front-zone → **`vc-ingress`** (U5 inbound fan-out), then intra to `radar-fallback` **and** `evidence-validator`. The fallback takes the raw radar directly, not through the validator | **Restored** (`test_degraded_path_takes_radar_directly_not_through_the_validator`). `vc-ingress` is in the degraded-path VC-HPC dependency |
+| F11 `adas-cycle` | `evidence-validator` and `functional-arbiter` | fusion → `vc-ingress`, then intra to `functional-arbiter` **and** `evidence-validator` | **Restored** |
+| F15a | from `configuration-manager` and `transition-verifier` | F15a from the manager, plus **F15c** `transition-verdict-assurance` from the verifier to the monitor (net-u6: 4 routes, the cap) | **Restored** as two flows |
+| F03 `motion-raw` | to `motion-sensor-model` | to `loop-gateway`, then intra to the motion model **and** the driver profile | **Deviation, recorded for the design owner.** The adapter link (`carla-items/2`, DLG-8) is one socket terminated at the gateway. Both design consumers are in U2, so there is no inter-unit difference, and a direct F03 would add a fourth adapter-link route without a gain |
+
+`vc-ingress` is a forwarding element (`evidence-router`, emitting only `radar-evidence` and `adas-cycle`).
+It is the one-destination realization of the design's two-destination flows within the 4-route cap.
+It is a design addition and is recorded for the design owner's acceptance.
+
+**LOW-1, repaired.**
+- `forms_difference` asserts that the topology and Maestro forms agree, except for the declared
+  projection: instances, endpoints, interfaces, nodes, the extension minus `form` and `unplannedFlows`,
+  bindings, unit targets, steps and Components.
+- It is empty in every arm, and `test_forms_difference_can_fail` shows it detects a mutation.
+- `d4a-topology-form-maestro` now fails if the topology form becomes preparable, or if it is refused
+  for a reason other than `ML-TIME`.
+
+**LOW-2, recorded** in residual 4 below.
+
+**LOW-3, repaired.** The contract carrier is chosen by authority class. `proposal` is carried by
+`proposer`, not `fault-relay` (test).
+
+**LOW-4, repaired in part.**
+- The A-4 wrong-consumer negative (arbiter → brake node directly) is rejected.
+- `stepScheduleTolerance` has a source entry.
+- The substring-based evaluation-instance detection of A-7 is unchanged and is recorded as a limit.
+
+### 5.2 Updated figures
+- **Arms.** Comparator: 23 element instances, 12 forward and 1 return flows, 28 intra-unit messages.
+  MLOC and verification bypass: 28, 18, 2 and 31. Authorization bypass: 28, 19, 2 and 31.
+- **Routes per provider.** At most 4 in every arm; net-u5 and net-u6 are at 4 in the MLOC arms. The
+  only refusal is still F19 (`route_capacity_exhausted`) in `authorization-bypass`, the WP-16 residual.
+- **Admission.** `admit_schedule` agrees with the capacity rule in all 12 cases, and the thaw bounds and
+  reserves are unchanged.
+- **Configuration bytes** (full Maestro form): 150 053 (5 units at 0.29 s), 174 586 (6 at 0.29) and
+  186 358 (7 at 0.25). The slim alternative gives 65 951, 75 605 and 87 866. Every case is still over
+  65 536, so the C1 dependency remains.
+
+### 5.3 Residuals (replaces finding 2 §2.4)
+1. **C1 sizing.** At least 186 358 B (7 units, full Maestro form) plus margin, or about 88 KB with the
+   slim form. This decision belongs to the C1 increment and the author.
+2. **F19 route cap** (WP-16).
+3. **Simulator-time fault and freeze onset** (WP-10; L-8).
+4. **Two-form projection and hub responsibilities** (L-1, L-2; finding 3 MEDIUM-1, LOW-2).
+   - The Maestro form omits the flows. The hub (WP-10, WP-13) carries, and reads from the topology
+     form:
+     - the forward and return flows;
+     - the hub delay points **F04, F14, F15b and F17** (one simulator step each);
+     - the relay faults of §K (F09 `loss`, `stale` and `delay`; the F12 and F13 assurance kinds), which
+       cannot be in a Maestro schedule at rc.1 and are checked only by `validate_static` on the
+       topology form;
+     - the flow evidence (the Scenario taps).
+   - The fidelity of the hub to the topology form must be checked when the hub exists.
+   - The intra-unit cycles of U5 and U2 are resolved by each unit's step order (WP-13, WP-14).
+5. **Enforcement** (finding 3 MEDIUM-2). WP-10 and WP-16 must call `check_fault_admission`, with a
+   `FreezeBound` once D-4c gives the maximum cycle, on the exact fault schedule before `admit_schedule`,
+   and refuse on any finding. Until then the platform statically accepts what the rule refuses.
+6. **Design-owner items** (MEDIUM-3): the `vc-ingress` addition, F15c, and the F03 deviation.
+7. **Declared but not yet existing:** the unit module paths, the perception model digest (WP-09) and the
+   U4 inference venv (WP-08). No live execution is authorized.
+8. **Interpreter pins** are host digests (`xdl/pins.json`); drift is reported by the check.
+9. **A-7 limit.** The evaluation-only detection matches names (LOW-4).
+
+The next step is a focused re-review of `5e53a54` against finding 3, then acceptance and merge. Neither
+has happened.
