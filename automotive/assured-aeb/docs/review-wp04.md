@@ -152,3 +152,59 @@ is engineering evidence: not AEB evidence, not M1, not X-Verse fitness for purpo
 2. The fault-hook decision (§1.6).
 3. Hub delivery (WP-10) and unit wiring (WP-13, WP-14).
 4. V34 Argus event emission: the evidence records are produced here; the Argus extension is ED-12.
+
+## Finding 2: implementation result (2026-10-24 11:37:52; commit `9e9b15b`)
+
+**What was added.**
+- `assured_aeb/brake_esc.py` (standard library only), containing:
+  - the message builders and the closed-vocabulary check `check_vocabulary` (V26);
+  - `BrakeNodeParams` and `ReaderParams`, whose `from_record` takes no defaults;
+  - `ChassisZone`, `BrakeEscNode` and `BrakeCommandReader`.
+- `tests/test_brake_esc.py`: 42 tests.
+
+**Commands.**
+- `/dev/shm/compat-p6-venv/bin/python -I -m pytest tests/test_brake_esc.py`: **42 passed**.
+- The whole blueprint suite with `XVERSE_PLATFORM_PROFILES` (rc.1 export): **116 passed**, the 74
+  WP-12 tests included.
+- `check_topology.py`: exit 0. The WP-12 documents are unchanged.
+- Host load 5.0. No live run, no CARLA, no unit process; the loop10 worktrees and the pinned live
+  environment were not touched.
+
+**Results against the design (finding 1).**
+
+| Design item | Implemented and tested |
+| --- | --- |
+| State machine §1.3 | Every delivered request yields `received`, then `accepted` with `forwarded` (one F17 command), or `rejected` with one reason. Requests of one step are processed in sequence order. A zero request is accepted and forwarded as a release. A rejected request forwards nothing |
+| Rejection rules | `malformed` (non-object, wrong schema, missing or extra member, non-integer `sequence`/`originNs`/`receivedNs`, non-number or NaN or bool value), `wrong-source` (source ≠ chassis zone, or route ≠ arbiter → chassis zone), `out-of-range` (outside [0, 1], not clamped), `stale` (age > window, or a future origin; the window boundary itself is fresh), `replayed` (sequence ≤ the last accepted one) |
+| Simulation time | Only integer-nanosecond simulation time; a non-integer step time is refused. Status `atNs` is the acceptance time (AD-14). The F17 `originNs` is the forwarding time plus the declared compute latency |
+| Outputs (V26) | Only the declared `brake-status/1` and `brake-command/1` members. No wheel speed, pressure, deceleration or "applied" member exists; the check rejects a mutated message carrying one, an undeclared status, or another node identity. `injected-fault` is in the vocabulary and is never emitted |
+| No defaults | The node and the reader refuse construction without a validated record. Records with a missing, extra, ill-typed, zero (window) or negative (latency) member are refused |
+| Chassis zone §1.5 | Routes only the arbiter's well-formed request, re-stamped with source, route and `receivedNs`, and leaves value and staleness to the node. Refuses other sources with a `route-refused` evidence record. Forwards `motion-evidence` to `vehicle-state` unchanged. Records `aeb-status` and `brake-status` as evidence |
+| Forwarding | Only F17 to the U2 `loop-gateway`. A test binds the module to the WP-12 topology (element outputs, F17, its hub delay, and the intra messages) |
+| WP-03 reader §1.7 | 0.0 before the first command and for a fresh release; the fresh value; `None` when stale or after `mark_lost`; older and non-conforming commands refused and counted. The offline chain arbiter → chassis zone → node → F17 (one hub step) → reader gives `[0.0, 0.0, 0.0, 1.0, 1.0]` for requests `[0, 0, 1, 1, 0]`: each request reaches the driver one hub step later and is never `None` while fresh |
+| Fault hooks §1.6 | None: no decided H4 case touches the node or the chassis zone |
+
+All window, latency and step values in the tests are labelled test values (100 ms, 0 ns, 50 ms). No
+protocol value is set.
+
+**Residuals.**
+1. **Protocol values.** `stalenessWindowNs` of the node and the reader (AD-06, AD-07) and
+   `computeLatencyNs` (AD-30) are required from the frozen AD-27 record, through the FR-028
+   projection. None exists yet.
+2. **Fault-hook decision (§1.6).** If a brake-path fault is ever admitted, its injection must stay
+   outside U5 (FR-028), and `injected-fault` should be evidence-only. DECISION NEEDED.
+3. **Wiring.**
+   - The hub's F17 delivery and `mark_lost` verdict (WP-10).
+   - The U5 unit program that hosts these modules (WP-13, WP-14). The functional arbiter must emit a
+     request every decision cycle (FR-041), which the reader's staleness rule assumes.
+   - The Phase 8 run command that passes the reader to `ArbitratedDriver` (WP-03 B-4).
+4. **V34 and Argus.** The node's statuses and commands are kept as evidence records with simulation
+   time. Their emission as Argus role events belongs to the ED-12 extension.
+5. **The reader's future-origin case.** An F17 command whose `originNs` is later than the reader's
+   time is used as delivered. The hub must deliver only at or after the command's delivery point
+   (WP-10).
+6. **Status back to the arbiter.** The WP-12 topology carries `brake-status` to the chassis zone only,
+   with no acknowledgement to the arbiter. If WP-13 needs one, it is a topology change.
+
+The next step is an independent read-only review of `9e9b15b`, then acceptance and merge. Neither has
+happened.
