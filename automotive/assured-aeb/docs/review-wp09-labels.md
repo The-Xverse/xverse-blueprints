@@ -805,3 +805,27 @@ its explicit LOW-3 obligations. Verification of the label parameter digest again
 bytes also belongs to #6. Actual map sections and dataset parameters remain TODO. Target-occupied sections and multiple
 writable opens remain the declared scope/ single-writer limits, not repaired capabilities. Existing planar geometry,
 visibility and offline-only evidence limits continue to apply. No principal-data or scientific claim follows.
+
+## Finding 10: independent parent completion review, PASS WITH NOTES; full suite pending (2026-10-24)
+
+Reviewed candidate `40d80ccc9d13da60b20bcda76c77406cc1cf5a7a` against the preserved pre-Codex patch,
+findings 7 to 9 and the delegated data-separation amendment. The parent did not author the completion repair.
+The original dirty-state snapshot is retained; no source history or intended change was discarded.
+
+The complete manifest/schema-/3 delta, label-code closure, scenario boundary, writable/read-only store changes
+and migrated tests match the recorded scope. The admitted set is based on every recorded ego-traversed section,
+not the spawn section alone. Actual supplied label lists are hashed and checked against their run and source
+provenance; duplicate frame numbers are refused independently of byte digests. A reader never sweeps the writer's
+temporary file; new shards and stored-frame publication have the recorded directory-fsync steps. Multi-writer
+exclusion is not claimed.
+
+Eight tiny public-admission checks independently pass: a positive genuine-label manifest, changed label digest,
+foreign/duplicate labels, two-digest duplicate frames, duplicate frame table and the two protected-section
+training/calibration cases. `git diff --check` passes. No pytest, simulation or framework import was run while the
+platform regression is active. The full source and assembled owning suite remain required before acceptance.
+
+Carried notes are material: recorder #6 must attest traversed-section completeness and observer/map/source-record
+binding; the manifest cannot prove those facts from supplied metadata. Hash/provenance checks do not re-execute
+label geometry or establish source truth. Training/export must validate the label fields it consumes and preserve
+recorded exclusions. Existing planar/visibility and single-writer limits remain; no dataset or principal result
+is accepted by this source review. No numeric protocol value was chosen.
