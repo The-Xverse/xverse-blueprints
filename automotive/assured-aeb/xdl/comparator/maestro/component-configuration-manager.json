@@ -1,0 +1,190 @@
+{
+  "apiVersion": "xverse.io/xdl/v1alpha1",
+  "extensions": {
+    "io.xverse.assured-aeb": {
+      "authorityClass": "executor",
+      "kind": "component-authority",
+      "permittedOutputs": [
+        "configuration-state",
+        "selector-command",
+        "transition-request"
+      ],
+      "schemaVersion": "0.1"
+    },
+    "io.xverse.xcom": {
+      "kind": "flow-policy",
+      "policy": {
+        "deadlineMs": 0,
+        "observationPoints": [],
+        "ordering": "fifo",
+        "overflow": "reject",
+        "queueDepth": 4,
+        "reliability": "best-effort",
+        "retry": 0
+      },
+      "schemaVersion": "0.1",
+      "target": {
+        "apiVersion": "xverse.io/xdl/v1alpha1",
+        "kind": "Component",
+        "name": "aeb-configuration-manager",
+        "namespace": "org.xverse.assured-aeb"
+      }
+    }
+  },
+  "kind": "Component",
+  "metadata": {
+    "description": "Assured AEB element configuration-manager (executor); module of its host unit, not a Maestro unit.",
+    "name": "aeb-configuration-manager",
+    "namespace": "org.xverse.assured-aeb",
+    "provenance": {
+      "maturity": "architectural-target",
+      "revision": "wp12-v0.1",
+      "source": "xverse-blueprints/automotive/assured-aeb/topology.py"
+    },
+    "version": "0.1.0"
+  },
+  "spec": {
+    "capabilities": [
+      "assured-aeb-executor"
+    ],
+    "endpoints": [
+      {
+        "direction": "output",
+        "id": "configuration-state-out",
+        "interfaceId": "configuration-state",
+        "ownerId": "aeb-configuration-manager"
+      },
+      {
+        "direction": "output",
+        "id": "selector-command-out",
+        "interfaceId": "selector-command",
+        "ownerId": "aeb-configuration-manager"
+      },
+      {
+        "direction": "output",
+        "id": "transition-request-out",
+        "interfaceId": "transition-request",
+        "ownerId": "aeb-configuration-manager"
+      },
+      {
+        "direction": "input",
+        "id": "authorization-in",
+        "interfaceId": "authorization",
+        "ownerId": "aeb-configuration-manager"
+      },
+      {
+        "direction": "input",
+        "id": "forced-command-in",
+        "interfaceId": "forced-command",
+        "ownerId": "aeb-configuration-manager"
+      },
+      {
+        "direction": "input",
+        "id": "transition-verdict-in",
+        "interfaceId": "transition-verdict",
+        "ownerId": "aeb-configuration-manager"
+      }
+    ],
+    "interfaces": [
+      {
+        "compatibility": "exact",
+        "direction": "output",
+        "extensions": {
+          "io.xverse.xcom": {
+            "kind": "interface-policy",
+            "policy": {
+              "encoding": "json",
+              "interactionKind": "message",
+              "schemaId": "configuration-state-schema",
+              "schemaVersion": "1.0.0",
+              "semanticCompatibility": "exact"
+            },
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "kind": "Component",
+              "name": "aeb-configuration-manager",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "configuration-state",
+        "payloadSchema": "urn:xverse:assured-aeb:configuration-state:v1",
+        "unitSemantics": "configuration-state"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "output",
+        "extensions": {
+          "io.xverse.xcom": {
+            "kind": "interface-policy",
+            "policy": {
+              "encoding": "json",
+              "interactionKind": "message",
+              "schemaId": "selector-command-schema",
+              "schemaVersion": "1.0.0",
+              "semanticCompatibility": "exact"
+            },
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "kind": "Component",
+              "name": "aeb-configuration-manager",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "selector-command",
+        "payloadSchema": "urn:xverse:assured-aeb:selector-command:v1",
+        "unitSemantics": "configuration-command"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "output",
+        "extensions": {
+          "io.xverse.xcom": {
+            "kind": "interface-policy",
+            "policy": {
+              "encoding": "json",
+              "interactionKind": "message",
+              "schemaId": "transition-request-schema",
+              "schemaVersion": "1.0.0",
+              "semanticCompatibility": "exact"
+            },
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "kind": "Component",
+              "name": "aeb-configuration-manager",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "transition-request",
+        "payloadSchema": "urn:xverse:assured-aeb:transition-request:v1",
+        "unitSemantics": "configuration-command"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "authorization",
+        "payloadSchema": "urn:xverse:assured-aeb:authorization:v1",
+        "unitSemantics": "authorization"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "forced-command",
+        "payloadSchema": "urn:xverse:assured-aeb:forced-command:v1",
+        "unitSemantics": "configuration-command"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "transition-verdict",
+        "payloadSchema": "urn:xverse:assured-aeb:transition-verdict:v1",
+        "unitSemantics": "verdict"
+      }
+    ]
+  }
+}

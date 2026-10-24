@@ -1,0 +1,171 @@
+{
+  "apiVersion": "xverse.io/xdl/v1alpha1",
+  "extensions": {
+    "io.xverse.assured-aeb": {
+      "authorityClass": "environment",
+      "kind": "component-authority",
+      "permittedOutputs": [
+        "actuation-command",
+        "motion-raw",
+        "radar-sensor-out"
+      ],
+      "schemaVersion": "0.1"
+    },
+    "io.xverse.xcom": {
+      "kind": "flow-policy",
+      "policy": {
+        "deadlineMs": 0,
+        "observationPoints": [],
+        "ordering": "fifo",
+        "overflow": "reject",
+        "queueDepth": 4,
+        "reliability": "best-effort",
+        "retry": 0
+      },
+      "schemaVersion": "0.1",
+      "target": {
+        "apiVersion": "xverse.io/xdl/v1alpha1",
+        "kind": "Component",
+        "name": "aeb-loop-gateway",
+        "namespace": "org.xverse.assured-aeb"
+      }
+    }
+  },
+  "kind": "Component",
+  "metadata": {
+    "description": "Assured AEB element loop-gateway (environment); module of its host unit, not a Maestro unit.",
+    "name": "aeb-loop-gateway",
+    "namespace": "org.xverse.assured-aeb",
+    "provenance": {
+      "maturity": "architectural-target",
+      "revision": "wp12-v0.1",
+      "source": "xverse-blueprints/automotive/assured-aeb/topology.py"
+    },
+    "version": "0.1.0"
+  },
+  "spec": {
+    "capabilities": [
+      "assured-aeb-environment"
+    ],
+    "endpoints": [
+      {
+        "direction": "output",
+        "id": "actuation-command-out",
+        "interfaceId": "actuation-command",
+        "ownerId": "aeb-loop-gateway"
+      },
+      {
+        "direction": "output",
+        "id": "motion-raw-out",
+        "interfaceId": "motion-raw",
+        "ownerId": "aeb-loop-gateway"
+      },
+      {
+        "direction": "output",
+        "id": "radar-sensor-out-out",
+        "interfaceId": "radar-sensor-out",
+        "ownerId": "aeb-loop-gateway"
+      },
+      {
+        "direction": "input",
+        "id": "brake-command-in",
+        "interfaceId": "brake-command",
+        "ownerId": "aeb-loop-gateway"
+      },
+      {
+        "direction": "input",
+        "id": "radar-raw-in",
+        "interfaceId": "radar-raw",
+        "ownerId": "aeb-loop-gateway"
+      },
+      {
+        "direction": "input",
+        "id": "throttle-command-in",
+        "interfaceId": "throttle-command",
+        "ownerId": "aeb-loop-gateway"
+      }
+    ],
+    "interfaces": [
+      {
+        "compatibility": "exact",
+        "direction": "output",
+        "extensions": {
+          "io.xverse.xcom": {
+            "kind": "interface-policy",
+            "policy": {
+              "encoding": "json",
+              "interactionKind": "message",
+              "schemaId": "actuation-command-schema",
+              "schemaVersion": "1.0.0",
+              "semanticCompatibility": "exact"
+            },
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "kind": "Component",
+              "name": "aeb-loop-gateway",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "actuation-command",
+        "payloadSchema": "urn:xverse:assured-aeb:actuation-command:v1",
+        "unitSemantics": "pedal-command"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "output",
+        "id": "motion-raw",
+        "payloadSchema": "urn:xverse:assured-aeb:motion-raw:v1",
+        "unitSemantics": "vehicle-motion"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "output",
+        "extensions": {
+          "io.xverse.xcom": {
+            "kind": "interface-policy",
+            "policy": {
+              "encoding": "json",
+              "interactionKind": "message",
+              "schemaId": "radar-sensor-out-schema",
+              "schemaVersion": "1.0.0",
+              "semanticCompatibility": "exact"
+            },
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "kind": "Component",
+              "name": "aeb-loop-gateway",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "radar-sensor-out",
+        "payloadSchema": "urn:xverse:assured-aeb:radar-sensor-out:v1",
+        "unitSemantics": "radar-detections"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "brake-command",
+        "payloadSchema": "urn:xverse:assured-aeb:brake-command:v1",
+        "unitSemantics": "brake-request"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "radar-raw",
+        "payloadSchema": "urn:xverse:assured-aeb:radar-raw:v1",
+        "unitSemantics": "radar-detections"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "throttle-command",
+        "payloadSchema": "urn:xverse:assured-aeb:throttle-command:v1",
+        "unitSemantics": "pedal-command"
+      }
+    ]
+  }
+}

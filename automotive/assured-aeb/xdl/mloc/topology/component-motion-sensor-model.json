@@ -1,0 +1,79 @@
+{
+  "apiVersion": "xverse.io/xdl/v1alpha1",
+  "extensions": {
+    "io.xverse.assured-aeb": {
+      "authorityClass": "environment",
+      "kind": "component-authority",
+      "permittedOutputs": [
+        "motion-evidence"
+      ],
+      "schemaVersion": "0.1"
+    },
+    "io.xverse.xcom": {
+      "kind": "flow-policy",
+      "policy": {
+        "deadlineMs": 0,
+        "observationPoints": [],
+        "ordering": "fifo",
+        "overflow": "reject",
+        "queueDepth": 4,
+        "reliability": "best-effort",
+        "retry": 0
+      },
+      "schemaVersion": "0.1",
+      "target": {
+        "apiVersion": "xverse.io/xdl/v1alpha1",
+        "kind": "Component",
+        "name": "aeb-motion-sensor-model",
+        "namespace": "org.xverse.assured-aeb"
+      }
+    }
+  },
+  "kind": "Component",
+  "metadata": {
+    "description": "Assured AEB element motion-sensor-model (environment); module of its host unit, not a Maestro unit.",
+    "name": "aeb-motion-sensor-model",
+    "namespace": "org.xverse.assured-aeb",
+    "provenance": {
+      "maturity": "architectural-target",
+      "revision": "wp12-v0.1",
+      "source": "xverse-blueprints/automotive/assured-aeb/topology.py"
+    },
+    "version": "0.1.0"
+  },
+  "spec": {
+    "capabilities": [
+      "assured-aeb-environment"
+    ],
+    "endpoints": [
+      {
+        "direction": "output",
+        "id": "motion-evidence-out",
+        "interfaceId": "motion-evidence",
+        "ownerId": "aeb-motion-sensor-model"
+      },
+      {
+        "direction": "input",
+        "id": "motion-raw-in",
+        "interfaceId": "motion-raw",
+        "ownerId": "aeb-motion-sensor-model"
+      }
+    ],
+    "interfaces": [
+      {
+        "compatibility": "exact",
+        "direction": "output",
+        "id": "motion-evidence",
+        "payloadSchema": "urn:xverse:assured-aeb:motion-evidence:v1",
+        "unitSemantics": "evidence-item"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "motion-raw",
+        "payloadSchema": "urn:xverse:assured-aeb:motion-raw:v1",
+        "unitSemantics": "vehicle-motion"
+      }
+    ]
+  }
+}

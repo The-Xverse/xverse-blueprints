@@ -1,0 +1,30 @@
+{
+  "apiVersion": "xverse.io/xdl/v1alpha1",
+  "extensions": {
+    "io.xverse.assured-aeb": {
+      "authorityClass": "unit-host",
+      "kind": "component-authority",
+      "permittedOutputs": [],
+      "schemaVersion": "0.1"
+    }
+  },
+  "kind": "Component",
+  "metadata": {
+    "description": "Process host of one Maestro unit (shape S-A); no AEB endpoint.",
+    "name": "assured-aeb-unit-host",
+    "namespace": "org.xverse.assured-aeb",
+    "provenance": {
+      "maturity": "architectural-target",
+      "revision": "wp12-v0.1",
+      "source": "xverse-blueprints/automotive/assured-aeb/topology.py"
+    },
+    "version": "0.1.0"
+  },
+  "spec": {
+    "capabilities": [
+      "host-process"
+    ],
+    "endpoints": [],
+    "interfaces": []
+  }
+}

@@ -1,0 +1,111 @@
+{
+  "apiVersion": "xverse.io/xdl/v1alpha1",
+  "extensions": {
+    "io.xverse.assured-aeb": {
+      "authorityClass": "productive",
+      "kind": "component-authority",
+      "permittedOutputs": [
+        "fallback-request"
+      ],
+      "schemaVersion": "0.1"
+    },
+    "io.xverse.xcom": {
+      "kind": "flow-policy",
+      "policy": {
+        "deadlineMs": 0,
+        "observationPoints": [],
+        "ordering": "fifo",
+        "overflow": "reject",
+        "queueDepth": 4,
+        "reliability": "best-effort",
+        "retry": 0
+      },
+      "schemaVersion": "0.1",
+      "target": {
+        "apiVersion": "xverse.io/xdl/v1alpha1",
+        "kind": "Component",
+        "name": "aeb-radar-fallback",
+        "namespace": "org.xverse.assured-aeb"
+      }
+    }
+  },
+  "kind": "Component",
+  "metadata": {
+    "description": "Assured AEB element radar-fallback (productive); module of its host unit, not a Maestro unit.",
+    "name": "aeb-radar-fallback",
+    "namespace": "org.xverse.assured-aeb",
+    "provenance": {
+      "maturity": "architectural-target",
+      "revision": "wp12-v0.1",
+      "source": "xverse-blueprints/automotive/assured-aeb/topology.py"
+    },
+    "version": "0.1.0"
+  },
+  "spec": {
+    "capabilities": [
+      "assured-aeb-productive"
+    ],
+    "endpoints": [
+      {
+        "direction": "output",
+        "id": "fallback-request-out",
+        "interfaceId": "fallback-request",
+        "ownerId": "aeb-radar-fallback"
+      },
+      {
+        "direction": "input",
+        "id": "qualified-evidence-in",
+        "interfaceId": "qualified-evidence",
+        "ownerId": "aeb-radar-fallback"
+      },
+      {
+        "direction": "input",
+        "id": "radar-evidence-in",
+        "interfaceId": "radar-evidence",
+        "ownerId": "aeb-radar-fallback"
+      }
+    ],
+    "interfaces": [
+      {
+        "compatibility": "exact",
+        "direction": "output",
+        "extensions": {
+          "io.xverse.xcom": {
+            "kind": "interface-policy",
+            "policy": {
+              "encoding": "json",
+              "interactionKind": "message",
+              "schemaId": "fallback-request-schema",
+              "schemaVersion": "1.0.0",
+              "semanticCompatibility": "exact"
+            },
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "kind": "Component",
+              "name": "aeb-radar-fallback",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "fallback-request",
+        "payloadSchema": "urn:xverse:assured-aeb:fallback-request:v1",
+        "unitSemantics": "brake-request"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "qualified-evidence",
+        "payloadSchema": "urn:xverse:assured-aeb:qualified-evidence:v1",
+        "unitSemantics": "evidence-item"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "radar-evidence",
+        "payloadSchema": "urn:xverse:assured-aeb:radar-evidence:v1",
+        "unitSemantics": "evidence-item"
+      }
+    ]
+  }
+}

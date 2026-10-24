@@ -1,0 +1,111 @@
+{
+  "apiVersion": "xverse.io/xdl/v1alpha1",
+  "extensions": {
+    "io.xverse.assured-aeb": {
+      "authorityClass": "gate",
+      "kind": "component-authority",
+      "permittedOutputs": [
+        "authorization"
+      ],
+      "schemaVersion": "0.1"
+    },
+    "io.xverse.xcom": {
+      "kind": "flow-policy",
+      "policy": {
+        "deadlineMs": 0,
+        "observationPoints": [],
+        "ordering": "fifo",
+        "overflow": "reject",
+        "queueDepth": 4,
+        "reliability": "best-effort",
+        "retry": 0
+      },
+      "schemaVersion": "0.1",
+      "target": {
+        "apiVersion": "xverse.io/xdl/v1alpha1",
+        "kind": "Component",
+        "name": "aeb-safety-gate",
+        "namespace": "org.xverse.assured-aeb"
+      }
+    }
+  },
+  "kind": "Component",
+  "metadata": {
+    "description": "Assured AEB element safety-gate (gate); module of its host unit, not a Maestro unit.",
+    "name": "aeb-safety-gate",
+    "namespace": "org.xverse.assured-aeb",
+    "provenance": {
+      "maturity": "architectural-target",
+      "revision": "wp12-v0.1",
+      "source": "xverse-blueprints/automotive/assured-aeb/topology.py"
+    },
+    "version": "0.1.0"
+  },
+  "spec": {
+    "capabilities": [
+      "assured-aeb-gate"
+    ],
+    "endpoints": [
+      {
+        "direction": "output",
+        "id": "authorization-out",
+        "interfaceId": "authorization",
+        "ownerId": "aeb-safety-gate"
+      },
+      {
+        "direction": "input",
+        "id": "assessment-in",
+        "interfaceId": "assessment",
+        "ownerId": "aeb-safety-gate"
+      },
+      {
+        "direction": "input",
+        "id": "proposal-in",
+        "interfaceId": "proposal",
+        "ownerId": "aeb-safety-gate"
+      }
+    ],
+    "interfaces": [
+      {
+        "compatibility": "exact",
+        "direction": "output",
+        "extensions": {
+          "io.xverse.xcom": {
+            "kind": "interface-policy",
+            "policy": {
+              "encoding": "json",
+              "interactionKind": "message",
+              "schemaId": "authorization-schema",
+              "schemaVersion": "1.0.0",
+              "semanticCompatibility": "exact"
+            },
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "kind": "Component",
+              "name": "aeb-safety-gate",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "authorization",
+        "payloadSchema": "urn:xverse:assured-aeb:authorization:v1",
+        "unitSemantics": "authorization"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "assessment",
+        "payloadSchema": "urn:xverse:assured-aeb:assessment:v1",
+        "unitSemantics": "verdict"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "proposal",
+        "payloadSchema": "urn:xverse:assured-aeb:proposal:v1",
+        "unitSemantics": "typed-proposal"
+      }
+    ]
+  }
+}

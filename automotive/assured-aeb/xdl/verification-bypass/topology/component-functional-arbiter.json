@@ -1,0 +1,131 @@
+{
+  "apiVersion": "xverse.io/xdl/v1alpha1",
+  "extensions": {
+    "io.xverse.assured-aeb": {
+      "authorityClass": "productive",
+      "kind": "component-authority",
+      "permittedOutputs": [
+        "brake-request"
+      ],
+      "schemaVersion": "0.1"
+    },
+    "io.xverse.xcom": {
+      "kind": "flow-policy",
+      "policy": {
+        "deadlineMs": 0,
+        "observationPoints": [],
+        "ordering": "fifo",
+        "overflow": "reject",
+        "queueDepth": 4,
+        "reliability": "best-effort",
+        "retry": 0
+      },
+      "schemaVersion": "0.1",
+      "target": {
+        "apiVersion": "xverse.io/xdl/v1alpha1",
+        "kind": "Component",
+        "name": "aeb-functional-arbiter",
+        "namespace": "org.xverse.assured-aeb"
+      }
+    }
+  },
+  "kind": "Component",
+  "metadata": {
+    "description": "Assured AEB element functional-arbiter (productive); module of its host unit, not a Maestro unit.",
+    "name": "aeb-functional-arbiter",
+    "namespace": "org.xverse.assured-aeb",
+    "provenance": {
+      "maturity": "architectural-target",
+      "revision": "wp12-v0.1",
+      "source": "xverse-blueprints/automotive/assured-aeb/topology.py"
+    },
+    "version": "0.1.0"
+  },
+  "spec": {
+    "capabilities": [
+      "assured-aeb-productive"
+    ],
+    "endpoints": [
+      {
+        "direction": "output",
+        "id": "brake-request-out",
+        "interfaceId": "brake-request",
+        "ownerId": "aeb-functional-arbiter"
+      },
+      {
+        "direction": "input",
+        "id": "adas-cycle-in",
+        "interfaceId": "adas-cycle",
+        "ownerId": "aeb-functional-arbiter"
+      },
+      {
+        "direction": "input",
+        "id": "aeb-status-in",
+        "interfaceId": "aeb-status",
+        "ownerId": "aeb-functional-arbiter"
+      },
+      {
+        "direction": "input",
+        "id": "fallback-request-in",
+        "interfaceId": "fallback-request",
+        "ownerId": "aeb-functional-arbiter"
+      },
+      {
+        "direction": "input",
+        "id": "qualified-evidence-in",
+        "interfaceId": "qualified-evidence",
+        "ownerId": "aeb-functional-arbiter"
+      },
+      {
+        "direction": "input",
+        "id": "selector-command-in",
+        "interfaceId": "selector-command",
+        "ownerId": "aeb-functional-arbiter"
+      }
+    ],
+    "interfaces": [
+      {
+        "compatibility": "exact",
+        "direction": "output",
+        "id": "brake-request",
+        "payloadSchema": "urn:xverse:assured-aeb:brake-request:v1",
+        "unitSemantics": "brake-request"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "adas-cycle",
+        "payloadSchema": "urn:xverse:assured-aeb:adas-cycle:v1",
+        "unitSemantics": "evidence-item"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "aeb-status",
+        "payloadSchema": "urn:xverse:assured-aeb:aeb-status:v1",
+        "unitSemantics": "node-status"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "fallback-request",
+        "payloadSchema": "urn:xverse:assured-aeb:fallback-request:v1",
+        "unitSemantics": "brake-request"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "qualified-evidence",
+        "payloadSchema": "urn:xverse:assured-aeb:qualified-evidence:v1",
+        "unitSemantics": "evidence-item"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "selector-command",
+        "payloadSchema": "urn:xverse:assured-aeb:selector-command:v1",
+        "unitSemantics": "configuration-command"
+      }
+    ]
+  }
+}

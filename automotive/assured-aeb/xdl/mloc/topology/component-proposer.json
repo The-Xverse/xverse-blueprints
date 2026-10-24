@@ -1,0 +1,124 @@
+{
+  "apiVersion": "xverse.io/xdl/v1alpha1",
+  "extensions": {
+    "io.xverse.assured-aeb": {
+      "authorityClass": "proposer",
+      "kind": "component-authority",
+      "permittedOutputs": [
+        "proposal"
+      ],
+      "schemaVersion": "0.1"
+    },
+    "io.xverse.xcom": {
+      "kind": "flow-policy",
+      "policy": {
+        "deadlineMs": 0,
+        "observationPoints": [],
+        "ordering": "fifo",
+        "overflow": "reject",
+        "queueDepth": 4,
+        "reliability": "best-effort",
+        "retry": 0
+      },
+      "schemaVersion": "0.1",
+      "target": {
+        "apiVersion": "xverse.io/xdl/v1alpha1",
+        "kind": "Component",
+        "name": "aeb-proposer",
+        "namespace": "org.xverse.assured-aeb"
+      }
+    }
+  },
+  "kind": "Component",
+  "metadata": {
+    "description": "Assured AEB element proposer (proposer); module of its host unit, not a Maestro unit.",
+    "name": "aeb-proposer",
+    "namespace": "org.xverse.assured-aeb",
+    "provenance": {
+      "maturity": "architectural-target",
+      "revision": "wp12-v0.1",
+      "source": "xverse-blueprints/automotive/assured-aeb/topology.py"
+    },
+    "version": "0.1.0"
+  },
+  "spec": {
+    "capabilities": [
+      "assured-aeb-proposer"
+    ],
+    "endpoints": [
+      {
+        "direction": "output",
+        "id": "proposal-out",
+        "interfaceId": "proposal",
+        "ownerId": "aeb-proposer"
+      },
+      {
+        "direction": "input",
+        "id": "configuration-state-in",
+        "interfaceId": "configuration-state",
+        "ownerId": "aeb-proposer"
+      },
+      {
+        "direction": "input",
+        "id": "goal-model-in",
+        "interfaceId": "goal-model",
+        "ownerId": "aeb-proposer"
+      },
+      {
+        "direction": "input",
+        "id": "proposal-basis-in",
+        "interfaceId": "proposal-basis",
+        "ownerId": "aeb-proposer"
+      }
+    ],
+    "interfaces": [
+      {
+        "compatibility": "exact",
+        "direction": "output",
+        "extensions": {
+          "io.xverse.xcom": {
+            "kind": "interface-policy",
+            "policy": {
+              "encoding": "json",
+              "interactionKind": "message",
+              "schemaId": "proposal-schema",
+              "schemaVersion": "1.0.0",
+              "semanticCompatibility": "exact"
+            },
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "kind": "Component",
+              "name": "aeb-proposer",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "proposal",
+        "payloadSchema": "urn:xverse:assured-aeb:proposal:v1",
+        "unitSemantics": "typed-proposal"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "configuration-state",
+        "payloadSchema": "urn:xverse:assured-aeb:configuration-state:v1",
+        "unitSemantics": "configuration-state"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "goal-model",
+        "payloadSchema": "urn:xverse:assured-aeb:goal-model:v1",
+        "unitSemantics": "typed-objective"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "proposal-basis",
+        "payloadSchema": "urn:xverse:assured-aeb:proposal-basis:v1",
+        "unitSemantics": "evidence-item"
+      }
+    ]
+  }
+}

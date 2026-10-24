@@ -1,0 +1,80 @@
+{
+  "apiVersion": "xverse.io/xdl/v1alpha1",
+  "extensions": {
+    "io.xverse.assured-aeb": {
+      "authorityClass": "evidence-router",
+      "kind": "component-authority",
+      "permittedOutputs": [
+        "adas-cycle",
+        "radar-evidence"
+      ],
+      "schemaVersion": "0.1"
+    },
+    "io.xverse.xcom": {
+      "kind": "flow-policy",
+      "policy": {
+        "deadlineMs": 0,
+        "observationPoints": [],
+        "ordering": "fifo",
+        "overflow": "reject",
+        "queueDepth": 4,
+        "reliability": "best-effort",
+        "retry": 0
+      },
+      "schemaVersion": "0.1",
+      "target": {
+        "apiVersion": "xverse.io/xdl/v1alpha1",
+        "kind": "Component",
+        "name": "aeb-vc-ingress",
+        "namespace": "org.xverse.assured-aeb"
+      }
+    }
+  },
+  "kind": "Component",
+  "metadata": {
+    "description": "Assured AEB element vc-ingress (evidence-router); module of its host unit, not a Maestro unit.",
+    "name": "aeb-vc-ingress",
+    "namespace": "org.xverse.assured-aeb",
+    "provenance": {
+      "maturity": "architectural-target",
+      "revision": "wp12-v0.1",
+      "source": "xverse-blueprints/automotive/assured-aeb/topology.py"
+    },
+    "version": "0.1.0"
+  },
+  "spec": {
+    "capabilities": [
+      "assured-aeb-evidence-router"
+    ],
+    "endpoints": [
+      {
+        "direction": "output",
+        "id": "adas-cycle-out",
+        "interfaceId": "adas-cycle",
+        "ownerId": "aeb-vc-ingress"
+      },
+      {
+        "direction": "output",
+        "id": "radar-evidence-out",
+        "interfaceId": "radar-evidence",
+        "ownerId": "aeb-vc-ingress"
+      }
+    ],
+    "interfaces": [
+      {
+        "compatibility": "exact",
+        "direction": "output",
+        "id": "adas-cycle",
+        "payloadSchema": "urn:xverse:assured-aeb:adas-cycle:v1",
+        "unitSemantics": "evidence-item"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "output",
+        "id": "radar-evidence",
+        "payloadSchema": "urn:xverse:assured-aeb:radar-evidence:v1",
+        "unitSemantics": "evidence-item"
+      }
+    ]
+  }
+}

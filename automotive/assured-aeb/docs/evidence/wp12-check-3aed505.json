@@ -1,0 +1,879 @@
+{
+  "checks": [
+    {
+      "check": "platform",
+      "ok": true,
+      "profiles": "/tmp/claude-1000/-home-jefferson-distributed-safety-critical-thesis/06c73e0a-02aa-494d-9489-9fac909d565f/scratchpad/platform-rc1/xdl/profiles",
+      "wheel": "sha256=cea5ced404c277157df9496086fd4a0a8f011c58e01c8e7d659fc2fb5b53cddf",
+      "xverse": "/dev/shm/compat-p6-venv/lib/python3.13/site-packages/xverse",
+      "xverse_xdl": "/dev/shm/compat-p6-venv/lib/python3.13/site-packages/xverse_xdl"
+    },
+    {
+      "arm": "comparator",
+      "check": "drift",
+      "form": "topology",
+      "ok": true
+    },
+    {
+      "arm": "comparator",
+      "check": "drift",
+      "form": "maestro",
+      "ok": true
+    },
+    {
+      "arm": "mloc",
+      "check": "drift",
+      "form": "topology",
+      "ok": true
+    },
+    {
+      "arm": "mloc",
+      "check": "drift",
+      "form": "maestro",
+      "ok": true
+    },
+    {
+      "arm": "authorization-bypass",
+      "check": "drift",
+      "form": "topology",
+      "ok": true
+    },
+    {
+      "arm": "authorization-bypass",
+      "check": "drift",
+      "form": "maestro",
+      "ok": true
+    },
+    {
+      "arm": "verification-bypass",
+      "check": "drift",
+      "form": "topology",
+      "ok": true
+    },
+    {
+      "arm": "verification-bypass",
+      "check": "drift",
+      "form": "maestro",
+      "ok": true
+    },
+    {
+      "check": "pins",
+      "drift": false,
+      "host": {
+        "python310": "sha256:a2f33a6e006989270f4340528eb61f8f97366e00a5d1b602ac8672ea44fc56ae",
+        "python313": "sha256:9907c621375bc585b55087a939f30310d5bc6e3b6b15a986f734dc24077cf968"
+      },
+      "note": "interpreter digest drift is a host observation, not a topology failure",
+      "ok": true,
+      "recorded": {
+        "python310": "sha256:a2f33a6e006989270f4340528eb61f8f97366e00a5d1b602ac8672ea44fc56ae",
+        "python313": "sha256:9907c621375bc585b55087a939f30310d5bc6e3b6b15a986f734dc24077cf968"
+      }
+    },
+    {
+      "arm": "comparator",
+      "check": "v01-compile",
+      "deterministic": true,
+      "diagnostics": [],
+      "form": "topology",
+      "ok": true,
+      "planDigest": "c0349f39d0790e46310e9ecab6f8c883f7024566ffb8302443aaa2ad8868fb64",
+      "valid": true
+    },
+    {
+      "arm": "comparator",
+      "check": "v01-compile",
+      "deterministic": true,
+      "diagnostics": [],
+      "form": "maestro",
+      "ok": true,
+      "planDigest": "a1f4bae506c80e0fbac2936c5445baee9a407d5d0b24cba5b03202897c3d0632",
+      "valid": true
+    },
+    {
+      "arm": "comparator",
+      "check": "v01-elements",
+      "elementCount": 22,
+      "forwardFlows": 12,
+      "intraMessages": 24,
+      "ok": true,
+      "problems": [],
+      "returnFlows": 1,
+      "units": [
+        "adas-hpc-unit",
+        "carla-adapter-unit",
+        "front-zone-unit",
+        "vc-functional-unit",
+        "vehicle-loop-unit"
+      ]
+    },
+    {
+      "arm": "mloc",
+      "check": "v01-compile",
+      "deterministic": true,
+      "diagnostics": [],
+      "form": "topology",
+      "ok": true,
+      "planDigest": "2c54c882272fcc4f79b553aec6096ee88d8b8c8e4aee65915c72779cbb6702ac",
+      "valid": true
+    },
+    {
+      "arm": "mloc",
+      "check": "v01-compile",
+      "deterministic": true,
+      "diagnostics": [],
+      "form": "maestro",
+      "ok": true,
+      "planDigest": "e0f9d2f28f29ec40695e7b651566c50174d1674688e270e1c22c1e78b5f9fe11",
+      "valid": true
+    },
+    {
+      "arm": "mloc",
+      "check": "v01-elements",
+      "elementCount": 27,
+      "forwardFlows": 17,
+      "intraMessages": 27,
+      "ok": true,
+      "problems": [],
+      "returnFlows": 2,
+      "units": [
+        "adas-hpc-unit",
+        "carla-adapter-unit",
+        "front-zone-unit",
+        "vc-assurance-unit",
+        "vc-functional-unit",
+        "vehicle-loop-unit"
+      ]
+    },
+    {
+      "arm": "authorization-bypass",
+      "check": "v01-compile",
+      "deterministic": true,
+      "diagnostics": [],
+      "form": "topology",
+      "ok": true,
+      "planDigest": "332a116927a334a14c2bad91b920d313fd235bc93f77b86e44c5ac6a25604451",
+      "valid": true
+    },
+    {
+      "arm": "authorization-bypass",
+      "check": "v01-compile",
+      "deterministic": true,
+      "diagnostics": [],
+      "form": "maestro",
+      "ok": true,
+      "planDigest": "aeccb22d4507d029a450c084da9764494cedd9f0f39a9213527c776f3f6d0142",
+      "valid": true
+    },
+    {
+      "arm": "authorization-bypass",
+      "check": "v01-elements",
+      "elementCount": 27,
+      "forwardFlows": 18,
+      "intraMessages": 27,
+      "ok": true,
+      "problems": [],
+      "returnFlows": 2,
+      "units": [
+        "adas-hpc-unit",
+        "carla-adapter-unit",
+        "front-zone-unit",
+        "vc-assurance-unit",
+        "vc-functional-unit",
+        "vehicle-loop-unit"
+      ]
+    },
+    {
+      "arm": "verification-bypass",
+      "check": "v01-compile",
+      "deterministic": true,
+      "diagnostics": [],
+      "form": "topology",
+      "ok": true,
+      "planDigest": "b3793b0ccea2fe4ddd18db9081995aa2247465463489ca6283cd631922bda5a9",
+      "valid": true
+    },
+    {
+      "arm": "verification-bypass",
+      "check": "v01-compile",
+      "deterministic": true,
+      "diagnostics": [],
+      "form": "maestro",
+      "ok": true,
+      "planDigest": "2348e70216c3e1668e2801f364a3054fc293bb41b956d1381fd6d0f3aa48b7a8",
+      "valid": true
+    },
+    {
+      "arm": "verification-bypass",
+      "check": "v01-elements",
+      "elementCount": 27,
+      "forwardFlows": 17,
+      "intraMessages": 27,
+      "ok": true,
+      "problems": [],
+      "returnFlows": 2,
+      "units": [
+        "adas-hpc-unit",
+        "carla-adapter-unit",
+        "front-zone-unit",
+        "vc-assurance-unit",
+        "vc-functional-unit",
+        "vehicle-loop-unit"
+      ]
+    },
+    {
+      "arm": "comparator",
+      "check": "v02-authority",
+      "ok": true,
+      "violations": []
+    },
+    {
+      "arm": "mloc",
+      "check": "v02-authority",
+      "ok": true,
+      "violations": []
+    },
+    {
+      "arm": "authorization-bypass",
+      "check": "v02-authority",
+      "ok": true,
+      "violations": []
+    },
+    {
+      "arm": "verification-bypass",
+      "check": "v02-authority",
+      "ok": true,
+      "violations": []
+    },
+    {
+      "arm": "comparator",
+      "check": "d4a-routes",
+      "expectedResiduals": [],
+      "hubBoundReturnFlows": {
+        "net-adapter-link": [
+          "f04-actuation-command"
+        ]
+      },
+      "ok": true,
+      "refusals": [],
+      "routesPerProvider": {
+        "net-adapter-link-provider": [
+          "f01-camera-raw",
+          "f02-radar-raw",
+          "f03-motion-raw"
+        ],
+        "net-u2-returns-provider": [
+          "f17-brake-command",
+          "f18-mrc-request"
+        ],
+        "net-u3-provider": [
+          "f05-camera-sensor-out",
+          "f06-radar-sensor-out"
+        ],
+        "net-u4-provider": [
+          "f07-camera-adas",
+          "f08-radar-adas"
+        ],
+        "net-u5-provider": [
+          "f09-radar-vc",
+          "f10-motion-chassis",
+          "f11-adas-cycle"
+        ]
+      },
+      "xcomDiagnostics": [],
+      "xcomPlanStatus": "activatable"
+    },
+    {
+      "arm": "mloc",
+      "check": "d4a-routes",
+      "expectedResiduals": [],
+      "hubBoundReturnFlows": {
+        "net-adapter-link": [
+          "f04-actuation-command"
+        ],
+        "net-u4": [
+          "f15b-configuration-state-proposer"
+        ]
+      },
+      "ok": true,
+      "refusals": [],
+      "routesPerProvider": {
+        "net-adapter-link-provider": [
+          "f01-camera-raw",
+          "f02-radar-raw",
+          "f03-motion-raw"
+        ],
+        "net-u2-returns-provider": [
+          "f17-brake-command",
+          "f18-mrc-request"
+        ],
+        "net-u3-provider": [
+          "f05-camera-sensor-out",
+          "f06-radar-sensor-out"
+        ],
+        "net-u4-provider": [
+          "f07-camera-adas",
+          "f08-radar-adas",
+          "f16-objective"
+        ],
+        "net-u5-provider": [
+          "f09-radar-vc",
+          "f10-motion-chassis",
+          "f11-adas-cycle",
+          "f14-authorization"
+        ],
+        "net-u6-provider": [
+          "f12-proposal",
+          "f13-qualified-evidence",
+          "f15a-configuration-state-assurance"
+        ]
+      },
+      "xcomDiagnostics": [],
+      "xcomPlanStatus": "activatable"
+    },
+    {
+      "arm": "authorization-bypass",
+      "check": "d4a-routes",
+      "expectedResiduals": [
+        {
+          "code": "XVERSE-FLOW-UNSUPPORTED",
+          "detail": {
+            "providerId": "net-u5-provider",
+            "xcomOutcome": "route_capacity_exhausted"
+          },
+          "flowId": "f19-bypass-proposal",
+          "residual": "F19 is U5's fifth inbound route; resolved in WP-16 (\u00a7K)"
+        }
+      ],
+      "hubBoundReturnFlows": {
+        "net-adapter-link": [
+          "f04-actuation-command"
+        ],
+        "net-u4": [
+          "f15b-configuration-state-proposer"
+        ]
+      },
+      "ok": true,
+      "refusals": [],
+      "routesPerProvider": {
+        "net-adapter-link-provider": [
+          "f01-camera-raw",
+          "f02-radar-raw",
+          "f03-motion-raw"
+        ],
+        "net-u2-returns-provider": [
+          "f17-brake-command",
+          "f18-mrc-request"
+        ],
+        "net-u3-provider": [
+          "f05-camera-sensor-out",
+          "f06-radar-sensor-out"
+        ],
+        "net-u4-provider": [
+          "f07-camera-adas",
+          "f08-radar-adas",
+          "f16-objective"
+        ],
+        "net-u5-provider": [
+          "f09-radar-vc",
+          "f10-motion-chassis",
+          "f11-adas-cycle",
+          "f14-authorization"
+        ],
+        "net-u6-provider": [
+          "f12-proposal",
+          "f13-qualified-evidence",
+          "f15a-configuration-state-assurance"
+        ]
+      },
+      "xcomDiagnostics": [],
+      "xcomPlanStatus": "activatable"
+    },
+    {
+      "arm": "verification-bypass",
+      "check": "d4a-routes",
+      "expectedResiduals": [],
+      "hubBoundReturnFlows": {
+        "net-adapter-link": [
+          "f04-actuation-command"
+        ],
+        "net-u4": [
+          "f15b-configuration-state-proposer"
+        ]
+      },
+      "ok": true,
+      "refusals": [],
+      "routesPerProvider": {
+        "net-adapter-link-provider": [
+          "f01-camera-raw",
+          "f02-radar-raw",
+          "f03-motion-raw"
+        ],
+        "net-u2-returns-provider": [
+          "f17-brake-command",
+          "f18-mrc-request"
+        ],
+        "net-u3-provider": [
+          "f05-camera-sensor-out",
+          "f06-radar-sensor-out"
+        ],
+        "net-u4-provider": [
+          "f07-camera-adas",
+          "f08-radar-adas",
+          "f16-objective"
+        ],
+        "net-u5-provider": [
+          "f09-radar-vc",
+          "f10-motion-chassis",
+          "f11-adas-cycle",
+          "f14-authorization"
+        ],
+        "net-u6-provider": [
+          "f12-proposal",
+          "f13-qualified-evidence",
+          "f15a-configuration-state-assurance"
+        ]
+      },
+      "xcomDiagnostics": [],
+      "xcomPlanStatus": "activatable"
+    },
+    {
+      "arm": "comparator",
+      "check": "d4a-unbound-instances",
+      "ok": true,
+      "unboundElementInstances": 22,
+      "units": [
+        "adas-hpc-unit",
+        "carla-adapter-unit",
+        "front-zone-unit",
+        "vc-functional-unit",
+        "vehicle-loop-unit"
+      ]
+    },
+    {
+      "arm": "comparator",
+      "check": "d4a-topology-form-maestro",
+      "expectedRefusal": "PreparationError: ML-TIME: exactly one simulation domain is supported",
+      "note": "expected: Maestro Lite admits exactly one time domain; the maestro form is the projection",
+      "ok": true
+    },
+    {
+      "arm": "mloc",
+      "check": "d4a-unbound-instances",
+      "ok": true,
+      "unboundElementInstances": 27,
+      "units": [
+        "adas-hpc-unit",
+        "carla-adapter-unit",
+        "front-zone-unit",
+        "vc-assurance-unit",
+        "vc-functional-unit",
+        "vehicle-loop-unit"
+      ]
+    },
+    {
+      "arm": "mloc",
+      "check": "d4a-topology-form-maestro",
+      "expectedRefusal": "PreparationError: ML-TIME: exactly one simulation domain is supported",
+      "note": "expected: Maestro Lite admits exactly one time domain; the maestro form is the projection",
+      "ok": true
+    },
+    {
+      "arm": "authorization-bypass",
+      "check": "d4a-unbound-instances",
+      "ok": true,
+      "unboundElementInstances": 27,
+      "units": [
+        "adas-hpc-unit",
+        "carla-adapter-unit",
+        "front-zone-unit",
+        "vc-assurance-unit",
+        "vc-functional-unit",
+        "vehicle-loop-unit"
+      ]
+    },
+    {
+      "arm": "authorization-bypass",
+      "check": "d4a-topology-form-maestro",
+      "expectedRefusal": "PreparationError: ML-TIME: exactly one simulation domain is supported",
+      "note": "expected: Maestro Lite admits exactly one time domain; the maestro form is the projection",
+      "ok": true
+    },
+    {
+      "arm": "verification-bypass",
+      "check": "d4a-unbound-instances",
+      "ok": true,
+      "unboundElementInstances": 27,
+      "units": [
+        "adas-hpc-unit",
+        "carla-adapter-unit",
+        "front-zone-unit",
+        "vc-assurance-unit",
+        "vc-functional-unit",
+        "vehicle-loop-unit"
+      ]
+    },
+    {
+      "arm": "verification-bypass",
+      "check": "d4a-topology-form-maestro",
+      "expectedRefusal": "PreparationError: ML-TIME: exactly one simulation domain is supported",
+      "note": "expected: Maestro Lite admits exactly one time domain; the maestro form is the projection",
+      "ok": true
+    },
+    {
+      "arm": "mloc",
+      "blueprintRefusals": [],
+      "check": "d4a-cc1-concurrent-freeze",
+      "faultEntries": 2,
+      "note": "probe tick 100 and duration 10 are structural probe values, not protocol values",
+      "ok": true,
+      "platform": "admitted"
+    },
+    {
+      "arm": "mloc",
+      "check": "d4a-freeze-target-rule",
+      "note": "the blueprint rule must refuse what the platform admits statically (an element instance, a never-frozen unit)",
+      "ok": true,
+      "probes": {
+        "crash-unit": {
+          "blueprint": [
+            "probe-crash: kind crash refused (DLG-3: an applied crash ends the run)"
+          ],
+          "platform": "admitted by prepare_lifecycle"
+        },
+        "freeze-adapter": {
+          "blueprint": [
+            "probe-freeze-adapter: freeze of carla-adapter-unit refused (never-frozen unit)"
+          ],
+          "platform": "admitted by prepare_lifecycle"
+        },
+        "freeze-element": {
+          "blueprint": [
+            "probe-freeze-element: freeze of safety-gate refused (not an admitted unit instance)"
+          ],
+          "platform": "admitted by prepare_lifecycle"
+        },
+        "freeze-vehicle-loop": {
+          "blueprint": [
+            "probe-freeze-loop: freeze of vehicle-loop-unit refused (never-frozen unit)"
+          ],
+          "platform": "admitted by prepare_lifecycle"
+        },
+        "loss-on-f07": {
+          "blueprint": [
+            "probe-loss-f07: loss on f07-camera-adas not admitted in Phase 8 (decisions.md \u00a7K)"
+          ],
+          "platform": "admitted by validate_static"
+        },
+        "stale-on-f09": {
+          "blueprint": "admitted",
+          "platform": "admitted by validate_static"
+        }
+      }
+    },
+    {
+      "arm": "mloc",
+      "check": "wp10-sim-time-fault-probe",
+      "compiledSchedule": [
+        {
+          "activation": "scheduled",
+          "collection": "flows",
+          "duration": {
+            "ticks": 10,
+            "unit": "tick",
+            "value": 10
+          },
+          "entryId": "fault:probe-sim-time",
+          "entryKind": "fault",
+          "faultId": "probe-sim-time",
+          "faultKind": "stale",
+          "maturity": "prototype",
+          "parameters": [],
+          "recovery": "automatic",
+          "targetRef": {
+            "apiVersion": "xverse.io/xdl/v1alpha1",
+            "element": "f09-radar-vc",
+            "kind": "System",
+            "name": "assured-aeb-mloc",
+            "namespace": "org.xverse.assured-aeb",
+            "uri": "xdl://org.xverse.assured-aeb/system/assured-aeb-mloc"
+          },
+          "timeDomainId": "carla-simulation",
+          "trigger": {
+            "atTicks": 1500000000,
+            "declaredAt": 1.5,
+            "declaredUnit": "s",
+            "kind": "time"
+          }
+        }
+      ],
+      "note": "informational for WP-10: only the Maestro form is preparable, and it has one experiment-time domain",
+      "ok": true,
+      "outcome": "compiled",
+      "validateStatic": "XVERSE-FAULT-HORIZON"
+    },
+    {
+      "check": "d4a-admission-dry-run",
+      "live": {
+        "active": 55,
+        "cadence": 5,
+        "eventLimit": 8192,
+        "freshness": 5,
+        "horizon": 600,
+        "perUnit": 2,
+        "poll": 0.05,
+        "readiness": 1.7,
+        "requestLimit": 8192,
+        "service": 4
+      },
+      "note": "pass = admit_schedule agrees with (2n+S+1)*op < cadence; sizes above 65 536 are the C1 dependency; 'slim' is a sizing alternative only, not a committed form",
+      "ok": true,
+      "rows": [
+        {
+          "admitted": false,
+          "arm": "comparator",
+          "capacityRule": false,
+          "maestroForm": "full",
+          "operationSeconds": 0.38,
+          "refusal": "ML-SCHEDULE-HEALTH-CAPACITY",
+          "units": 5
+        },
+        {
+          "admitted": true,
+          "arm": "comparator",
+          "capacityRule": true,
+          "configurationBytes": 146458,
+          "healthSlots": 40,
+          "maestroForm": "full",
+          "operationSeconds": 0.29,
+          "periodS": 2.1,
+          "requiredEvents": 1525,
+          "requiredRequests": 1621,
+          "reserveS": 22.73,
+          "residual": "expected C1 dependency: the 64 KiB persistence-configuration limit refuses this size",
+          "scanS": 1.45,
+          "thawBoundS": 3.55,
+          "units": 5,
+          "withinPersistenceLimit": false
+        },
+        {
+          "admitted": true,
+          "arm": "comparator",
+          "capacityRule": true,
+          "configurationBytes": 146433,
+          "healthSlots": 33,
+          "maestroForm": "full",
+          "operationSeconds": 0.25,
+          "periodS": 2.5,
+          "requiredEvents": 1420,
+          "requiredRequests": 1579,
+          "reserveS": 21.25,
+          "residual": "expected C1 dependency: the 64 KiB persistence-configuration limit refuses this size",
+          "scanS": 1.25,
+          "thawBoundS": 3.75,
+          "units": 5,
+          "withinPersistenceLimit": false
+        },
+        {
+          "admitted": true,
+          "arm": "comparator",
+          "capacityRule": true,
+          "configurationBytes": 146429,
+          "healthSlots": 27,
+          "maestroForm": "full",
+          "operationSeconds": 0.2,
+          "periodS": 3.0,
+          "requiredEvents": 1330,
+          "requiredRequests": 1543,
+          "reserveS": 19.4,
+          "residual": "expected C1 dependency: the 64 KiB persistence-configuration limit refuses this size",
+          "scanS": 1.0,
+          "thawBoundS": 4.0,
+          "units": 5,
+          "withinPersistenceLimit": false
+        },
+        {
+          "admitted": true,
+          "arm": "comparator",
+          "capacityRule": true,
+          "configurationBytes": 65951,
+          "healthSlots": 40,
+          "maestroForm": "slim",
+          "operationSeconds": 0.29,
+          "periodS": 2.1,
+          "requiredEvents": 1525,
+          "requiredRequests": 1621,
+          "reserveS": 22.73,
+          "residual": "expected C1 dependency: the 64 KiB persistence-configuration limit refuses this size",
+          "scanS": 1.45,
+          "thawBoundS": 3.55,
+          "units": 5,
+          "withinPersistenceLimit": false
+        },
+        {
+          "admitted": false,
+          "arm": "mloc",
+          "capacityRule": false,
+          "maestroForm": "full",
+          "operationSeconds": 0.38,
+          "refusal": "ML-SCHEDULE-HEALTH-CAPACITY",
+          "units": 6
+        },
+        {
+          "admitted": true,
+          "arm": "mloc",
+          "capacityRule": true,
+          "configurationBytes": 170505,
+          "healthSlots": 48,
+          "maestroForm": "full",
+          "operationSeconds": 0.29,
+          "periodS": 1.81,
+          "requiredEvents": 1898,
+          "requiredRequests": 1767,
+          "reserveS": 26.76,
+          "residual": "expected C1 dependency: the 64 KiB persistence-configuration limit refuses this size",
+          "scanS": 1.74,
+          "thawBoundS": 3.26,
+          "units": 6,
+          "withinPersistenceLimit": false
+        },
+        {
+          "admitted": true,
+          "arm": "mloc",
+          "capacityRule": true,
+          "configurationBytes": 170463,
+          "healthSlots": 38,
+          "maestroForm": "full",
+          "operationSeconds": 0.25,
+          "periodS": 2.25,
+          "requiredEvents": 1718,
+          "requiredRequests": 1697,
+          "reserveS": 25.0,
+          "residual": "expected C1 dependency: the 64 KiB persistence-configuration limit refuses this size",
+          "scanS": 1.5,
+          "thawBoundS": 3.5,
+          "units": 6,
+          "withinPersistenceLimit": false
+        },
+        {
+          "admitted": true,
+          "arm": "mloc",
+          "capacityRule": true,
+          "configurationBytes": 170477,
+          "healthSlots": 30,
+          "maestroForm": "full",
+          "operationSeconds": 0.2,
+          "periodS": 2.8,
+          "requiredEvents": 1574,
+          "requiredRequests": 1641,
+          "reserveS": 22.8,
+          "residual": "expected C1 dependency: the 64 KiB persistence-configuration limit refuses this size",
+          "scanS": 1.2,
+          "thawBoundS": 3.8,
+          "units": 6,
+          "withinPersistenceLimit": false
+        },
+        {
+          "admitted": true,
+          "arm": "mloc",
+          "capacityRule": true,
+          "configurationBytes": 75605,
+          "healthSlots": 48,
+          "maestroForm": "slim",
+          "operationSeconds": 0.29,
+          "periodS": 1.81,
+          "requiredEvents": 1898,
+          "requiredRequests": 1767,
+          "reserveS": 26.76,
+          "residual": "expected C1 dependency: the 64 KiB persistence-configuration limit refuses this size",
+          "scanS": 1.74,
+          "thawBoundS": 3.26,
+          "units": 6,
+          "withinPersistenceLimit": false
+        },
+        {
+          "admitted": false,
+          "arm": "mloc-7unit",
+          "capacityRule": false,
+          "maestroForm": "full",
+          "operationSeconds": 0.38,
+          "refusal": "ML-SCHEDULE-HEALTH-CAPACITY",
+          "units": 7
+        },
+        {
+          "admitted": false,
+          "arm": "mloc-7unit",
+          "capacityRule": false,
+          "maestroForm": "full",
+          "operationSeconds": 0.29,
+          "refusal": "ML-SCHEDULE-HEALTH-CAPACITY",
+          "units": 7
+        },
+        {
+          "admitted": true,
+          "arm": "mloc-7unit",
+          "capacityRule": true,
+          "configurationBytes": 182277,
+          "healthSlots": 44,
+          "maestroForm": "full",
+          "operationSeconds": 0.25,
+          "periodS": 2.0,
+          "requiredEvents": 2082,
+          "requiredRequests": 1838,
+          "reserveS": 28.75,
+          "residual": "expected C1 dependency: the 64 KiB persistence-configuration limit refuses this size",
+          "scanS": 1.75,
+          "thawBoundS": 3.25,
+          "units": 7,
+          "withinPersistenceLimit": false
+        },
+        {
+          "admitted": true,
+          "arm": "mloc-7unit",
+          "capacityRule": true,
+          "configurationBytes": 182302,
+          "healthSlots": 34,
+          "maestroForm": "full",
+          "operationSeconds": 0.2,
+          "periodS": 2.6,
+          "requiredEvents": 1872,
+          "requiredRequests": 1758,
+          "reserveS": 26.2,
+          "residual": "expected C1 dependency: the 64 KiB persistence-configuration limit refuses this size",
+          "scanS": 1.4,
+          "thawBoundS": 3.6,
+          "units": 7,
+          "withinPersistenceLimit": false
+        },
+        {
+          "admitted": false,
+          "arm": "mloc-7unit",
+          "capacityRule": false,
+          "maestroForm": "slim",
+          "operationSeconds": 0.29,
+          "refusal": "ML-SCHEDULE-HEALTH-CAPACITY",
+          "units": 7
+        },
+        {
+          "admitted": true,
+          "arm": "mloc-7unit",
+          "capacityRule": true,
+          "configurationBytes": 87866,
+          "healthSlots": 44,
+          "maestroForm": "slim",
+          "operationSeconds": 0.25,
+          "periodS": 2.0,
+          "requiredEvents": 2082,
+          "requiredRequests": 1838,
+          "reserveS": 28.75,
+          "residual": "expected C1 dependency: the 64 KiB persistence-configuration limit refuses this size",
+          "scanS": 1.75,
+          "thawBoundS": 3.25,
+          "units": 7,
+          "withinPersistenceLimit": false
+        }
+      ]
+    }
+  ],
+  "ok": true
+}

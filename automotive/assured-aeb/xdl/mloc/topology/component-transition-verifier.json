@@ -1,0 +1,98 @@
+{
+  "apiVersion": "xverse.io/xdl/v1alpha1",
+  "extensions": {
+    "io.xverse.assured-aeb": {
+      "authorityClass": "verifier",
+      "kind": "component-authority",
+      "permittedOutputs": [
+        "transition-verdict"
+      ],
+      "schemaVersion": "0.1"
+    },
+    "io.xverse.xcom": {
+      "kind": "flow-policy",
+      "policy": {
+        "deadlineMs": 0,
+        "observationPoints": [],
+        "ordering": "fifo",
+        "overflow": "reject",
+        "queueDepth": 4,
+        "reliability": "best-effort",
+        "retry": 0
+      },
+      "schemaVersion": "0.1",
+      "target": {
+        "apiVersion": "xverse.io/xdl/v1alpha1",
+        "kind": "Component",
+        "name": "aeb-transition-verifier",
+        "namespace": "org.xverse.assured-aeb"
+      }
+    }
+  },
+  "kind": "Component",
+  "metadata": {
+    "description": "Assured AEB element transition-verifier (verifier); module of its host unit, not a Maestro unit.",
+    "name": "aeb-transition-verifier",
+    "namespace": "org.xverse.assured-aeb",
+    "provenance": {
+      "maturity": "architectural-target",
+      "revision": "wp12-v0.1",
+      "source": "xverse-blueprints/automotive/assured-aeb/topology.py"
+    },
+    "version": "0.1.0"
+  },
+  "spec": {
+    "capabilities": [
+      "assured-aeb-verifier"
+    ],
+    "endpoints": [
+      {
+        "direction": "output",
+        "id": "transition-verdict-out",
+        "interfaceId": "transition-verdict",
+        "ownerId": "aeb-transition-verifier"
+      },
+      {
+        "direction": "input",
+        "id": "transition-request-in",
+        "interfaceId": "transition-request",
+        "ownerId": "aeb-transition-verifier"
+      }
+    ],
+    "interfaces": [
+      {
+        "compatibility": "exact",
+        "direction": "output",
+        "extensions": {
+          "io.xverse.xcom": {
+            "kind": "interface-policy",
+            "policy": {
+              "encoding": "json",
+              "interactionKind": "message",
+              "schemaId": "transition-verdict-schema",
+              "schemaVersion": "1.0.0",
+              "semanticCompatibility": "exact"
+            },
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "kind": "Component",
+              "name": "aeb-transition-verifier",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "transition-verdict",
+        "payloadSchema": "urn:xverse:assured-aeb:transition-verdict:v1",
+        "unitSemantics": "verdict"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "transition-request",
+        "payloadSchema": "urn:xverse:assured-aeb:transition-request:v1",
+        "unitSemantics": "configuration-command"
+      }
+    ]
+  }
+}

@@ -1,0 +1,124 @@
+{
+  "apiVersion": "xverse.io/xdl/v1alpha1",
+  "extensions": {
+    "io.xverse.assured-aeb": {
+      "authorityClass": "assessor",
+      "kind": "component-authority",
+      "permittedOutputs": [
+        "assessment"
+      ],
+      "schemaVersion": "0.1"
+    },
+    "io.xverse.xcom": {
+      "kind": "flow-policy",
+      "policy": {
+        "deadlineMs": 0,
+        "observationPoints": [],
+        "ordering": "fifo",
+        "overflow": "reject",
+        "queueDepth": 4,
+        "reliability": "best-effort",
+        "retry": 0
+      },
+      "schemaVersion": "0.1",
+      "target": {
+        "apiVersion": "xverse.io/xdl/v1alpha1",
+        "kind": "Component",
+        "name": "aeb-safety-monitor",
+        "namespace": "org.xverse.assured-aeb"
+      }
+    }
+  },
+  "kind": "Component",
+  "metadata": {
+    "description": "Assured AEB element safety-monitor (assessor); module of its host unit, not a Maestro unit.",
+    "name": "aeb-safety-monitor",
+    "namespace": "org.xverse.assured-aeb",
+    "provenance": {
+      "maturity": "architectural-target",
+      "revision": "wp12-v0.1",
+      "source": "xverse-blueprints/automotive/assured-aeb/topology.py"
+    },
+    "version": "0.1.0"
+  },
+  "spec": {
+    "capabilities": [
+      "assured-aeb-assessor"
+    ],
+    "endpoints": [
+      {
+        "direction": "output",
+        "id": "assessment-out",
+        "interfaceId": "assessment",
+        "ownerId": "aeb-safety-monitor"
+      },
+      {
+        "direction": "input",
+        "id": "configuration-state-in",
+        "interfaceId": "configuration-state",
+        "ownerId": "aeb-safety-monitor"
+      },
+      {
+        "direction": "input",
+        "id": "qualified-evidence-in",
+        "interfaceId": "qualified-evidence",
+        "ownerId": "aeb-safety-monitor"
+      },
+      {
+        "direction": "input",
+        "id": "transition-verdict-in",
+        "interfaceId": "transition-verdict",
+        "ownerId": "aeb-safety-monitor"
+      }
+    ],
+    "interfaces": [
+      {
+        "compatibility": "exact",
+        "direction": "output",
+        "extensions": {
+          "io.xverse.xcom": {
+            "kind": "interface-policy",
+            "policy": {
+              "encoding": "json",
+              "interactionKind": "message",
+              "schemaId": "assessment-schema",
+              "schemaVersion": "1.0.0",
+              "semanticCompatibility": "exact"
+            },
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "kind": "Component",
+              "name": "aeb-safety-monitor",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "assessment",
+        "payloadSchema": "urn:xverse:assured-aeb:assessment:v1",
+        "unitSemantics": "verdict"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "configuration-state",
+        "payloadSchema": "urn:xverse:assured-aeb:configuration-state:v1",
+        "unitSemantics": "configuration-state"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "qualified-evidence",
+        "payloadSchema": "urn:xverse:assured-aeb:qualified-evidence:v1",
+        "unitSemantics": "evidence-item"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "transition-verdict",
+        "payloadSchema": "urn:xverse:assured-aeb:transition-verdict:v1",
+        "unitSemantics": "verdict"
+      }
+    ]
+  }
+}

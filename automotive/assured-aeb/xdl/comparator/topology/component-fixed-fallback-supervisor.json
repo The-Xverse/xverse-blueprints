@@ -1,0 +1,190 @@
+{
+  "apiVersion": "xverse.io/xdl/v1alpha1",
+  "extensions": {
+    "io.xverse.assured-aeb": {
+      "authorityClass": "fallback-supervisor",
+      "kind": "component-authority",
+      "permittedOutputs": [
+        "aeb-status",
+        "forced-command",
+        "mrc-request"
+      ],
+      "schemaVersion": "0.1"
+    },
+    "io.xverse.xcom": {
+      "kind": "flow-policy",
+      "policy": {
+        "deadlineMs": 0,
+        "observationPoints": [],
+        "ordering": "fifo",
+        "overflow": "reject",
+        "queueDepth": 4,
+        "reliability": "best-effort",
+        "retry": 0
+      },
+      "schemaVersion": "0.1",
+      "target": {
+        "apiVersion": "xverse.io/xdl/v1alpha1",
+        "kind": "Component",
+        "name": "aeb-fixed-fallback-supervisor",
+        "namespace": "org.xverse.assured-aeb"
+      }
+    }
+  },
+  "kind": "Component",
+  "metadata": {
+    "description": "Assured AEB element fixed-fallback-supervisor (fallback-supervisor); module of its host unit, not a Maestro unit.",
+    "name": "aeb-fixed-fallback-supervisor",
+    "namespace": "org.xverse.assured-aeb",
+    "provenance": {
+      "maturity": "architectural-target",
+      "revision": "wp12-v0.1",
+      "source": "xverse-blueprints/automotive/assured-aeb/topology.py"
+    },
+    "version": "0.1.0"
+  },
+  "spec": {
+    "capabilities": [
+      "assured-aeb-fallback-supervisor"
+    ],
+    "endpoints": [
+      {
+        "direction": "output",
+        "id": "aeb-status-out",
+        "interfaceId": "aeb-status",
+        "ownerId": "aeb-fixed-fallback-supervisor"
+      },
+      {
+        "direction": "output",
+        "id": "forced-command-out",
+        "interfaceId": "forced-command",
+        "ownerId": "aeb-fixed-fallback-supervisor"
+      },
+      {
+        "direction": "output",
+        "id": "mrc-request-out",
+        "interfaceId": "mrc-request",
+        "ownerId": "aeb-fixed-fallback-supervisor"
+      },
+      {
+        "direction": "input",
+        "id": "configuration-state-in",
+        "interfaceId": "configuration-state",
+        "ownerId": "aeb-fixed-fallback-supervisor"
+      },
+      {
+        "direction": "input",
+        "id": "diagnostic-verdict-in",
+        "interfaceId": "diagnostic-verdict",
+        "ownerId": "aeb-fixed-fallback-supervisor"
+      },
+      {
+        "direction": "input",
+        "id": "qualified-evidence-in",
+        "interfaceId": "qualified-evidence",
+        "ownerId": "aeb-fixed-fallback-supervisor"
+      }
+    ],
+    "interfaces": [
+      {
+        "compatibility": "exact",
+        "direction": "output",
+        "extensions": {
+          "io.xverse.xcom": {
+            "kind": "interface-policy",
+            "policy": {
+              "encoding": "json",
+              "interactionKind": "message",
+              "schemaId": "aeb-status-schema",
+              "schemaVersion": "1.0.0",
+              "semanticCompatibility": "exact"
+            },
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "kind": "Component",
+              "name": "aeb-fixed-fallback-supervisor",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "aeb-status",
+        "payloadSchema": "urn:xverse:assured-aeb:aeb-status:v1",
+        "unitSemantics": "node-status"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "output",
+        "extensions": {
+          "io.xverse.xcom": {
+            "kind": "interface-policy",
+            "policy": {
+              "encoding": "json",
+              "interactionKind": "message",
+              "schemaId": "forced-command-schema",
+              "schemaVersion": "1.0.0",
+              "semanticCompatibility": "exact"
+            },
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "kind": "Component",
+              "name": "aeb-fixed-fallback-supervisor",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "forced-command",
+        "payloadSchema": "urn:xverse:assured-aeb:forced-command:v1",
+        "unitSemantics": "configuration-command"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "output",
+        "extensions": {
+          "io.xverse.xcom": {
+            "kind": "interface-policy",
+            "policy": {
+              "encoding": "json",
+              "interactionKind": "message",
+              "schemaId": "mrc-request-schema",
+              "schemaVersion": "1.0.0",
+              "semanticCompatibility": "exact"
+            },
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "kind": "Component",
+              "name": "aeb-fixed-fallback-supervisor",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
+        "id": "mrc-request",
+        "payloadSchema": "urn:xverse:assured-aeb:mrc-request:v1",
+        "unitSemantics": "mrc-request"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "configuration-state",
+        "payloadSchema": "urn:xverse:assured-aeb:configuration-state:v1",
+        "unitSemantics": "configuration-state"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "diagnostic-verdict",
+        "payloadSchema": "urn:xverse:assured-aeb:diagnostic-verdict:v1",
+        "unitSemantics": "verdict"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "qualified-evidence",
+        "payloadSchema": "urn:xverse:assured-aeb:qualified-evidence:v1",
+        "unitSemantics": "evidence-item"
+      }
+    ]
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "apiVersion": "xverse.io/xdl/v1alpha1",
+  "extensions": {
+    "io.xverse.assured-aeb": {
+      "authorityClass": "experiment-control",
+      "kind": "component-authority",
+      "permittedOutputs": [
+        "proposal"
+      ],
+      "schemaVersion": "0.1"
+    },
+    "io.xverse.xcom": {
+      "kind": "flow-policy",
+      "policy": {
+        "deadlineMs": 0,
+        "observationPoints": [],
+        "ordering": "fifo",
+        "overflow": "reject",
+        "queueDepth": 4,
+        "reliability": "best-effort",
+        "retry": 0
+      },
+      "schemaVersion": "0.1",
+      "target": {
+        "apiVersion": "xverse.io/xdl/v1alpha1",
+        "kind": "Component",
+        "name": "aeb-fault-relay",
+        "namespace": "org.xverse.assured-aeb"
+      }
+    }
+  },
+  "kind": "Component",
+  "metadata": {
+    "description": "Assured AEB element fault-relay (experiment-control); module of its host unit, not a Maestro unit.",
+    "name": "aeb-fault-relay",
+    "namespace": "org.xverse.assured-aeb",
+    "provenance": {
+      "maturity": "architectural-target",
+      "revision": "wp12-v0.1",
+      "source": "xverse-blueprints/automotive/assured-aeb/topology.py"
+    },
+    "version": "0.1.0"
+  },
+  "spec": {
+    "capabilities": [
+      "assured-aeb-experiment-control"
+    ],
+    "endpoints": [
+      {
+        "direction": "output",
+        "id": "proposal-out",
+        "interfaceId": "proposal",
+        "ownerId": "aeb-fault-relay"
+      }
+    ],
+    "interfaces": [
+      {
+        "compatibility": "exact",
+        "direction": "output",
+        "id": "proposal",
+        "payloadSchema": "urn:xverse:assured-aeb:proposal:v1",
+        "unitSemantics": "typed-proposal"
+      }
+    ]
+  }
+}
