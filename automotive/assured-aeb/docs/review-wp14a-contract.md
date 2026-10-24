@@ -60,3 +60,13 @@ has no incoming note change. Existing main-checkout AGENTS modifications are pre
    duplicate writer claims, foreign causation, append failure and byte-bound refusals, plus rename/pin invariants.
    While the full platform regression is active, run only syntax and small stdlib probes. No pytest, CARLA, inference,
    download, acceptance or merge. The full owning suite and independent implementation review remain required.
+
+## Finding 2: additive U4 proposal trace clarification, before code (2026-10-24)
+
+The coordinator accepted one additive ED-12 engineering event under FR-022: `proposal-created`, emitted by the
+U4 proposer, requiring `proposalId` and the actual proposal payload digest. The already specified
+`proposal-received` remains at the actual gate/manager receiver. Labelling the U4 emission as receipt would misstate
+the direction and would not establish the required U4/U6/U5 trace. Existing objective/proposal/authorization/
+transition binding ids join the events offline; no cross-run Argus causation is added. This changes the evidence
+vocabulary only, with no authority, scientific parameter or evaluation signal. Record this clarification before
+adding that kind to the implementation.
