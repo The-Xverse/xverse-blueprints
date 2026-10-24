@@ -1,0 +1,58 @@
+{
+  "localPrimaryHeaders": [
+    {
+      "bytes": 639,
+      "path": "/usr/include/linux/nsfs.h",
+      "sha256": "aa22375d5ee83d406c20891f7fe6a5baeeab4cd965548df6320f1c8f9b1c49ca"
+    },
+    {
+      "bytes": 6266,
+      "path": "/usr/include/linux/sched.h",
+      "sha256": "7976b351c34ab97588f221947784a92157b638cda221edeeba8af183e3ef22e5"
+    },
+    {
+      "bytes": 31,
+      "path": "/usr/include/x86_64-linux-gnu/asm/ioctl.h",
+      "sha256": "9c6ca9e365296a6b66747cbebdcf76972b8cce7aab91e55bf4ab1f3581df9c2a"
+    },
+    {
+      "bytes": 3478,
+      "path": "/usr/include/asm-generic/ioctl.h",
+      "sha256": "76396e5537d75285c3ca20e3b6a79b101eebfdc14d39c104ff7eab778672160e"
+    },
+    {
+      "bytes": 639,
+      "path": "/usr/src/linux-headers-6.8.0-138-generic/include/uapi/linux/nsfs.h",
+      "sha256": "aa22375d5ee83d406c20891f7fe6a5baeeab4cd965548df6320f1c8f9b1c49ca"
+    }
+  ],
+  "retainedFailure": [
+    {
+      "bytes": 4396,
+      "retained": "owning-attempt-receipt.json",
+      "sha256": "7dc539ed2ce10e79862fadc465002e7694fce93b55497ff0242602b9750e17a4",
+      "source": "/home/jefferson/distributed_safety_critical_thesis/specs/002-assured-aeb/review/codex-training4b-verification-20261024/training4b-genuine-isolated/receipt.json"
+    },
+    {
+      "bytes": 5793,
+      "retained": "worker-execution.json",
+      "sha256": "cf07093c4e2ab119006d6d43721f6800994fdb0db309a393d8fb43706bcfb593",
+      "source": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/codex-training4b-verification-20261024/genuine-attempt/case-0/worker-execution.json"
+    },
+    {
+      "bytes": 0,
+      "retained": "worker.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/codex-training4b-verification-20261024/genuine-attempt/case-0/worker.stdout"
+    },
+    {
+      "bytes": 1838,
+      "retained": "worker.stderr",
+      "sha256": "bc2873eb98e390195f2f392ef3b873746a878ae6040e12c43cba1e80cac3f363",
+      "source": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/codex-training4b-verification-20261024/genuine-attempt/case-0/worker.stderr"
+    }
+  ],
+  "schema": "training4b-parent-namespace-design-inputs/1",
+  "sourceRevision": "20af4185371735ebd240830ec869e74bb0dc8f51",
+  "status": "failed original attempt retained; source/header inspection only; no repair/execution"
+}

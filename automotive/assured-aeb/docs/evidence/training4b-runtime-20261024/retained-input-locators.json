@@ -1,0 +1,8 @@
+{
+  "original_actual_attempt": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/codex-training4b-namespace-verification-20261024/genuine-attempt",
+  "full_raw_synthetic_corpora_retained": true,
+  "original_failed_parent_namespace_attempt": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/codex-training4b-verification-20261024/genuine-attempt",
+  "input_locations_are_operational_not_deterministic_model_fields": true,
+  "accepted": false,
+  "merged": false
+}
