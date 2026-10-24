@@ -288,3 +288,8 @@ typed objectives/configurations and genuine fusion/radar producers. Ambiguous va
 must preserve each real reference and prior goal; append failure must remain poisoned. Update old tests which
 expected repeated same-cycle no-output to assert caller refusal instead. Only stdlib direct probes/AST/diff checks;
 no pytest/framework/heavy work, acceptance or merge. Sol/high remains the recommended repair/re-review profile.
+
+**Coordinator batch-bound disposition, before code:** approved reuse of maximum_accepted_messages as the objective
+batch membership cap. Oversized batches are caller-contract refusals before clock/state/events, not claimed
+per-member runtime rejections. At the bound, every admitted ambiguous member retains its canonical references;
+above it, no effects are permitted. Existing Argus byte caps/poisoning stay. Add both boundary regressions.
