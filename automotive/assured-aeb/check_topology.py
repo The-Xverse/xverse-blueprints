@@ -32,6 +32,7 @@ from datetime import datetime, timedelta, timezone
 import glob
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import sys
@@ -225,6 +226,12 @@ class FreezeBound:
 
     thaw_bound_s: float
     max_cycle_s: float
+
+    def __post_init__(self) -> None:  # WP-12 LOW-B, WP-10 increment #1: no zero, negative, NaN, infinite or bool input
+        for name in ("thaw_bound_s", "max_cycle_s"):
+            value = getattr(self, name)
+            if type(value) not in (int, float) or not math.isfinite(value) or value <= 0:
+                raise ValueError(f"{name} must be a finite number > 0; got {value!r}")
 
     @property
     def max_ticks(self) -> int:
