@@ -309,3 +309,61 @@ All four product modules and all three4a files are byte-identical to reviewed039
 sources compile without bytecode and whitespace checks pass. No framework, pytest, real unshare worker, tree
 environment scan, training/export/calibration/live work, acceptance, merge or4c execution occurred. Independent
 successor review, parent4a acceptance and actual isolated owning/genuine-driver verification remain pending.
+
+## Finding 8: independent supervisor successor review — changes requested (2026-10-24)
+
+Reviewed exact clean candidate `7c02bee90a836454ec2ce12017940a1e8104c105` against pre-code design `8e30917`
+and finding5. R4b-1/R4b-2 are repaired within the documented trusted owned-group scope: exclusive streamed
+stdout/stderr and reserved receipt precede spawn; actual command/environment/identities/status/output hashes are
+retained; cancellation during spawn is deferred until handle assignment; finally performs bounded TERM/KILL,
+group-disappearance and leader-reap checks. Timeout/drift/error/incomplete cleanup cannot become complete capture.
+Prior handlers/mask are restored. I/O failure preserves partial files and propagates refusal rather than inventing
+a receipt. The required cleanup bounds are explicit CLI inputs. Deliberately escaped sessions remain out of scope.
+
+### R4b-3 — MAJOR: arbitrary failing worker can satisfy expected nonfinite refusal
+
+`tests/training4b_integration.py`'s `if not expect_success` branch accepts any nonzero exit plus “nonfinite” or
+“overflow” anywhere in the stderr tail. Complete capture is correctly required, but complete capture of a crash
+or unrelated failure does not demonstrate a controlled model refusal. Two actual tiny subprocesses, supervised
+by the genuine repaired supervisor, produced counterexamples accepted by the exact current branch extracted
+with AST:
+
+- Printed `nonfinite TEST-ONLY warning` then killed itself with SIGKILL: actual returncode `-9`, complete capture,
+  no output directory, accepted as the expected refusal.
+- Printed the same warning then raised an unrelated ImportError: actual returncode1, final stderr line
+  `ImportError: TEST-ONLY unrelated dependency failure`, complete capture, accepted as the expected refusal.
+
+These are verifier classification controls, not fabricated successful training receipts. They ran no unshare,
+framework, environment-tree scan or training code. Their per-attempt TEST-ONLY diagnostics lived in the independent
+harness's temporary tree, which the harness removed after reading; complete aggregate probe logs remain external.
+
+Root disposition before repair: require the actual expected Python refusal exit1, complete capture and no output,
+with the final stderr exception line from the pinned owner's allowed ValueError/RuntimeError/OverflowError and a
+nonfinite/overflow reason in its message. An earlier warning, signal death, namespace/import/resource error or
+exception-class substring alone must not qualify. Record this narrow driver-only repair design before code and
+add crash-with-keyword and warning-plus-unrelated-final-exception regressions, preserving product/4a bytes.
+
+### Independent controls and unchanged product identities
+
+Re-ran all seven owning supervisor unittest controls using `/usr/bin/python3.13 -S -s -B`, explicit external
+TMPDIR and no framework site: **7 tests passed in4.542s, exit0**. Complete redirected stdout/stderr, not a terminal
+fragment, are retained under external `codex-20261024/scratch/review_wp15/training4b-supervisor-rereview-20261024/`:
+`unittest.stdout.log` is empty as expected; `unittest.stderr.log` SHA256
+`012f359b9cd6d7f72cf0d8ce0b682a7ef268ebe4c1991002a1f022a16659f427` contains all seven statuses and summary.
+`review-controls.json` records actual commands/status and log hashes; `extra-probes.py` and complete redirected
+`extra-probes.stdout.log`/`extra-probes.stderr.log` preserve the additional controls and counterexamples.
+
+The three additional capture/I/O controls confirm: an after-child identity-reader OSError produces failed capture
+with complete cleanup; stderr-open failure occurs before spawn and preserves empty reserved diagnostics; a
+post-child capture-hash OSError propagates, restores signal handlers/mask and leaves an empty reserved receipt,
+which cannot qualify as success. The two classification controls above complete the five extra controls. No
+surviving test process or successful model artifact was produced.
+
+Actual supervisor/driver/control source hashes match root's evidence record: `ccabc416...`, `3a6c5127...`,
+`42388a52...` respectively. Those three files parse. All four product modules and all three4a admission files
+are byte-identical to `03987de`; exact closures remain `009804472ccd52670758bd9ee21595a4f9520c47e85dda770d3f3420a692c6eb`
+and `d83ba1f5e7ce1056d82a924157aad617d64db84862e4be4005abf47fcf1a3e32`.
+The prior all-partition integrity versus fit/selection computation distinction remains unchanged. Source review
+and tiny ownership controls do not demonstrate framework fitting, held-out invariance or model-quality results.
+No pytest, Torch/NumPy/ORT, genuine namespace worker, acceptance or merge occurred. R4b-3 and its independent
+successor re-review precede genuine-driver scheduling; parent4a and all actual4b/4c–4e/scientific gates remain.
