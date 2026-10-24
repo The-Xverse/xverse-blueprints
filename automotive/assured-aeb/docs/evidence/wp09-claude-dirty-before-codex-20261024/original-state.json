@@ -1,0 +1,12 @@
+{
+  "created": "2026-10-24T15:43:56.226899+00:00",
+  "base": "c992ac70b81d294a5bdffbd12922e52da067fd81",
+  "patch_sha256": "0e75f85d6ab5101a7eb4a91934627e26c5a977c87c74fedfd0ad4ccce1787eff",
+  "files": {
+    "automotive/assured-aeb/assured_aeb/perception/labels.py": "616539fdbd9a39cf7533cba443017c65b979ad146a1f77f3b856674755d06c20",
+    "automotive/assured-aeb/assured_aeb/perception/manifest.py": "c2c8ef05fe38c3e9a73aa6d4b3fa29d3ac6760b386846fd80a7564b3b92d0de4",
+    "automotive/assured-aeb/assured_aeb/perception/scenario.py": "f08e746e20947ef4bd4ac5e41f85f44e5f51b531cf995659cc53484c46b8e24c",
+    "automotive/assured-aeb/assured_aeb/perception/store.py": "62de844db7b6c54e3e2cc3e68274e77f8709b66b17ebc09f522d2614d79692c2",
+    "automotive/assured-aeb/tests/test_perception_store.py": "53690a1fefc5db89f7b3ffb05e970907f1d6ba07001a02983d2b2e3e477d2c69"
+  }
+}
