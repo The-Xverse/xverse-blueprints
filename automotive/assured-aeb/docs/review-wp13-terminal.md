@@ -90,3 +90,20 @@ Status: scoped implementation candidate, not accepted/merged. Manager/supervisor
 projections, numeric freeze, horizon execution, oracle/availability accounting and live/scientific validation
 remain separate gates. Recommend a precise Note 23 AUTHOR-DELEGATED ENGINEERING CONTEXT update after this
 successor's acceptance, linking WP-15 DN-1 and its empty-history disposition; do not update the note automatically.
+
+## Finding 3: independent coordinator source review (2026-10-24), PASS for full verification
+
+Reviewed exactd411682f76d2fe84cdc677a28acb3f367ddb0e9a against426bd248, acceptedWP15DN1 and the
+delegated empty-history disposition. The first accepted terminal selector snapshots a separate immutable float
+from the last actual emitted/clamped request, including zero; same-inbox sources cannot alter it. Later source
+updates, operational hold expiry, duplicate terminal entry and recovery selectors cannot change the snapshot or
+accepted selector identity. Empty history is explicitly initial-neutral-no-prior-emission, not invented history.
+The old live-source projection key is removed and explicitly refused. No arm input or new real number is introduced.
+
+The output retains the exact five-member WP04 contract. Source identity, selector shape/replay checks, current
+simulator timestamp and monotonic request sequence remain. Evidence holds terminal provenance separately and
+does not invent a chosen live source. Reviewed regressions cover both sources, raw/clamped/zero histories,
+cache/returned-object mutation, same-inbox order, lockout, duplicate entry and real chassis/node acceptance.
+No additional source blocker found; this pass performs no pytest/framework/CARLA execution. Full owning and
+assembled suites remain required before acceptance. AD14 post-MRC missing-availability treatment and passive
+external request semantics remain binding. This is no safety-performance claim.
