@@ -55,3 +55,38 @@ inboxes and absent live input beyond hold expiry; irreversible same-inbox/later 
 terminal entry; empty-history provenance; obsolete projection refusal; unchanged five-member requests accepted
 by the real chassis/node. Use TEST-ONLY fixtures only. While the platform/assembled suites own execution, only
 tiny stdlib probes, AST and diff checks are authorized; pytest remains queued for the coordinator.
+
+## Finding 2: implemented candidate and bounded checks (2026-10-24)
+
+Implemented after design checkpoint `061f947`. The arbiter records its last emitted clamped value independently
+of per-source caches, snapshots it only at the first accepted terminal entry, refuses recovery/duplicate entry,
+and ignores live sources in terminal cycles. Empty-history neutral output has explicit provenance and cannot be
+relabelled by a later output. `arbiter.mrcSource` is removed and explicitly refused, with no replacement parameter.
+The productive WP-04 shape is unchanged; `terminalHoldProvenance` is an offline evidence addition.
+`terminal-arbiter.md` documents the current contract; the old review history has a dated supersession pointer.
+
+The existing TEST-ONLY projection removes the obsolete parameter; its former live-terminal test now asserts
+initial neutral output and provenance. Seven new regression functions (19 parametrized cases) cover both
+operational sources, zero/positive/upper/lower clamped outputs, later live updates and missing input beyond the
+hold window, same-inbox/later recovery refusal, duplicate/replayed/foreign selectors, obsolete projections,
+mutable caches/returned requests, last emitted zero after expiry, empty-history order and actual prior-zero
+provenance. The terminal request is passed through the genuine unchanged chassis and brake/ESC node contracts.
+
+Performed: 17 tiny stdlib source controls, including both operational sources with four clamp/value cases,
+empty-history order, last-zero-after-expiry, all three formerly admitted obsolete parameter values,
+mutable-reference independence, actual-zero provenance and genuine WP-04 chassis/node acceptance. All passed.
+AST parsing of all three changed Python files and `git diff --check` passed. No pytest runner, inference,
+simulation, CARLA, Argus process or heavy suite was started. All numeric probe/test values are TEST-ONLY.
+
+Queued after the coordinator releases execution: focused `tests/test_terminal_arbiter.py` and
+`tests/test_aeb_logic.py`, then the complete owning blueprint suite and independent review on the assembled
+successor. Suggested focused command from `automotive/assured-aeb` with admitted environments:
+
+```sh
+env PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 XVERSE_AEB_SENSOR_SITE=/dev/shm/xverse-aeb-sensor-20261024/venv/lib/python3.13/site-packages XVERSE_PLATFORM_PROFILES=/tmp/codex-xverse-review-20261024-q93eotxv/xdl/profiles /dev/shm/compat-p6-venv/bin/python -I -B -m pytest tests/test_terminal_arbiter.py tests/test_aeb_logic.py -q -p no:cacheprovider --tb=short
+```
+
+Status: scoped implementation candidate, not accepted/merged. Manager/supervisor/sink wiring, admitted unit
+projections, numeric freeze, horizon execution, oracle/availability accounting and live/scientific validation
+remain separate gates. Recommend a precise Note 23 AUTHOR-DELEGATED ENGINEERING CONTEXT update after this
+successor's acceptance, linking WP-15 DN-1 and its empty-history disposition; do not update the note automatically.
