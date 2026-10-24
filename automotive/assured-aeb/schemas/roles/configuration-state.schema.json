@@ -1,0 +1,58 @@
+{
+  "$id": "urn:xverse:assured-aeb:configuration-state:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "committedAtNs": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "configuration": {
+      "enum": [
+        "C_NOMINAL",
+        "C_DEGRADED_RADAR",
+        "S_MRC_REQUESTED"
+      ]
+    },
+    "originNs": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "phase": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "schema": {
+      "const": "assured-aeb.configuration-state/1"
+    },
+    "sequence": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "source": {
+      "const": "configuration-manager"
+    },
+    "transitionId": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "committedAtNs",
+    "configuration",
+    "originNs",
+    "phase",
+    "schema",
+    "sequence",
+    "source",
+    "transitionId"
+  ],
+  "type": "object"
+}

@@ -81,7 +81,7 @@
     "arm": {"enum": ["comparator", "mloc", "authorization-bypass", "verification-bypass", "mloc-7unit"]},
     "todo": {"type": "string", "pattern": "^TODO: (author decision|measurement|engineering verification|design) \\([^)]+\\)$"},
     "authorityClass": {"enum": ["environment", "experiment-control", "sink", "evidence-source", "evidence-router", "productive",
-                                "proposer", "goal-interpreter", "assessor", "gate", "executor", "verifier",
+                                "proposer", "goal-interpreter", "assessor", "gate", "configuration-manager", "verifier",
                                 "fallback-supervisor", "actuation-path", "unit-host"]}
   }
 }
