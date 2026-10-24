@@ -1,0 +1,21 @@
+{
+  "tested_revision": "09080118c9ba168f35ac026b31ba58cc0d3a03ea",
+  "passed": 1151,
+  "subtests": 165,
+  "compiled_plans": 8,
+  "returncode": 0,
+  "delegated_implementation_acceptance": true,
+  "flagged_for_author_review": true,
+  "training4b_included": false,
+  "live_execution": false,
+  "scientific_result": false,
+  "merged_to_main": false,
+  "pushed": false,
+  "scope": [
+    "terminal arbiter",
+    "untrusted U4roles",
+    "training4a",
+    "F11v2 metadata binding",
+    "offline window tables"
+  ]
+}

@@ -120,3 +120,31 @@ and source pin remain in history. No further source blocker is open from this in
 Root next schedules the full combined owning suite and all eight compiled plans against an exact admitted pin;
 their actual results and separate delegated acceptance remain required. Sol/medium was the informational
 cost-effectiveness recommendation for this narrow re-review; no model switch was claimed.
+
+
+## Finding3: actual combined verification and delegated acceptance (2026-10-24)
+
+At exact independently reviewed09080118c9ba168f35ac026b31ba58cc0d3a03ea, complete owning suite reports1151passed,
+165subtests in50.22s,exit0,no timeout or skipped owner checks. All8 genuine compiled role plans validate and
+semantic/source digests are retained. Commands, actual logs/receipts, source pins and compiled digests are copied
+unchanged into docs/evidence/codex-second-assembly-20261024. Shared compat is the actual acceptedf5b3957 src,
+explicitly pinned/prepended by independently reviewed isolated launcherb813bea8. Original individual failures,
+the source-boundary test repair and the single assembled obsolete-field fixture repair remain traceable.
+
+Accept these five reviewed implementations together under the standing author delegation of2026-10-24, flagged
+for author review: immutable last-emission terminal arbiter; bounded deterministic untrusted U4roles; training4a
+job/source/dataset/resource admission and read-only store consumption; minimal versioned F11metadata/verified
+model label-order confidence binding and reader kinds; offline exact-rational window/deadline tables. Individual
+owning suites plus this composed source review/full owning verification support this engineering acceptance.
+No new product code was introduced by composition or the one-line fixture correction. Isolated main assembly
+and exact accepted-tree verification precede delivery/push; this finding alone does not claim delivered main.
+
+Limits remain: terminal empty history is explicit initial-neutral/no prior emission; untrusted roles have no gate/
+configuration authority and actual objective vocabulary is record-supplied/TODO. Training4a's floor is necessary,
+not peak memory assurance; recorder truth and real model/scientific data quality remain unproved. F11binding at
+real14f readiness must derive from the same genuine admitted frozen metadata actually loaded by CameraInference;
+module-helper verification is not that composition. Window algebra is offline declared-model derivation, not
+physical validity or runtime enforcement. Full14bc/15/16/startup/shared-client/role-source attribution wiring and
+all real timing/protocol values remain open. Training4b is EXCLUDED: owning tests passed but genuine namespace
+worker failed before frameworks and its repair/re-verification is pending. No calibrated model, live/principal/
+M1/scientific result, new warmup/exclusion, source cap or canonical-note change is accepted.

@@ -1,0 +1,34 @@
+{
+  "id": "compiled-role-plans",
+  "repository": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/worktrees/xverse-blueprints/codex-second-integration-20261024",
+  "revision": "09080118c9ba168f35ac026b31ba58cc0d3a03ea",
+  "cwd": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/worktrees/xverse-blueprints/codex-second-integration-20261024/automotive/assured-aeb",
+  "command": [
+    "/dev/shm/compat-p6-venv/bin/python",
+    "-I",
+    "-B",
+    "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/repositories/distributed_safety_critical_thesis/specs/002-assured-aeb/review/codex-second-assembly-verification-20261024/compile_role_plans.py"
+  ],
+  "environment": {
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+    "XVERSE_PLATFORM_PROFILES": "/tmp/codex-xverse-review-20261024-q93eotxv/xdl/profiles",
+    "XVERSE_AEB_SENSOR_SITE": "/dev/shm/xverse-aeb-sensor-20261024/venv/lib/python3.13/site-packages",
+    "XVERSE_COMPAT_SENSOR_ENV": "/dev/shm/xverse-aeb-sensor-20261024",
+    "XVERSE_COMPAT_SRC": "/home/jefferson/xverse-compat/src",
+    "XVERSE_AEB_U4_SITE": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/cache/xverse-aeb-inference-20261024/venv/lib/python3.13/site-packages",
+    "TMPDIR": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/codex-second-assembly-verification-20261024/compiled-role-plans",
+    "XDG_CACHE_HOME": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/cache"
+  },
+  "timeout_s": 900,
+  "returncode": 0,
+  "timed_out": false,
+  "finished_utc": "2026-10-24T19:12:07.442898+00:00",
+  "elapsed_s": 5.177,
+  "log_sha256": "fe6cf71eb1967360a1c2d32f8e45a1b500d086fc3a27e9a0c5bc62aed4882ee7",
+  "tail": [
+    "8 genuine compiled plan digests recorded"
+  ],
+  "accepted": false,
+  "merged": false
+}
