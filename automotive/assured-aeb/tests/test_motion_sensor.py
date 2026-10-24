@@ -20,8 +20,11 @@ TEST_RECORD = {"schema": M.PARAMS, "samplingPeriodNs": 50 * MS, "speedQuantumMps
                "latencyNs": 20 * MS}  # test values
 
 
-def sensor(**changes):
-    return M.MotionSensor(M.MotionSensorParams.from_record(dict(TEST_RECORD, **changes)))
+def sensor(origin_ns=0, **changes):
+    s = M.MotionSensor(M.MotionSensorParams.from_record(dict(TEST_RECORD, **changes)))
+    if origin_ns is not None:
+        s.bind_origin(origin_ns)
+    return s
 
 
 def item(origin_ns, speed=10.0, accel=-1.0):
@@ -93,7 +96,7 @@ def test_values_differ_from_the_input_by_the_declared_model():  # V14
     mean = sum(errors) / len(errors)
     std = (sum((e - mean) ** 2 for e in errors) / (len(errors) - 1)) ** 0.5
     assert abs(mean) < 0.05 and 0.07 < std < 0.13  # test std 0.1 plus quantum 0.01; loose statistical bounds
-    assert all(abs(round(o["speedMps"] / 0.01) - o["speedMps"] / 0.01) < 1e-6 for o in outs)  # on the quantum grid
+    assert all(o["speedMps"] == round(o["speedMps"], 2) for o in outs)  # on the quantum grid, no float artefact
 
 
 def test_negative_noisy_speed_is_clamped_to_zero():
@@ -159,7 +162,7 @@ def _imports(path: Path) -> set[str]:
 
 def test_sensor_module_imports_no_observer_evaluation_or_oracle_code():
     imports = _imports(HERE / "assured_aeb" / "motion_sensor.py")
-    assert imports <= {"__future__", "dataclasses", "hashlib", "json", "math", "random", "typing"}
+    assert imports <= {"__future__", "dataclasses", "decimal", "hashlib", "json", "math", "random", "typing"}
 
 
 def test_no_oracle_or_evaluation_module_reads_the_sensor():
@@ -184,3 +187,55 @@ def test_driver_uses_the_adapter_item_not_the_sensor():  # E-5
     assert not any(p == "motion-sensor-model" and c == "driver-profile" for p, _, c in intra)
     out = sensor().step(item(0))
     assert "flowId" not in out  # WP-03 _motion accepts only flowId == "vehicle-motion"
+
+
+# ---- finding 4 repairs ---------------------------------------------------------------------------------------
+
+WORLD_A, WORLD_B = 1_000 * 1_000 * MS, 1_600 * 1_000 * MS + 30 * MS  # two world epochs, 30 ms out of phase (test values)
+
+
+def test_pair1_with_two_different_world_epochs():  # HIGH-1: failed on 329eaf4
+    trajectory = [(k * 50 * MS, 10.0 - 0.05 * k) for k in range(12)]
+    a, b = sensor(origin_ns=WORLD_A, samplingPeriodNs=100 * MS), sensor(origin_ns=WORLD_B, samplingPeriodNs=100 * MS)
+    out_a = [a.step(item(WORLD_A + t, v)) for t, v in trajectory]
+    out_b = [b.step(item(WORLD_B + t, v)) for t, v in trajectory]
+    strip = lambda o: None if o is None else {k: v for k, v in o.items() if k not in ("originNs", "deliverAtNs")}
+    assert [strip(o) for o in out_a] == [strip(o) for o in out_b]  # same frames sampled, same noise, same values
+    assert [o["originNs"] - WORLD_A for o in out_a if o] == [o["originNs"] - WORLD_B for o in out_b if o]
+    assert [o for o in out_a if o][0]["originNs"] == WORLD_A  # absolute stamps kept
+
+
+def test_no_sample_before_the_origin_is_bound_and_the_origin_binds_once():
+    s = sensor(origin_ns=None)
+    assert s.step(item(WORLD_A)) is None and s.refused == {"origin-unbound": 1}
+    for bad in (None, 1.5, -1, True):
+        with pytest.raises(ValueError):
+            s.bind_origin(bad)
+    s.bind_origin(WORLD_A)
+    s.bind_origin(WORLD_A)
+    with pytest.raises(ValueError):
+        s.bind_origin(WORLD_A + 1)
+    assert s.step(item(WORLD_A))["slot"] == 0
+    assert s.step(item(WORLD_A - 1)) is None and s.refused["before-episode"] == 1
+
+
+def test_sample_is_the_first_frame_in_each_slot():  # LOW-2 wording
+    s = sensor(samplingPeriodNs=100 * MS)
+    out = [s.step(item(t, v)) for t, v in ((0, 10.0), (50 * MS, 11.0), (100 * MS, 12.0), (150 * MS, 13.0))]
+    assert [o["originNs"] if o else None for o in out] == [0, None, 100 * MS, None]
+
+
+def test_box_muller_transform_is_the_declared_one():  # LOW-1
+    import hashlib, math, random
+    key = hashlib.sha256(f"{M.PARAMS}|7|3|speed".encode()).digest()
+    rng = random.Random(int.from_bytes(key[:8], "big"))
+    u1, u2 = 1.0 - rng.random(), rng.random()
+    assert M.noise(7, 3, "speed", 0.5) == 0.5 * math.sqrt(-2.0 * math.log(u1)) * math.cos(2.0 * math.pi * u2)
+    tree = ast.parse((HERE / "assured_aeb" / "motion_sensor.py").read_text())
+    assert not any(isinstance(n, ast.Attribute) and n.attr in ("gauss", "normalvariate") for n in ast.walk(tree))
+
+
+@pytest.mark.parametrize("value, quantum, expected", [(9.95, 0.01, 9.95), (9.9501, 0.05, 9.95), (10.3, 0.5, 10.5),
+                                                       (-1.1, 0.25, -1.0), (0.123456, 0.001, 0.123)])
+def test_quantisation_has_no_float_artefacts(value, quantum, expected):  # LOW-2
+    assert M.quantise(value, quantum) == expected and repr(M.quantise(value, quantum)) == repr(expected)

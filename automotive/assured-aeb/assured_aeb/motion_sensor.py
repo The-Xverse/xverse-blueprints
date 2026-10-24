@@ -9,11 +9,23 @@ flow, and it reads no observer, evaluation or oracle output (FR-021; DYN-002; V1
 Every model value is a protocol value with no default (AD-27; freeze-readiness class J needs a justification source
 for each): ``MotionSensorParams.from_record`` refuses a record with a missing, extra or ill-typed member. Only
 simulation time (integer nanoseconds) is used.
+
+Time base (decisions.md "AD-30 delivery rule"; review-wp05 findings 3 and 4): the sampling grid and the noise key are
+episode-relative, ``originNs - episodeOriginNs``, so the paired arms and repeats of one episode agree whatever the world
+clock; the origin is bound once from the first frame (``bind_origin``) and nothing is sampled before it. The ``originNs``
+and ``deliverAtNs`` stamps stay on the absolute world clock for the hub, U5 and offline joins. ``latencyNs`` covers the
+element's WP-12 ``computeLatency``, so the sensor delay is declared once; the hub delivers at the first step boundary at
+or after ``deliverAtNs`` (the latency is rounded up to whole steps).
+
+Noise transform (finding 4, LOW-1): Box-Muller over two ``random()`` draws of a ``random.Random`` seeded with an integer
+derived from SHA-256. CPython keeps the Mersenne Twister ``random()`` sequence for an integer seed stable across
+versions; ``gauss()`` is not covered by that guarantee, so it is not used.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 import hashlib
 import json
 import math
@@ -95,11 +107,17 @@ def noise(seed: int, slot: int, channel: str, std: float) -> float:
     if std == 0.0:
         return 0.0
     key = hashlib.sha256(f"{PARAMS}|{seed}|{slot}|{channel}".encode()).digest()
-    return random.Random(int.from_bytes(key[:8], "big")).gauss(0.0, std)
+    rng = random.Random(int.from_bytes(key[:8], "big"))
+    u1, u2 = 1.0 - rng.random(), rng.random()  # u1 in (0, 1]: the logarithm is finite
+    return std * math.sqrt(-2.0 * math.log(u1)) * math.cos(2.0 * math.pi * u2)  # Box-Muller, cosine branch
 
 
 def quantise(value: float, quantum: float) -> float:
-    return round(value / quantum) * quantum
+    """Round to an integer number of quanta, then to the quantum's decimal precision (no float artefacts)."""
+
+    steps = round(value / quantum)
+    places = max(0, -Decimal(repr(quantum)).as_tuple().exponent)
+    return round(steps * quantum, places)
 
 
 def check_output(item: Any) -> list[str]:
@@ -122,16 +140,26 @@ class MotionSensor:
         if type(params) is not MotionSensorParams:
             raise TypeError("MotionSensorParams.from_record is required (no default parameters)")
         self.params = params
+        self.episode_origin_ns: int | None = None
         self.last_slot: int | None = None
         self.last_origin_ns: int | None = None
         self.sequence = 0
         self.refused: dict[str, int] = {}
 
+    def bind_origin(self, episode_origin_ns: int) -> None:
+        """Bind the episode origin once, from the first frame; the same value is idempotent, another is refused."""
+
+        if not _int(episode_origin_ns) or episode_origin_ns < 0:
+            raise ValueError("the episode origin must be the integer ns world time of the episode's first frame")
+        if self.episode_origin_ns is not None and self.episode_origin_ns != episode_origin_ns:
+            raise ValueError(f"the episode origin is already bound to {self.episode_origin_ns}")
+        self.episode_origin_ns = episode_origin_ns
+
     def _refuse(self, reason: str) -> None:
         self.refused[reason] = self.refused.get(reason, 0) + 1
 
     def step(self, item: Any) -> dict[str, Any] | None:
-        """Sample one adapter ``vehicle-motion`` item; refuse everything else."""
+        """Sample one adapter ``vehicle-motion`` item (the first frame in each slot); refuse everything else."""
 
         if not isinstance(item, dict):
             self._refuse("not-an-item")
@@ -148,12 +176,18 @@ class MotionSensor:
         if not (_int(origin) and origin >= 0 and _number(speed) and speed >= 0 and _number(accel)):
             self._refuse("malformed")
             return None
+        if self.episode_origin_ns is None:
+            self._refuse("origin-unbound")
+            return None
+        if origin < self.episode_origin_ns:
+            self._refuse("before-episode")
+            return None
         if self.last_origin_ns is not None and origin <= self.last_origin_ns:
             self._refuse("not-advancing")
             return None
         self.last_origin_ns = origin
         p = self.params
-        slot = origin // p.sampling_period_ns
+        slot = (origin - self.episode_origin_ns) // p.sampling_period_ns  # episode-relative grid
         if self.last_slot is not None and slot <= self.last_slot:
             return None  # this slot is already sampled: no sample between grid instants
         self.last_slot = slot

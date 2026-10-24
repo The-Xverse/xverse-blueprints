@@ -57,9 +57,12 @@ code. The time below is the time of the corrected record.
 ### 1.2 Model (deterministic, keyed to simulation time)
 - **Sampling grid.**
   - Sample slots are `k = floor(originNs / samplingPeriodNs)` on the simulation-time grid, with epoch
-    0 of the `carla-simulation` domain.
+    0 of the `carla-simulation` domain. *[Corrected in finding 5: `k = floor((originNs − episodeOriginNs) /
+    samplingPeriodNs)`, with the episode origin bound late from the first frame (finding 4, HIGH-1).]*
   - A sample is emitted for an input item whose slot is greater than the last emitted slot, and its
-    measurement time is the item's `originNs` (zero-order hold on the newest frame).
+    measurement time is the item's `originNs`. *[Corrected in finding 5: the sample is the first frame in each slot.
+    The original text read "zero-order hold on the newest frame"; the slot and noise key are episode-relative
+    (finding 4).]*
   - An item whose `originNs` does not advance, or whose slot was already sampled, emits nothing.
   - So the sensor never invents a sample between frames, and a frozen or stalled input goes stale
     downstream.
