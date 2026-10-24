@@ -21,8 +21,9 @@ def node(window=TEST_WINDOW_NS, latency=TEST_LATENCY_NS):
                                                          "computeLatencyNs": latency}))
 
 
-def reader(window=TEST_WINDOW_NS):
-    return B.BrakeCommandReader(B.ReaderParams.from_record({"schema": B.READER_PARAMS, "stalenessWindowNs": window}))
+def reader(window=TEST_WINDOW_NS, origin_ns=0):
+    return B.BrakeCommandReader(B.ReaderParams.from_record({"schema": B.READER_PARAMS, "stalenessWindowNs": window}),
+                                episode_origin_ns=origin_ns)
 
 
 def routed(sequence, origin_ns, value, now_ns=None):
@@ -56,7 +57,7 @@ def test_node_and_reader_refuse_construction_without_a_record():
     with pytest.raises(TypeError):
         B.BrakeEscNode(None)
     with pytest.raises(TypeError):
-        B.BrakeCommandReader(None)
+        B.BrakeCommandReader(None, episode_origin_ns=0)
     with pytest.raises(ValueError):
         B.ReaderParams.from_record({"schema": B.READER_PARAMS})
 
@@ -235,3 +236,49 @@ def test_offline_chain_arbiter_to_reader_matches_the_wp03_contract():
         hub.extend(n.step(now, routed_requests)["commands"])
     assert seen == [0.0, 0.0, 0.0, 1.0, 1.0]  # each request reaches the driver one hub step later
     assert all(isinstance(v, float) for v in seen)  # never None while the chain is fresh
+
+
+# ---- finding 4: time base (HIGH-1) -------------------------------------------------------------------------
+
+WORLD_NS = 1_000 * 1_000 * MS  # a world clock at 1000 s at the episode's first frame (test value)
+
+
+def test_reader_refuses_to_construct_without_an_episode_origin():
+    params = B.ReaderParams.from_record({"schema": B.READER_PARAMS, "stalenessWindowNs": TEST_WINDOW_NS})
+    with pytest.raises(TypeError):
+        B.BrakeCommandReader(params)
+    for origin in (None, 1.5, -1, True):
+        with pytest.raises(TypeError):
+            B.BrakeCommandReader(params, episode_origin_ns=origin)
+
+
+def test_stale_command_is_refused_with_a_non_zero_world_epoch():
+    """Before the repair this returned 1.0: the absolute origin was compared with the episode-relative time."""
+
+    r, n = reader(origin_ns=WORLD_NS), node()
+    r.deliver(n.step(WORLD_NS + 50 * MS, [routed(1, WORLD_NS + 50 * MS, 1.0)])["commands"][0])
+    assert r(0.1) == 1.0  # 50 ms old: fresh
+    assert r(10.1) is None  # 10 s old: stale
+
+
+def test_future_origin_is_not_deliverable():
+    r, n = reader(origin_ns=WORLD_NS), node()
+    r.deliver(n.step(WORLD_NS + 500 * MS, [routed(1, WORLD_NS + 500 * MS, 1.0)])["commands"][0])
+    assert r(0.1) is None  # the command's origin is 400 ms in the reader's future
+
+
+def test_offline_chain_with_a_non_zero_world_epoch():
+    zone, n, r = B.ChassisZone(), node(), reader(origin_ns=WORLD_NS)
+    step_ns = 50 * MS  # test step
+    hub, seen = [], []
+    for k, value in enumerate([0.0, 0.0, 1.0, 1.0, 0.0]):
+        world = WORLD_NS + k * step_ns
+        for command in hub:
+            r.deliver(command)
+        hub = []
+        seen.append(r(k * step_ns / 1e9))  # WP-03 passes episode-relative seconds
+        routed_requests = [m for d, m in zone.step(world, [("brake-request", B.brake_request(k + 1, world, value))]) if d == B.NODE]
+        hub.extend(n.step(world, routed_requests)["commands"])
+    assert seen == [0.0, 0.0, 0.0, 1.0, 1.0]
+    # the U5 side goes silent (for example the CC-1 freeze): after one window the source is invalid, not a stale 0.0
+    assert r((4 * step_ns + TEST_WINDOW_NS + 1) / 1e9) is None

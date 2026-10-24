@@ -73,7 +73,9 @@ is engineering evidence: not AEB evidence, not M1, not X-Verse fitness for purpo
      `chassis-zone`]. Only the arbiter's request, routed by the chassis zone, is accepted (A-4 chain);
    - **out-of-range**: a value outside [0, 1], the actuator domain refused by the adapter
      (`actuation.py` 37–38). It is an engineering domain, not a protocol value. The node does not
-     clamp. WP-03 still clamps a value above 1, as a second line;
+     clamp. *[Corrected in finding 5: no value above 1 reaches WP-03 through F17, so its clamp is not a second
+     line on this path; the arbiter's [0, 1] output contract is a WP-13/WP-14 obligation. The original text
+     read "WP-03 still clamps a value above 1, as a second line".]*;
    - **stale** (simulation time): `sim_ns − originNs > stalenessWindowNs`, or `originNs > sim_ns`
      (a future origin);
    - **replayed**: `sequence` ≤ the last accepted sequence.

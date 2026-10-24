@@ -9,8 +9,10 @@ The node publishes only its own software status (received, accepted or rejected,
 reserved vocabulary member that nothing emits in Phase 8). It publishes no wheel speed and makes no claim that the
 brake was applied (V26). Its "accepted" status is the AD-14 actuator-facing acceptance point.
 
-Only simulation time is used, as integer nanoseconds. The staleness window and the compute latency are protocol values
-with no default: the parameter records are refused unless every member is supplied.
+Only simulation time is used. Every ``*Ns`` stamp (``originNs``, ``atNs``, ``receivedNs``) is the absolute CARLA world
+simulation clock in integer nanoseconds, as the compat items carry it; WP-03's ``sim_s`` is episode-relative, so the
+reader converts it with the episode origin (review-wp04 finding 4, HIGH-1). The staleness window and the compute latency
+are protocol values with no default: the parameter records are refused unless every member is supplied.
 """
 
 from __future__ import annotations
@@ -229,12 +231,22 @@ class BrakeEscNode:
 
 class BrakeCommandReader:
     """``brake_request(sim_s)`` for ``ArbitratedDriver``: 0.0 when no request is active, the newest forwarded value
-    while fresh, and ``None`` (invalid: WP-03 holds the last brake with throttle 0) when stale or lost."""
+    while fresh, and ``None`` (invalid: WP-03 holds the last brake with throttle 0) when stale, lost or not yet
+    deliverable.
 
-    def __init__(self, params: ReaderParams) -> None:
+    @param params Validated ``ReaderParams``.
+    @param episode_origin_ns The absolute world simulation time (integer ns) of the episode's first ticked frame, set
+        by the U2 loop. ``sim_s`` is relative to it (compat ``live/loop.py``), while F17 ``originNs`` is absolute. There
+        is no default: the reader refuses to construct without it.
+    """
+
+    def __init__(self, params: ReaderParams, *, episode_origin_ns: int) -> None:
         if type(params) is not ReaderParams:
             raise TypeError("ReaderParams.from_record is required (no default parameters)")
+        if not _int(episode_origin_ns) or episode_origin_ns < 0:
+            raise TypeError("episode_origin_ns must be the integer ns world time of the episode's first frame (no default)")
         self.params = params
+        self.episode_origin_ns = episode_origin_ns
         self.newest: dict[str, Any] | None = None
         self.lost = False
         self.refused = 0
@@ -264,7 +276,9 @@ class BrakeCommandReader:
             return None
         if self.newest is None:
             return 0.0  # B-3: no active request before the node's first command
-        age = round(sim_s * 1e9) - self.newest["originNs"]
+        age = self.episode_origin_ns + round(sim_s * 1e9) - self.newest["originNs"]
+        if age < 0:
+            return None  # a future origin is not deliverable: WP-03 cuts throttle and holds the brake
         if age > self.params.staleness_window_ns:
             return None
         return 0.0 if self.newest["value"] == 0.0 else self.newest["value"]
