@@ -78,3 +78,75 @@ pins and retain precise before/after document identities. Actual compiled semant
 measured by the coordinator's later topology verification; do not claim they are unchanged from text/source equality.
 No new route, authority or latency/allocation value is authorized. Owning/topology/capacity/compiled checks stay in
 root's serialized queue. Record this amendment in a separate design checkpoint before editing generated forms.
+
+## Finding 3: implementation checkpoint and actual limited evidence (Codex, 2026-10-24)
+
+Source checkpoint `bdcf5b2f50f08d3e5719be079658ddcdabaee86d` follows design `7e241a6` and the explicit logical-version
+amendment `ab222af`. **Implemented candidate, independent review and owning delivery pending.** Its WP14e/main
+assembly dependency b21824a remains subject to full-suite/dependency acceptance before this increment's delivery.
+
+`adas_contract.py` owns exact active F11/proposal-basis /2 native shapes and generated JSON Schemas. FusionRiskAeb
+adds only the seven categorical camera flags, the two dispositioned confidence scalars and closed original F08
+checks. Camera flag native types are preserved (including false), unknown values are null, original typed radar
+contradictions remain unchanged and no raw image indicators/bin vectors/OODscore are added. The occupancy equation
+uses the actual admitted fusion threshold, including threshold values other than one half and p=0. Distance
+confidence indexes the actual selected class in the known protocol class order. No threshold/default, quality claim,
+new qualification algorithm or ML provenance key is introduced. Existing productive association/state/latch/request
+logic remains the owner; metadata does not authorize a transition or select a braking source.
+
+The active F11 wire and both logical payload URNs are explicitly v2, with X-COM interface-policy version 2.0.0.
+The historical v1 wire/URN registrations are separate, documented and excluded from active negotiation; current
+consumers refuse v1/unknown versions rather than invent missing assurance metadata. Role endpoint consumption keeps
+expected producer, received producer and original payload owner distinct. The exact owner validator is shared by
+the role/basis consumers; the arbiter validates the v2 envelope while retaining its original nonfinite-request
+watermark stage, finite clamp, hold, selector and forwarded-state behavior. Transport attestation and actual
+whole-unit entry wiring remain 14f obligations, not demonstrated here. Narrow digest/finite-number Projection kinds
+read explicit identifiers with no coercion or default. Validator, diagnostics, startup, new observation routes,
+ED12 additions and remaining 14b/14c policies are not implemented by this increment.
+
+The generated-document receipt `docs/evidence/wp14b0-generated-document-deltas.json` compares all **301** existing
+topology/maestro documents against generation with their unchanged recorded artifact pins. Exactly **46** documents
+change; an independent recursive comparison restricts their deltas to the two payload URNs and their interface-
+policy schemaVersion values. Every before/after document SHA256 is retained. Artifact-pin bytes remain unchanged
+(SHA256 `0e8ba373d5676f5d2f67bf9b8c27b93b3914e81b33b5f6ef5d851695b8187472`). New owner schema documents, active
+wire aliases and a separate historical-only alias file are generated from the runtime definitions. No compiled
+semantic plan digest, topology/capacity suite pass or unchanged-plan-identity claim is supplied: those are later
+root-scheduled measurements after this material version evolution.
+
+**Actually performed before the relocation hold, on final source:** eighteen selected tiny stdlib controls passed:
+ten new interface methods (genuine SmartCamera/FrontZone/CameraInference-contract/SmartRadar/Fusion producers,
+zero/non-half/equality occupancy confidence, selected distance confidence, typed unknowns/contradictions, actual
+arbiter and basis/endpoint version refusal, source checks, reader types, generated schema/301-document version
+comparison and metadata-stripped equivalence against the actual pre-change FusionRiskAeb source); six existing
+functional clamp/nonfinite/replay/hold/forwarded-state/WP04/epoch-stream controls; and two genuine U4 proposer/cycle
+controls. CameraInference's deterministic TEST-ONLY inference callable is model-free: no real ORT/calibration claim.
+Existing sparse arbiter fixtures now use a complete genuine v2 owner envelope before applying their deliberate
+request/state stimuli; the untrusted-role fixture's synthetic class vector matches its declared six-class order.
+Ten source/test/topology AST parses and `git diff --check` passed. No pytest, NumPy/torch/ONNX/ORT import, durable
+Argus, actual model execution, download, factory or live run was performed. These controls are not a full suite.
+
+The author then required new data on loop10. Source was committed cleanly as bdcf5b2 before the write hold. The
+coordinator verified the relocation, including all data hashes/modes and Git state, and authorized same-path resume.
+The original logical worktree path is now an alias to
+`/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/worktrees/xverse-blueprints/phase8-wp14b0-20261024`.
+This worker rechecked physical path, exact HEAD and clean status; it did not rerun tests or rehash the relocation.
+All new scratch/fixture/output data must use explicit loop10 TMPDIR, currently the worker subdirectory
+`/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/review_compat_envs`.
+Main Git metadata also resides on loop10 under the coordinator's verified relocation. Frozen platform/rc.1 inputs
+are untouched. This log is the only post-relocation change in this worker's finalization pass.
+
+Deferred targeted command, from this worktree's `automotive/assured-aeb`, **only when root schedules it**:
+
+```sh
+env TMPDIR=/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/review_compat_envs \
+  PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 \
+  /dev/shm/compat-p6-venv/bin/python -I -B -m pytest -q -p no:cacheprovider \
+  tests/test_wp14b0_interface.py tests/test_aeb_logic.py tests/test_u4_untrusted.py tests/test_role_contract.py --tb=short
+```
+
+Then root owes the complete owning suite and `check_topology.py --platform-profiles <admitted-profiles> --report
+<loop10-report>`, its compiled identities/capacity checks and independent source review/acceptance/integration.
+The external profile input must be the admitted pinned source; no interpreter/artifact pin refresh or existing run
+mutation is implied. Real confidence minima/scientific calibration support, AD27, later 14b/14c startup/deadline
+design and live gates remain open. The inherited FR007/FR024/FR028/V04 and public SADS allocations remain partial:
+this candidate supplies an interface prerequisite only and closes no parent or scientific assurance claim.
