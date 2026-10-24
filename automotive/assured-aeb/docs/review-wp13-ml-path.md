@@ -404,3 +404,17 @@ run the decisive malformed-check cases with valid spool frames and require asser
 source untouched, restore any test namespace/module aliases afterwards, and import no pytest/numerical framework.
 This proves the new regression setup detects the independent finding, rather than merely reaching a later missing
 frame or catching an inference-stub exception. Full owning/numerical suites remain separately pending.
+
+## Finding 11: decisive TEST-ONLY setup verification (Codex, 2026-10-24)
+
+After design `12294a1`, supplied valid spool frames in the four malformed-input test setups. The earlier generic
+invalid-evidence test now records inference calls and returns an otherwise valid result, rather than relying on an
+exception the production consumer intentionally catches. No production source or scientific value changed.
+
+Exact direct execution with the pinned `-S -s -B` interpreter, AST-selected undecorated test functions and fresh
+scratch spools gives **7 named controls passed**, plus **10 earlier invalid-evidence parameter cases passed**.
+Loaded historical pre-R13ML-1 source `8eda0f8` in a separate in-memory module without changing any source file;
+all **5** malformed-check controls (fourth class, front integrity, logical, plausibility, statistical) then fail their
+assertions as required. Restored the current test module alias afterwards. The negative control demonstrates that
+usable frames reach the old erroneous inference path and the tests detect it. Neither pytest nor NumPy/ORT/torch
+was imported; full/numerical suite verification is still pending. This closes finding 9's test-setup gap only.

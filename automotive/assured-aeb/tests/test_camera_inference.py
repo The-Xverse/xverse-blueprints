@@ -296,11 +296,15 @@ def test_nominal_output_is_small_and_matches_fusion_contract(tmp_path):
     lambda r: r["payload"]["indicators"].update(faultId="never-forwarded"),
 ])
 def test_invalid_or_unknown_evidence_never_calls_inference(change, tmp_path):
+    _spool_file(tmp_path)
+    calls = []
     def forbidden(raw):
-        raise AssertionError("inference must not run")
+        calls.append(raw)
+        return copy.deepcopy(RESULT)
     evidence = _evidence(); change(evidence)
     with C.SpoolReader(tmp_path) as spool:
         result = _role(spool, forbidden).step(evidence)
+        assert calls == []
         assert result["state"] == "UNCERTAIN" and result["reason"]
         assert all(result[key] is None for key in C.RESULT_MEMBERS)
         assert "never-forwarded" not in json.dumps(result, allow_nan=False)
@@ -389,6 +393,7 @@ def test_fixture_regenerates_from_the_genuine_shared_preprocessing_binding(tmp_p
     {"verdict": "fail", "failed": [1]}, {"verdict": "unknown", "failed": []},
 ])
 def test_contradictory_sensor_check_never_calls_inference(check_name, malformed, tmp_path):
+    _spool_file(tmp_path)
     calls = []
     evidence = _evidence()
     evidence["checks"]["sensorSelfCheck"][check_name] = copy.deepcopy(malformed)
@@ -399,6 +404,7 @@ def test_contradictory_sensor_check_never_calls_inference(check_name, malformed,
 
 
 def test_an_undeclared_fourth_sensor_class_never_calls_inference(tmp_path):
+    _spool_file(tmp_path)
     calls = []
     evidence = _evidence()
     evidence["checks"]["sensorSelfCheck"]["fourth-class"] = {"verdict": "pass", "failed": []}
@@ -409,6 +415,7 @@ def test_an_undeclared_fourth_sensor_class_never_calls_inference(tmp_path):
 
 
 def test_front_integrity_pass_with_failed_codes_is_unknown(tmp_path):
+    _spool_file(tmp_path)
     evidence = _evidence()
     evidence["checks"]["integrity"] = {"verdict": "pass", "failed": ["bad-input"]}
     calls = []
