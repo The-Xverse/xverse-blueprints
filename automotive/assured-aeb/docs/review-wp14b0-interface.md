@@ -63,3 +63,18 @@ Independent source review, root-scheduled complete suites/topology evidence and 
 gates. O-2/V04 remains allocated to later14b qualification; these metadata changes are not its completion or a
 scientific confidence/quality proof. All threshold values/minima/numeric freeze and remaining startup/deadline
 observation design questions stay open. Recommend a DRAFT Note23 update only after later acceptance, never automatic.
+
+## Finding 2: explicit logical payload version disposition before generated-form edits (2026-10-24)
+
+The coordinator disposition supersedes finding1 §5's proposed stable logical URN aliases: this is a material payload
+contract evolution, so **both** logical payload contracts become `urn:xverse:assured-aeb:adas-cycle:v2` and
+`urn:xverse:assured-aeb:proposal-basis:v2`, with their X-COM interface-policy schemaVersion `2.0.0`.
+Element/interface/endpoint/flow names, source authority, other payload URNs/policy versions and WP04 bytes remain
+unchanged. Active EndpointBinding/version lookup must use this version explicitly; historical v1 registration is
+separate and cannot silently negotiate or upcast assurance metadata. Wire schema remains `assured-aeb.adas-cycle/2`.
+
+Update owner-generated schemas/aliases and topology generation together; use unchanged existing recorded artifact
+pins and retain precise before/after document identities. Actual compiled semantic plan identities will change as
+measured by the coordinator's later topology verification; do not claim they are unchanged from text/source equality.
+No new route, authority or latency/allocation value is authorized. Owning/topology/capacity/compiled checks stay in
+root's serialized queue. Record this amendment in a separate design checkpoint before editing generated forms.
