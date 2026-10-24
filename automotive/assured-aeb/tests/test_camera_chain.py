@@ -55,8 +55,9 @@ def event(id_, kind, start_ms, end_ms, **params):
 
 CAMERA_RECORD = {"schema": C.CAMERA_CHECKS, "frameFormat": dict(FMT),
                  "stats": {"statsStride": 1, "darkLevel": 16, "brightLevel": 239, "sharpnessBoxLog2": 1},
-                 "thresholds": {"maxAgeNs": 100 * MS, "minMeanLuma": 60.0, "maxMeanLuma": 200.0, "minStdLuma": 20.0,
-                                "maxDarkFraction": 0.2, "maxBrightFraction": 0.2, "minHighFrequencyVariance": 100.0}}  # test values
+                 "thresholds": {"minMeanLuma": 60.0, "maxMeanLuma": 200.0, "minStdLuma": 20.0, "maxStdLuma": 45.0,
+                                "maxDarkFraction": 0.2, "maxBrightFraction": 0.2, "minHighFrequencyVariance": 100.0,
+                                "maxHighFrequencyVariance": 1600.0}}  # test values
 
 
 def camera():
@@ -71,6 +72,7 @@ def camera():
     lambda r: r["events"].append(event("a", "blur", 0, 1, boxLog2=2)),  # duplicate id
     lambda r: r["events"].append(event("c", "blur", 5, 5, boxLog2=2)),  # empty interval
     lambda r: r["events"].append(event("d", "blur", 0, 1, boxLog2=9)),
+    lambda r: r["events"].append(event("d2", "blur", 0, 1, boxLog2=5)),  # above the tool limit
     lambda r: r["events"].append(event("e", "noise", 0, 1, stdLevel=0)),
     lambda r: r["events"].append(event("f", "exposure", 0, 1, gain=0, offset=0)),
     lambda r: r["events"].append(event("g", "occlusion", 0, 1, x=30, y=0, width=5, height=1, value=0)),  # outside
@@ -85,7 +87,8 @@ def test_corruption_record_is_refused(mutate):
 
 
 @pytest.mark.parametrize("path, value", [(("stats", "statsStride"), 0), (("stats", "darkLevel"), 250),
-                                         (("thresholds", "maxAgeNs"), 1.5), (("thresholds", "minStdLuma"), float("nan"))])
+                                         (("stats", "sharpnessBoxLog2"), 5), (("thresholds", "minStdLuma"), float("nan")),
+                                         (("thresholds", "maxDarkFraction"), 1.5)])
 def test_camera_checks_record_is_refused(path, value):
     record = copy.deepcopy(CAMERA_RECORD)
     record[path[0]][path[1]] = value
@@ -189,19 +192,34 @@ def test_clean_frame_passes_every_class():
     assert "pixels" not in json.dumps(result) and all(not isinstance(v, bytes) for v in result["indicators"].values())
 
 
-@pytest.mark.parametrize("events, failed", [
-    ([event("b", "blur", 0, 1000, boxLog2=3)], "high-frequency"),
+@pytest.mark.parametrize("events, failed", [  # each AD-31 kind against its check (finding 4, MEDIUM-3)
+    ([event("b", "blur", 0, 1000, boxLog2=3)], "high-frequency-low"),
     ([event("x", "exposure", 0, 1000, gain=0.1, offset=0)], "mean-luma"),
     ([event("o", "occlusion", 0, 1000, x=0, y=0, width=32, height=12, value=0)], "dark-fraction"),
     ([event("x", "exposure", 0, 1000, gain=3.0, offset=60)], "bright-fraction"),
+    ([event("n", "noise", 0, 1000, stdLevel=60.0)], "std-luma-high"),
+    ([event("n", "noise", 0, 1000, stdLevel=60.0)], "high-frequency-high"),
 ])
-def test_self_checks_observe_the_corruption(events, failed):
+def test_each_corruption_kind_trips_its_check(events, failed):
     assert failed in _check(events)["checks"]["statistical"]["failed"]
 
 
 def test_noise_raises_the_luma_spread():
     clean, noisy = _check([]), _check([event("n", "noise", 0, 1000, stdLevel=60.0)])
     assert noisy["indicators"]["stdLuma"] > clean["indicators"]["stdLuma"]
+
+
+@pytest.mark.parametrize("minimum, maximum", [("minMeanLuma", "maxMeanLuma"), ("minStdLuma", "maxStdLuma"),
+                                              ("minHighFrequencyVariance", "maxHighFrequencyVariance")])
+def test_min_at_or_above_max_is_refused(minimum, maximum):  # finding 4, LOW-1
+    record = copy.deepcopy(CAMERA_RECORD)
+    record["thresholds"][minimum] = record["thresholds"][maximum]
+    with pytest.raises(ValueError):
+        C.SmartCameraParams.from_record(record)
+
+
+def test_no_age_threshold_in_the_camera_checks():  # the age bound is the front zone's AD-06 window
+    assert "maxAgeNs" not in C.THRESHOLDS
 
 
 def test_logical_and_plausibility_classes():
@@ -214,5 +232,6 @@ def test_logical_and_plausibility_classes():
     assert "digest-or-length" in bad["checks"]["logical"]["failed"] and bad["checks"]["statistical"]["verdict"] == "not-evaluated"
     wrong = camera().step(WORLD, dict(out, width=WIDTH + 1), delivered)
     assert wrong["checks"]["plausibility"]["failed"] == ["geometry"]
-    assert camera().step(WORLD + 200 * MS, out, delivered)["checks"]["statistical"]["failed"] == ["age"]
+    late = camera().step(WORLD + 200 * MS, out, delivered)
+    assert late["indicators"]["ageNs"] == 200 * MS and late["checks"]["statistical"]["verdict"] == "pass"  # age is an indicator
     assert camera().step(WORLD, {"schema": "other"}, delivered)["checks"]["logical"]["failed"] == ["malformed"]

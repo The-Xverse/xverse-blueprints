@@ -25,8 +25,13 @@ CAMERA_EVIDENCE = "assured-aeb.camera-evidence/1"
 RADAR_EVIDENCE = "assured-aeb.radar-evidence/1"
 RADAR_FLOWS = ("radar-adas", "radar-vc")  # the adapter's radar flows (compat protocol.py 31); WP-10 wires one of them
 SPEC = {"rangeM", "horizontalFovDeg", "verticalFovDeg", "maxVelocityMps", "maxDetections"}
-RADAR_THRESHOLDS = {"minCount", "maxCount", "maxAgeNs"}
+#: Class (iii) count bounds (D-2; no defaults). The age bound is the front zone's AD-06 window (finding 4, LOW-1).
+RADAR_THRESHOLDS = {"minCount", "maxCount"}
 ANGLE_TOLERANCE = 1e-9  # as the adapter (compat sensors.py ANGLE_TOLERANCE): a numerical tolerance, not a protocol value
+#: Half a unit of the adapter's rounding (compat sensors.py 62: altitude and azimuth to 6 decimals, depth and velocity
+#: to 3): the smart radar sees rounded values, so its bounds allow this much (review-wp07 finding 4, LOW-2).
+ANGLE_ROUNDING = 0.5e-6
+LINEAR_ROUNDING = 0.5e-3
 
 
 @dataclass(frozen=True)
@@ -42,7 +47,7 @@ class SmartRadarParams:
                 or not is_int(spec["maxDetections"]):
             raise ValueError(f"spec must be exactly {sorted(SPEC)}, positive, from the configured sensor descriptor")
         if not isinstance(thresholds, dict) or set(thresholds) != RADAR_THRESHOLDS or not all(is_int(v) and v >= 0 for v in thresholds.values()) \
-                or thresholds["minCount"] > thresholds["maxCount"]:
+                or thresholds["minCount"] >= thresholds["maxCount"]:
             raise ValueError(f"thresholds must be exactly {sorted(RADAR_THRESHOLDS)} as non-negative integers (no defaults; D-2)")
         return cls(dict(spec), dict(thresholds))
 
@@ -86,8 +91,8 @@ class SmartRadar:
         if age < 0:
             logical.append("future-origin")
         spec = self.params.spec
-        half_h = math.radians(spec["horizontalFovDeg"]) / 2 + ANGLE_TOLERANCE
-        half_v = math.radians(spec["verticalFovDeg"]) / 2 + ANGLE_TOLERANCE
+        half_h = math.radians(spec["horizontalFovDeg"]) / 2 + ANGLE_TOLERANCE + ANGLE_ROUNDING
+        half_v = math.radians(spec["verticalFovDeg"]) / 2 + ANGLE_TOLERANCE + ANGLE_ROUNDING
         if len(detections) > spec["maxDetections"]:
             plausibility.append("too-many-detections")
         for row in detections:
@@ -95,14 +100,13 @@ class SmartRadar:
                 logical.append("malformed-detection")
                 break
             alt, az, depth, vel = row
-            if not (0 <= depth <= spec["rangeM"]) or abs(vel) > spec["maxVelocityMps"] or abs(az) > half_h or abs(alt) > half_v:
+            if not (0 <= depth <= spec["rangeM"] + LINEAR_ROUNDING) or abs(vel) > spec["maxVelocityMps"] + LINEAR_ROUNDING \
+                    or abs(az) > half_h or abs(alt) > half_v:
                 plausibility.append("detection-out-of-specification")
                 break
         t = self.params.thresholds
         if not t["minCount"] <= len(detections) <= t["maxCount"]:
             statistical.append("count")
-        if age > t["maxAgeNs"]:
-            statistical.append("age")
         checks = dict(zip(CLASSES, (verdict(logical), verdict(plausibility), verdict(statistical))))
         return {"schema": RADAR_SELFCHECK, "source": "smart-radar", "flowId": self.flow_id, "frame": frame,
                 "sequence": item["sequence"], "originNs": item["originNs"], "detections": detections, "count": count,

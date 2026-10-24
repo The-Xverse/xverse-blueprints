@@ -21,7 +21,7 @@ import topology as T
 MS = 1_000_000
 WORLD = 1_000_000 * MS
 SPEC = {"rangeM": 100.0, "horizontalFovDeg": 30.0, "verticalFovDeg": 10.0, "maxVelocityMps": 100.0, "maxDetections": 500}
-RADAR_RECORD = {"schema": R.RADAR_CHECKS, "spec": dict(SPEC), "thresholds": {"minCount": 1, "maxCount": 200, "maxAgeNs": 100 * MS}}
+RADAR_RECORD = {"schema": R.RADAR_CHECKS, "spec": dict(SPEC), "thresholds": {"minCount": 1, "maxCount": 200}}
 ZONE_RECORD = {"schema": R.FRONT_ZONE, "cameraFreshnessWindowNs": 80 * MS, "radarFreshnessWindowNs": 80 * MS}
 
 
@@ -46,7 +46,8 @@ def test_configured_specification_matches_the_descriptor_values():
 
 @pytest.mark.parametrize("mutate", [
     lambda r: r["spec"].pop("rangeM"), lambda r: r["spec"].update(maxDetections=500.5), lambda r: r["thresholds"].update(minCount=-1),
-    lambda r: r["thresholds"].update(minCount=300), lambda r: r["thresholds"].pop("maxAgeNs"), lambda r: r.update(extra=1),
+    lambda r: r["thresholds"].update(minCount=300), lambda r: r["thresholds"].update(minCount=200),
+    lambda r: r["thresholds"].pop("maxCount"), lambda r: r["thresholds"].update(maxAgeNs=1), lambda r: r.update(extra=1),
 ])
 def test_radar_record_is_refused(mutate):
     record = copy.deepcopy(RADAR_RECORD)
@@ -90,7 +91,20 @@ def test_radar_plausibility_from_the_configured_specification(detection):
 
 def test_radar_statistical_class():
     assert radar().step(WORLD, radar_item(0, WORLD, []))["checks"]["statistical"]["failed"] == ["count"]
-    assert radar().step(WORLD + 200 * MS, radar_item(0, WORLD))["checks"]["statistical"]["failed"] == ["age"]
+    late = radar().step(WORLD + 200 * MS, radar_item(0, WORLD))
+    assert late["indicators"]["ageNs"] == 200 * MS and late["checks"]["statistical"]["verdict"] == "pass"
+
+
+def test_rounded_detection_at_a_non_default_field_of_view_is_plausible():  # finding 4, LOW-2
+    record = copy.deepcopy(RADAR_RECORD)
+    record["spec"]["horizontalFovDeg"] = 35.0  # half field 0.305432619... rad
+    raw = 0.30543261  # within the raw bound; the adapter rounds it to 6 decimals
+    rounded = round(raw, 6)
+    assert rounded > math.radians(35.0) / 2 + R.ANGLE_TOLERANCE  # the case that failed before the repair
+    r = R.SmartRadar(R.SmartRadarParams.from_record(record), "radar-adas")
+    assert r.step(WORLD, radar_item(0, WORLD, [[0.0, rounded, 40.0, 0.0]]))["checks"]["plausibility"]["verdict"] == "pass"
+    r2 = R.SmartRadar(R.SmartRadarParams.from_record(record), "radar-adas")
+    assert r2.step(WORLD, radar_item(0, WORLD, [[0.0, 0.3060, 40.0, 0.0]]))["checks"]["plausibility"]["verdict"] == "fail"
 
 
 def _camera_selfcheck(sequence=0, origin=WORLD):

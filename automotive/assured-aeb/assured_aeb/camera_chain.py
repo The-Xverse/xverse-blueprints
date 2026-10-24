@@ -10,7 +10,10 @@ digest, so no role unit can learn the schedule (FR-028, FR-031). The applied eve
 ``SmartCamera`` (U3) computes its self-checks from the delivered frame only: frame sequence, age and image statistics,
 in the three AD-36 classes. Its output carries indicators and verdicts, never pixels.
 
-Every corruption parameter, threshold and statistics parameter is a protocol value with no default.
+Every corruption parameter, threshold and statistics parameter is a protocol value with no default. Obligations on the
+wiring (review-wp07 finding 4, MEDIUM-1; WP-10/WP-13): the hub delivers F05 at a simulation time independent of this
+stage's processing duration, and no role unit derives an indicator from host time; the per-frame host budget of the
+stage and the smart camera is a D-4c measurement.
 """
 
 from __future__ import annotations
@@ -89,8 +92,8 @@ class CorruptionSchedule:
 
 
 def _check_params(kind: str, p: dict[str, Any], fmt: dict[str, Any]) -> None:
-    if kind == "blur" and not (is_int(p["boxLog2"]) and 1 <= p["boxLog2"] <= 8):
-        raise ValueError("blur boxLog2 must be an integer in [1, 8]")
+    if kind == "blur" and not (is_int(p["boxLog2"]) and 1 <= p["boxLog2"] <= I.MAX_BOX_LOG2):
+        raise ValueError(f"blur boxLog2 must be an integer in [1, {I.MAX_BOX_LOG2}] (tool limit, not a protocol value)")
     if kind == "noise" and not (is_number(p["stdLevel"]) and p["stdLevel"] > 0):
         raise ValueError("noise stdLevel must be a positive number")
     if kind == "exposure" and not (is_number(p["gain"]) and p["gain"] > 0 and is_number(p["offset"])):
@@ -179,8 +182,10 @@ class CorruptionStage:
 # U3 smart camera
 # --------------------------------------------------------------------------------------------------
 
-THRESHOLDS = {"maxAgeNs", "minMeanLuma", "maxMeanLuma", "minStdLuma", "maxDarkFraction", "maxBrightFraction",
-              "minHighFrequencyVariance"}
+#: Class (iii) thresholds (D-2/D-3; no defaults). The age bound is not here: it is the front zone's AD-06 freshness
+#: window (review-wp07 finding 4, LOW-1); the age stays an indicator and a logical check (future origin).
+THRESHOLDS = {"minMeanLuma", "maxMeanLuma", "minStdLuma", "maxStdLuma", "maxDarkFraction", "maxBrightFraction",
+              "minHighFrequencyVariance", "maxHighFrequencyVariance"}
 STATS = {"statsStride", "darkLevel", "brightLevel", "sharpnessBoxLog2"}
 
 
@@ -198,12 +203,17 @@ class SmartCameraParams:
         if not isinstance(stats, dict) or set(stats) != STATS or not all(is_int(v) for v in stats.values()):
             raise ValueError(f"stats must be exactly {sorted(STATS)} as integers (no defaults)")
         if not (stats["statsStride"] >= 1 and 0 <= stats["darkLevel"] < stats["brightLevel"] <= 255
-                and 1 <= stats["sharpnessBoxLog2"] <= 8):
-            raise ValueError("required: statsStride >= 1, 0 <= darkLevel < brightLevel <= 255, sharpnessBoxLog2 in [1, 8]")
+                and 1 <= stats["sharpnessBoxLog2"] <= I.MAX_BOX_LOG2):
+            raise ValueError(f"required: statsStride >= 1, 0 <= darkLevel < brightLevel <= 255, "
+                             f"sharpnessBoxLog2 in [1, {I.MAX_BOX_LOG2}] (tool limit)")
         if not isinstance(thresholds, dict) or set(thresholds) != THRESHOLDS or not all(is_number(v) for v in thresholds.values()):
             raise ValueError(f"thresholds must be exactly {sorted(THRESHOLDS)} as finite numbers (no defaults; D-2/D-3)")
-        if not is_int(thresholds["maxAgeNs"]) or thresholds["maxAgeNs"] < 0:
-            raise ValueError("maxAgeNs must be a non-negative integer")
+        for low, high in (("minMeanLuma", "maxMeanLuma"), ("minStdLuma", "maxStdLuma"),
+                          ("minHighFrequencyVariance", "maxHighFrequencyVariance")):
+            if thresholds[low] >= thresholds[high]:
+                raise ValueError(f"{low} must be below {high}")
+        if not all(0 <= thresholds[k] <= 1 for k in ("maxDarkFraction", "maxBrightFraction")):
+            raise ValueError("fraction thresholds must lie in [0, 1]")
         return cls(fmt, dict(stats), dict(thresholds))
 
 
@@ -256,12 +266,14 @@ class SmartCamera:
                                                  dark_level=s["darkLevel"], bright_level=s["brightLevel"],
                                                  sharpness_log2=s["sharpnessBoxLog2"]))
             t = p.thresholds
-            for name, failed in (("age", age > t["maxAgeNs"]),
-                                 ("mean-luma", not t["minMeanLuma"] <= indicators["meanLuma"] <= t["maxMeanLuma"]),
-                                 ("std-luma", indicators["stdLuma"] < t["minStdLuma"]),
+            hf = indicators["highFrequencyVariance"]
+            for name, failed in (("mean-luma", not t["minMeanLuma"] <= indicators["meanLuma"] <= t["maxMeanLuma"]),
+                                 ("std-luma-low", indicators["stdLuma"] < t["minStdLuma"]),
+                                 ("std-luma-high", indicators["stdLuma"] > t["maxStdLuma"]),
                                  ("dark-fraction", indicators["darkFraction"] > t["maxDarkFraction"]),
                                  ("bright-fraction", indicators["brightFraction"] > t["maxBrightFraction"]),
-                                 ("high-frequency", indicators["highFrequencyVariance"] < t["minHighFrequencyVariance"])):
+                                 ("high-frequency-low", hf < t["minHighFrequencyVariance"]),
+                                 ("high-frequency-high", hf > t["maxHighFrequencyVariance"])):
                 if failed:
                     statistical.append(name)
         checks = dict(zip(CLASSES, (verdict(logical), verdict(plausibility), verdict(statistical, stats_evaluated))))

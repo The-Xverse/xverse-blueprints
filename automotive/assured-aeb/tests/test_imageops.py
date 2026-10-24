@@ -83,3 +83,17 @@ def test_blur_lowers_high_frequency_variance():
     f = frame()
     stats = lambda img: I.image_statistics(img, W, H, stride=1, dark_level=10, bright_level=245, sharpness_log2=1)
     assert stats(I.box_blur(f, W, H, 2))["highFrequencyVariance"] < stats(f)["highFrequencyVariance"]
+
+
+
+@pytest.mark.parametrize("level", [0, 1, 37, 128, 200, 255])
+def test_uniform_frame_has_zero_high_frequency_at_any_brightness(level):  # finding 4, MEDIUM-2
+    f = bytes([level, level, level, 255]) * (W * H)
+    for log2 in (1, 2):
+        stats = I.image_statistics(f, W, H, stride=1, dark_level=10, bright_level=245, sharpness_log2=log2)
+        assert stats["highFrequencyVariance"] == 0.0 and stats["stdLuma"] == 0.0
+
+
+def test_box_width_above_the_tool_limit_is_refused():  # finding 4, MEDIUM-1
+    with pytest.raises(ValueError, match="tool limit"):
+        I.box_blur(frame(), W, H, I.MAX_BOX_LOG2 + 1)
