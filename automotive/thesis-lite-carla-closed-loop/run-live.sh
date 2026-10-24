@@ -32,10 +32,11 @@ cleanup() {  # runs on every exit path, including an interrupt (review 1 R-7); a
   echo "residue processes: $(wc -l < "$RUN/residue-processes.txt")"
   if [ -d "$STAGE" ]; then  # before the guard, which reads the owned-actor registry (finding 49); removed only if copied
     if cp -a "$STAGE"/. "$RUN"/; then rm -rf "$STAGE"; echo "staged run directory copied from $STAGE"
-    else echo "staged run directory NOT copied; left in place at $STAGE"; fi
+    else COPY_FAILED=1; echo "staged run directory NOT copied; left in place at $STAGE"; fi
   fi
   REGISTRY="$RUN/owned-actors.json"  # the copied registry; the stage's own copy if the copy failed (finding 50, LOW-8)
-  [ ! -f "$REGISTRY" ] && [ -f "$STAGE/owned-actors.json" ] && REGISTRY="$STAGE/owned-actors.json"
+  # after a failed or partial copy the stage's own registry is used, even if a truncated copy exists (finding 53, LOW-7)
+  { [ ! -f "$REGISTRY" ] || [ -n "${COPY_FAILED:-}" ]; } && [ -f "$STAGE/owned-actors.json" ] && REGISTRY="$STAGE/owned-actors.json"
   if [ "$CASE" != no-carla ] && [ -s "$RUN/world-before.json" ]; then  # residue first, then the guard (skipped after a BLOCKED preflight, review 2 N-5)
     (cd "$XVERSE_COMPAT_SRC/src" && env -i PATH=/usr/bin HOME="$RUN/carla-home" /usr/bin/python3.10 -s -B -m xverse_compat_carla.restore \
        --carla-site "$SITE" --settings-from "$RUN/world-before.json" --owned-registry "$REGISTRY") > "$RUN/restore-guard.json"

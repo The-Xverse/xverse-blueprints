@@ -215,11 +215,12 @@ def test_any_other_warm_up_failure_stops_the_soak(soak, monkeypatch):
     assert len(fake.runs) == 4  # nothing ran after the failed warm-up
 
 
-def _write_run(tmp_path, diagnostic="ML-PROBE-NOT-READY", cleanup=True, residue=""):
+def _write_run(tmp_path, diagnostic="ML-PROBE-NOT-READY", cleanup=True, residue="", path="adapter-close", control=None):
     run_dir = tmp_path / "w"
     run_dir.mkdir()
     (run_dir / "maestro-run.json").write_text(json.dumps({"dispatchDiagnostic": diagnostic, "cleanupComplete": cleanup}))
     (run_dir / "residue-processes.txt").write_text(residue)
+    (run_dir / "soak-audit.json").write_text(json.dumps({"observations": {"P8": {"path": path, "lastControlFrame": control}}}))
     return run_dir
 
 
@@ -230,9 +231,11 @@ def _write_run(tmp_path, diagnostic="ML-PROBE-NOT-READY", cleanup=True, residue=
     ({"residue": "123 python3 -m xverse_compat.live.driver"}, False),
     ({"healthy": False}, False),
     ({"checks": ["P1.succeededWithMarkers", "P3.guardDestroyedOwned"]}, False),
+    ({"path": "guard"}, False),  # finding 53 LOW-1: P8 is excused only on the adapter-close path
+    ({"control": 12}, False),  # ... and only when no control was ever sent
 ])
 def test_clean_readiness_failure(tmp_path, change, excused):
-    run_dir = _write_run(tmp_path, **{k: v for k, v in change.items() if k in ("diagnostic", "cleanup", "residue")})
+    run_dir = _write_run(tmp_path, **{k: v for k, v in change.items() if k in ("diagnostic", "cleanup", "residue", "path", "control")})
     entry = {"healthAfter": {"healthy": change.get("healthy", True)},
              "audit": {"failedChecks": change.get("checks", ["P1.succeededWithMarkers", "P8.pathHolds"])}}
     assert run_soak.clean_readiness_failure(entry, run_dir) is excused

@@ -78,11 +78,15 @@ def clean_readiness_failure(entry: dict, run_dir: Path) -> bool:
     try:
         record = json.loads((run_dir / "maestro-run.json").read_text())
         residue = (run_dir / "residue-processes.txt").read_text().strip()
-    except (OSError, ValueError):
+        p8 = (json.loads((run_dir / "soak-audit.json").read_text()).get("observations") or {}).get("P8") or {}
+    except (OSError, ValueError, AttributeError):
         return False
+    failed = set((entry.get("audit") or {}).get("failedChecks") or ())
+    # P8 is excused only on the adapter-close path with no control ever sent (finding 53, LOW-1)
+    p8_ok = "P8.pathHolds" not in failed or (p8.get("path") == "adapter-close" and p8.get("lastControlFrame") is None)
     return (record.get("dispatchDiagnostic") == "ML-PROBE-NOT-READY" and record.get("cleanupComplete") is True
-            and bool((entry.get("healthAfter") or {}).get("healthy")) and not residue
-            and set((entry.get("audit") or {}).get("failedChecks") or ()) <= WARM_UP_EXCUSED_CHECKS)
+            and bool((entry.get("healthAfter") or {}).get("healthy")) and not residue and failed <= WARM_UP_EXCUSED_CHECKS
+            and p8_ok)
 LOAD_START_MAX, LOAD_RUN_MAX, LOAD_PERIOD_S = 5.0, 10.0, 5.0
 MAX_SERVER_FAILURES, INVALID_SHARE = 3, 0.10
 
@@ -530,7 +534,8 @@ def summarize(runs: list[dict]) -> dict:
     out["pooledRateCases"] = {"valid": pooled, "upperBound95": upper_bound(pooled)}
     out["valid"] = valid
     out["note"] = ("engineering statement under the recorded conditions only; runs in a server block share server and host "
-                   "state and are not fully independent trials (plan.md, Interpretation)")
+                   "state and are not fully independent trials (plan.md, Interpretation); every counted run follows a "
+                   "warm-up of its server, so the results describe a warmed-up server (DR-18, DR-19; finding 53 LOW-3)")
     return out
 
 
