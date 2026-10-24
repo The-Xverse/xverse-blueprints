@@ -163,3 +163,15 @@ The installed accepted Argus namespace/API and explicit selected roles are exerc
 prove process isolation or independently attest transport identity. Unit-entry/projection composition remains 14f,
 monitor/gate/manager semantics remain later increments, and no scientific clock mapping, live safety claim,
 availability credit or experiment acceptance follows. Assembled-main regression remains an integration gate.
+
+## Delegated engineering acceptance for isolated main assembly (Codex, 2026-10-24)
+
+Accept reviewed1f769c073b165f56b67e49876f77b3df2a5d4689 under the recorded author engineering delegation,
+flagged for author review. The independent review in finding6 and actual488-test/59-topology-check receipts support
+typed role records, projected/received/payload source checks, genuine per-unit ED-12 Argus append/read, local-only
+causation and the configuration-manager authority term. No unaccepted role policy implementation is included.
+
+Assemble with accepted AEB/ML/labels/protocol/projection increments and run the complete owning suite before main
+delivery. Retain all fourteen/fifteen-stage scope limits: local role allow-lists and digest joins do not establish
+process isolation, transport authenticity, independent monitor behavior, transition/MRC control or live readiness.
+No scientific parameter, clock mapping, frozen protocol, campaign or result is accepted.
