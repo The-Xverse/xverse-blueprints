@@ -1,0 +1,149 @@
+{
+  "$id": "urn:xverse:assured-aeb:qualified-evidence:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "configuration": {
+      "enum": [
+        "C_NOMINAL",
+        "C_DEGRADED_RADAR",
+        "S_MRC_REQUESTED"
+      ]
+    },
+    "evidenceId": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "items": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "ageNs": {
+            "type": "integer"
+          },
+          "id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "integrity": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "modelConfidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "monitorConfidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "originNs": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "payloadSha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "provenance": {
+            "additionalProperties": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "propertyNames": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "receptionNs": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "source": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "NOMINAL",
+              "DEGRADED",
+              "UNCERTAIN",
+              "UNSAFE"
+            ]
+          },
+          "synchronizationQuality": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "validityWindowId": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "ageNs",
+          "id",
+          "integrity",
+          "modelConfidence",
+          "monitorConfidence",
+          "originNs",
+          "payloadSha256",
+          "provenance",
+          "receptionNs",
+          "source",
+          "state",
+          "synchronizationQuality",
+          "validityWindowId"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "originNs": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "schema": {
+      "const": "assured-aeb.qualified-evidence/1"
+    },
+    "sequence": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "source": {
+      "const": "evidence-validator"
+    },
+    "state": {
+      "enum": [
+        "NOMINAL",
+        "DEGRADED",
+        "UNCERTAIN",
+        "UNSAFE"
+      ]
+    }
+  },
+  "required": [
+    "configuration",
+    "evidenceId",
+    "items",
+    "originNs",
+    "schema",
+    "sequence",
+    "source",
+    "state"
+  ],
+  "type": "object"
+}

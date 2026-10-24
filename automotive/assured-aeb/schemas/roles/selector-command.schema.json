@@ -1,0 +1,36 @@
+{
+  "$id": "urn:xverse:assured-aeb:selector-command:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "configuration": {
+      "enum": [
+        "C_NOMINAL",
+        "C_DEGRADED_RADAR",
+        "S_MRC_REQUESTED"
+      ]
+    },
+    "originNs": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "schema": {
+      "const": "assured-aeb.selector-command/1"
+    },
+    "sequence": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "source": {
+      "const": "configuration-manager"
+    }
+  },
+  "required": [
+    "configuration",
+    "originNs",
+    "schema",
+    "sequence",
+    "source"
+  ],
+  "type": "object"
+}

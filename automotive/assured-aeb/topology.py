@@ -190,7 +190,7 @@ ELEMENTS: dict[str, tuple[str, str, str, tuple[str, ...], tuple[str, ...]]] = {
     "diagnostics-supervision": ("productive", "vc-functional", "vehicle-control-hpc", ALL, ("diagnostic-verdict",)),
     "fixed-fallback-supervisor": ("fallback-supervisor", "vc-functional", "vehicle-control-hpc", ALL,
                                   ("forced-command", "aeb-status", "mrc-request")),
-    "configuration-manager": ("executor", "vc-functional", "vehicle-control-hpc", ALL,
+    "configuration-manager": ("configuration-manager", "vc-functional", "vehicle-control-hpc", ALL,
                               ("selector-command", "transition-request", "configuration-state")),
     "transition-verifier": ("verifier", "vc-functional", "vehicle-control-hpc", ALL, ("transition-verdict",)),
     "chassis-zone": ("actuation-path", "vc-functional", "chassis-zone-ecu", ALL, ("brake-request", "motion-evidence")),

@@ -1,0 +1,53 @@
+{
+  "$id": "urn:xverse:assured-aeb:aeb-status:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "originNs": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "reason": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "requestId": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "schema": {
+      "const": "assured-aeb.aeb-status/1"
+    },
+    "sequence": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "source": {
+      "const": "fixed-fallback-supervisor"
+    },
+    "status": {
+      "enum": [
+        "available",
+        "degraded",
+        "unavailable"
+      ]
+    }
+  },
+  "required": [
+    "originNs",
+    "reason",
+    "requestId",
+    "schema",
+    "sequence",
+    "source",
+    "status"
+  ],
+  "type": "object"
+}
