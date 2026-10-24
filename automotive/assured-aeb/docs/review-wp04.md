@@ -335,3 +335,16 @@ places any brake-path fault at the U2 hub relay. Residual 2 should cite that dec
   the asymmetric-hold residual.
 - Record LOW-1 to LOW-3.
 - Then a focused re-review, followed by acceptance and merge.
+
+## Finding 4: disposition of finding 3 (2026-10-24 11:43:33; recorded before any change)
+
+This disposition is the coordinator's, under the author's delegation of 2026-10-24, and is flagged for the
+author's review.
+
+| Item | Disposition | Planned change |
+| --- | --- | --- |
+| HIGH-1 | Repair | F17 keeps the absolute CARLA world simulation clock (`originNs`, as the compat items). `BrakeCommandReader` requires the episode origin `episodeOriginNs` (the world time of the episode's first frame, set by the U2 loop); with no origin it refuses to construct or serve. It converts WP-03's episode-relative `sim_s` to absolute before the age. A negative age (a future origin) returns `None`, not deliverable, so WP-03 cuts throttle and holds the brake. New tests: a chain with a non-zero epoch (a world at 1000 s), and a stale case that fails before the fix |
+| MEDIUM-1 | Record | Correct finding 1's "WP-03 still clamps a value above 1, as a second line" (it is not a second line on the F17 path). Record as a WP-13/WP-14 obligation the functional arbiter's output contract: [0, 1], clamped at the source with a recorded flag. Add the two-way hold to the residuals: a rejected apply keeps a release, and a rejected release keeps a brake. The node's rejections are evidence for the oracle (V34) |
+| LOW-1 | Repair and record | The reader-side future-origin guard (HIGH-1). State the end-to-end delay: about two simulator steps from the arbiter's decision to actuation, plus `computeLatencyNs` |
+| LOW-2 | Record | A WP-10 item: a start-up deadline for the first F17 command, after which the hub calls `mark_lost` |
+| LOW-3 | Record | Residual 2 is decided: `decisions.md` "WP-04 fault status" (`injected-fault` is evidence-only; any brake-path fault is injected at the U2 hub relay) |
