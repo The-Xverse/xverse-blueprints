@@ -401,3 +401,50 @@ succeeded at HEAD/upstream d97fdd1167bbd48b97aad5d4071ad59403665f42; unchanged f
 ba244ddb7df388386455524ab7667d4a1e86d5a3; no newer note/pull or note mutation. All work/scratch is external loop10.
 Only direct stdlib controls/AST/diff checks are currently allowed; root's CAPA verification owns the execution slot.
 Independent re-review and root-scheduled full owning suite remain required. No acceptance, merge or scope change.
+
+## Finding 9: test-only inventory successor and actual limited checks (Codex, 2026-10-24)
+
+Finding/design0e61149 precedes test repair commit recorded in this successor's history. Only
+tests/test_window_tables.py changes: explicitly classify the four known offline tools, keep all nineteen actual
+remaining top-level runtime modules guarded (including initializer/runtime_projection), and resolve actual offline
+imports across absolute/bare/relative module/member/alias syntax. The offline perception package is also denied
+as a runtime import target. Classification does not trust arbitrary new docstrings or disable scanning. No package
+runtime source, generator/window formula, protocol, projection builder/reader, scientific value or other branch
+is changed. This is a static import test, not complete V21 proof or dynamic-import/process admission evidence.
+
+Actually passed four exact stdlib direct controls: the originally failed actual-inventory test, explicit genuine
+offline-builder/runtime-reader classification, forty-two negative import-form subcases (including nested relative
+and perception), and nine legitimate-runtime/unrelated-symbol subcases. Separately demonstrated five non-vacuity
+controls: the exact old predicates permit from-dot-import protocol, package member protocol, relative builder,
+absolute builder and relative auditor imports, while the successor's same resolver used for inventory refuses each.
+AST and whitespace checks passed; exact diff confirms all assured_aeb runtime/tool modules equal a5e151a. No
+pytest/framework/NumPy/torch/ONNX/ORT import or heavy job occurred. Original failed full-suite receipt/log remain
+byte-preserved, not replaced by these direct checks; full suite has not been rerun in this repair pass.
+
+Independent narrow command from automotive/assured-aeb, using the external scratch root:
+
+```sh
+env TMPDIR=/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/review_compat_envs \
+  PYTHONDONTWRITEBYTECODE=1 python3 -S -B - <<'PY'
+import pathlib, sys
+root = pathlib.Path.cwd()
+sys.path[:0] = [str(root), str(root / "tests")]
+from test_window_tables import WindowTablesTests
+case = WindowTablesTests()
+for name in (
+    "test_generator_and_protocol_are_not_imported_by_runtime_inventory",
+    "test_runtime_inventory_keeps_runtime_reader_and_excludes_actual_offline_builder",
+    "test_runtime_import_guard_refuses_actual_offline_targets_and_relative_forms",
+    "test_runtime_import_guard_preserves_runtime_relative_and_unrelated_symbols",
+):
+    getattr(case, name)()
+    print("PASS", name)
+assert not any(n.split(".")[0] in {"pytest", "numpy", "torch", "onnx", "onnxruntime"} for n in sys.modules)
+PY
+```
+
+Root independently re-reviews the exact successor then schedules the owning suite with its correctly admitted
+environment/launcher. The original receipt records -I and exact environment/source/profile paths as historical
+facts; do not rewrite its failed evidence or infer a passing execution from a queue. Sol/high is recommended for
+that narrow independent review; complete window owning verification, acceptance/integration and actual protocol/
+live/scientific gates remain outstanding. No acceptance or merge is implied by this test-only checkpoint.
