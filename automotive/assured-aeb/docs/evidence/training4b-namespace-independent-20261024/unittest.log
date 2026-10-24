@@ -1,0 +1,23 @@
+test_bad_job_and_stage_refuse_before_isolation_effects_but_cli_lease_closes (test_training_namespace.TrainingNamespaceTests) ... ok
+test_emulated_isolation_and_unsupported_ioctl_refusals_close_only_adopted_proof (test_training_namespace.TrainingNamespaceTests) ... ok
+test_genuine_child_refusal_closes_proof_on_flags_preload_parent_and_cache_failure (test_training_namespace.TrainingNamespaceTests) ... ok
+test_genuine_rn_types_identities_and_close_without_parent_proc_or_frameworks (test_training_namespace.TrainingNamespaceTests) ... ok
+test_malformed_proof_never_adopts_std_or_unrelated_descriptors_and_close_is_idempotent (test_training_namespace.TrainingNamespaceTests) ... ok
+test_nonfresh_network_and_emulated_same_user_are_refused (test_training_namespace.TrainingNamespaceTests) ... ok
+test_nonproof_file_pipe_socket_and_recycled_number_are_never_closed (test_training_namespace.TrainingNamespaceTests) ... ok
+test_owned_pass_fds_survive_spawn_interrupt_cleanup_then_parent_finally_closes (test_training_namespace.TrainingNamespaceTests) ... ok
+test_parent_second_acquisition_failure_closes_first_and_supervisor_rejects_bad_pass_fds (test_training_namespace.TrainingNamespaceTests) ... ok
+test_wrong_identity_or_type_closes_all_typed_adopted_handles (test_training_namespace.TrainingNamespaceTests) ... ok
+test_existing_receipt_or_diagnostics_are_preserved_without_spawn (test_training_supervisor.TrainingSupervisorTests) ... ok
+test_missing_executable_and_input_drift_are_failed_captures (test_training_supervisor.TrainingSupervisorTests) ... ok
+test_nonfinite_keyword_crash_or_unrelated_exception_cannot_count_as_refusal (test_training_supervisor.TrainingSupervisorTests) ... ok
+test_normal_and_actual_nonzero_are_distinct_complete_captures (test_training_supervisor.TrainingSupervisorTests) ... ok
+test_post_assignment_interruption_always_cleans_owned_group (test_training_supervisor.TrainingSupervisorTests) ... ok
+test_spawn_assignment_interrupt_retains_actual_handle_and_cleans_group (test_training_supervisor.TrainingSupervisorTests) ... ok
+test_term_ignoring_descendant_requires_kill_and_actual_group_disappearance (test_training_supervisor.TrainingSupervisorTests) ... ok
+test_timeout_retains_partial_diagnostics_and_refuses_success (test_training_supervisor.TrainingSupervisorTests) ... ok
+
+----------------------------------------------------------------------
+Ran 18 tests in 6.665s
+
+OK

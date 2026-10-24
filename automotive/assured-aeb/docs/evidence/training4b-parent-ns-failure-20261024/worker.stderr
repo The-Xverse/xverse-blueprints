@@ -1,0 +1,17 @@
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/worktrees/xverse-blueprints/phase8-wp09-training4b-20261024/automotive/assured-aeb/assured_aeb/perception/training_worker.py", line 253, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/worktrees/xverse-blueprints/phase8-wp09-training4b-20261024/automotive/assured-aeb/assured_aeb/perception/training_worker.py", line 245, in main
+    report = run_training(read_regular(args.job, args.max_record_bytes), read_regular(args.locations, args.max_record_bytes),
+                          read_regular(args.stage, args.max_record_bytes), max_record_bytes=args.max_record_bytes,
+                          identity_path=args.identity, lock_path=args.lock, parent_netns=args.parent_netns, output_directory=args.output)
+  File "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/worktrees/xverse-blueprints/phase8-wp09-training4b-20261024/automotive/assured-aeb/assured_aeb/perception/training_worker.py", line 191, in run_training
+    check_worker_isolation(parent_netns)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/worktrees/xverse-blueprints/phase8-wp09-training4b-20261024/automotive/assured-aeb/assured_aeb/perception/training_worker.py", line 72, in check_worker_isolation
+    require(os.readlink(parent / "net") == parent_netns != os.readlink("/proc/self/ns/net"),
+            ~~~~~~~~~~~^^^^^^^^^^^^^^^^
+PermissionError: [Errno 13] Permission denied: '/proc/2917596/ns/net'

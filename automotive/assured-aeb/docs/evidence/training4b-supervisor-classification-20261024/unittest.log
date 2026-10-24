@@ -1,0 +1,13 @@
+test_existing_receipt_or_diagnostics_are_preserved_without_spawn (test_training_supervisor.TrainingSupervisorTests) ... ok
+test_missing_executable_and_input_drift_are_failed_captures (test_training_supervisor.TrainingSupervisorTests) ... ok
+test_nonfinite_keyword_crash_or_unrelated_exception_cannot_count_as_refusal (test_training_supervisor.TrainingSupervisorTests) ... ok
+test_normal_and_actual_nonzero_are_distinct_complete_captures (test_training_supervisor.TrainingSupervisorTests) ... ok
+test_post_assignment_interruption_always_cleans_owned_group (test_training_supervisor.TrainingSupervisorTests) ... ok
+test_spawn_assignment_interrupt_retains_actual_handle_and_cleans_group (test_training_supervisor.TrainingSupervisorTests) ... ok
+test_term_ignoring_descendant_requires_kill_and_actual_group_disappearance (test_training_supervisor.TrainingSupervisorTests) ... ok
+test_timeout_retains_partial_diagnostics_and_refuses_success (test_training_supervisor.TrainingSupervisorTests) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 5.279s
+
+OK

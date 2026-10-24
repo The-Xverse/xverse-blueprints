@@ -1,0 +1,29 @@
+{
+  "purpose": "TEST-ONLY stdlib supervision/classification controls",
+  "command": [
+    "env",
+    "TMPDIR=/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/training4b-supervisor-controls",
+    "PYTHONDONTWRITEBYTECODE=1",
+    "/usr/bin/python3",
+    "-B",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "automotive/assured-aeb/tests",
+    "-p",
+    "test_training_supervisor.py",
+    "-v"
+  ],
+  "returncode": 0,
+  "tests": 8,
+  "elapsed_reported_seconds": 5.279,
+  "log_sha256": "503d2b79c880869941d52a7dadd0f9036cd01410bb29552e461cd09b20423abd",
+  "source_sha256": {
+    "tests/training4b_supervisor.py": "d349bbc3587bee95dac96eaf983555296a9bc635f3cbb02dfed002df54c4a1ae",
+    "tests/training4b_integration.py": "3c245351911f9b9c77f3c4f347a3113f354ef4e34217c0706403c224b8b3eb68",
+    "tests/test_training_supervisor.py": "14076f4ba4fd650aac0f98682e99279a8caf61ffc3d55a619631724349fee024"
+  },
+  "accepted": false,
+  "merged": false
+}

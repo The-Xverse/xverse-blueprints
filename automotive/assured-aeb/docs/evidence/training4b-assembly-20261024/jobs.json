@@ -1,0 +1,61 @@
+[
+  {
+    "id": "blueprints-combined",
+    "repository": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/worktrees/xverse-blueprints/codex-training4b-integration-20261024",
+    "revision": "13addd861f9f8f263ff0e31a689eff6b1391a4ae",
+    "cwd": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/worktrees/xverse-blueprints/codex-training4b-integration-20261024/automotive/assured-aeb",
+    "command": [
+      "/dev/shm/compat-p6-venv/bin/python",
+      "-I",
+      "-B",
+      "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/repositories/distributed_safety_critical_thesis/specs/002-assured-aeb/review/run_blueprints_pytest.py",
+      "--compat-source",
+      "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/repositories/xverse-compat/src",
+      "--compat-revision",
+      "f5b3957ca84cccfd98cddd9eb3ab95b0a4643eed",
+      "--",
+      "tests",
+      "-q",
+      "-ra",
+      "-p",
+      "no:cacheprovider",
+      "--tb=short"
+    ],
+    "environment": {
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+      "XVERSE_PLATFORM_PROFILES": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/codex-xverse-review-20261024-q93eotxv/xdl/profiles",
+      "XVERSE_AEB_SENSOR_SITE": "/dev/shm/xverse-aeb-sensor-20261024/venv/lib/python3.13/site-packages",
+      "XVERSE_COMPAT_SENSOR_ENV": "/dev/shm/xverse-aeb-sensor-20261024",
+      "XVERSE_COMPAT_SRC": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/repositories/xverse-compat/src",
+      "XVERSE_AEB_U4_SITE": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/cache/xverse-aeb-inference-20261024/venv/lib/python3.13/site-packages",
+      "TMPDIR": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/codex-training4b-assembly-verification-20261024/blueprints-combined",
+      "XDG_CACHE_HOME": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/cache"
+    },
+    "timeout_s": 900
+  },
+  {
+    "id": "compiled-role-plans",
+    "repository": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/worktrees/xverse-blueprints/codex-training4b-integration-20261024",
+    "revision": "13addd861f9f8f263ff0e31a689eff6b1391a4ae",
+    "cwd": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/worktrees/xverse-blueprints/codex-training4b-integration-20261024/automotive/assured-aeb",
+    "command": [
+      "/dev/shm/compat-p6-venv/bin/python",
+      "-I",
+      "-B",
+      "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/repositories/distributed_safety_critical_thesis/specs/002-assured-aeb/review/codex-training4b-assembly-verification-20261024/compile_role_plans.py"
+    ],
+    "environment": {
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+      "XVERSE_PLATFORM_PROFILES": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/codex-xverse-review-20261024-q93eotxv/xdl/profiles",
+      "XVERSE_AEB_SENSOR_SITE": "/dev/shm/xverse-aeb-sensor-20261024/venv/lib/python3.13/site-packages",
+      "XVERSE_COMPAT_SENSOR_ENV": "/dev/shm/xverse-aeb-sensor-20261024",
+      "XVERSE_COMPAT_SRC": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/repositories/xverse-compat/src",
+      "XVERSE_AEB_U4_SITE": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/cache/xverse-aeb-inference-20261024/venv/lib/python3.13/site-packages",
+      "TMPDIR": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/codex-training4b-assembly-verification-20261024/compiled-role-plans",
+      "XDG_CACHE_HOME": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/cache"
+    },
+    "timeout_s": 900
+  }
+]

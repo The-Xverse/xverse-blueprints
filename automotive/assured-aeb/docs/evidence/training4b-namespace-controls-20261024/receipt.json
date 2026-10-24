@@ -1,0 +1,114 @@
+{
+  "accepted": false,
+  "admission4aClosureSha256": "d83ba1f5e7ce1056d82a924157aad617d64db84862e4be4005abf47fcf1a3e32",
+  "command": {
+    "command": [
+      "/home/jefferson/.pyenv/versions/3.13.13/bin/python3.13",
+      "-S",
+      "-s",
+      "-B",
+      "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/review_compat_envs/training4b-namespace-successor-controls-20261024/runner.py"
+    ],
+    "cwd": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/worktrees/xverse-blueprints/phase8-wp09-training4b-20261024/automotive/assured-aeb",
+    "environment": {
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "PYTHONPATH": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/worktrees/xverse-blueprints/phase8-wp09-training4b-20261024/automotive/assured-aeb:/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/worktrees/xverse-blueprints/phase8-wp09-training4b-20261024/automotive/assured-aeb/tests:/home/jefferson/xverse-compat/src",
+      "TMPDIR": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/review_compat_envs/training4b-namespace-successor-controls-20261024",
+      "XVERSE_COMPAT_SRC": "/home/jefferson/xverse-compat/src",
+      "XVERSE_NAMESPACE_CONTROL_ROOT": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/review_compat_envs/training4b-namespace-successor-controls-20261024/namespace-cases"
+    },
+    "purpose": "TEST-ONLY tiny stdlib namespace/supervisor controls, no framework fitting"
+  },
+  "externalRoot": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/review_compat_envs/training4b-namespace-successor-controls-20261024",
+  "merged": false,
+  "namespaceAndFdCaptureReceipts": [
+    {
+      "capture_complete": true,
+      "path": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/review_compat_envs/training4b-namespace-successor-controls-20261024/namespace-cases/test_bad_job_and_stage_refuse_before_isolation_effects_but_cli_lease_closes/0/worker-execution.json",
+      "returncode": 0,
+      "sha256": "6e2ed2ade6cebade706e71b33e4d40078bbd78d9d17ada3717ef4a436b9d7f8c"
+    },
+    {
+      "capture_complete": true,
+      "path": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/review_compat_envs/training4b-namespace-successor-controls-20261024/namespace-cases/test_bad_job_and_stage_refuse_before_isolation_effects_but_cli_lease_closes/1/worker-execution.json",
+      "returncode": 0,
+      "sha256": "25698d9be8d9f72228d9132d143d6e033f361723cd82b14a45baa52a6b4ca6ff"
+    },
+    {
+      "capture_complete": true,
+      "path": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/review_compat_envs/training4b-namespace-successor-controls-20261024/namespace-cases/test_genuine_child_refusal_closes_proof_on_flags_preload_parent_and_cache_failure/0/worker-execution.json",
+      "returncode": 0,
+      "sha256": "f5d0d88d4a3ffc91ac780faf9b2337971f2991a6510ed793344223011c8c045a"
+    },
+    {
+      "capture_complete": true,
+      "path": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/review_compat_envs/training4b-namespace-successor-controls-20261024/namespace-cases/test_genuine_child_refusal_closes_proof_on_flags_preload_parent_and_cache_failure/1/worker-execution.json",
+      "returncode": 0,
+      "sha256": "f54ac80456fb58f37409dafad603d0c5bdf380ee939780e27b10633b8fa3023b"
+    },
+    {
+      "capture_complete": true,
+      "path": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/review_compat_envs/training4b-namespace-successor-controls-20261024/namespace-cases/test_genuine_child_refusal_closes_proof_on_flags_preload_parent_and_cache_failure/2/worker-execution.json",
+      "returncode": 0,
+      "sha256": "ac879bc029ef1cc21b26469c1536086256e6359b2b85fe3d0d84b8a9a411fa19"
+    },
+    {
+      "capture_complete": true,
+      "path": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/review_compat_envs/training4b-namespace-successor-controls-20261024/namespace-cases/test_genuine_child_refusal_closes_proof_on_flags_preload_parent_and_cache_failure/3/worker-execution.json",
+      "returncode": 0,
+      "sha256": "5df13fd5295695b930d3202def53c7f625c1f17def1955c574ac38ff01f50eae"
+    },
+    {
+      "capture_complete": true,
+      "path": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/review_compat_envs/training4b-namespace-successor-controls-20261024/namespace-cases/test_genuine_rn_types_identities_and_close_without_parent_proc_or_frameworks/0/worker-execution.json",
+      "returncode": 0,
+      "sha256": "db0276395de50e43db840543139414f221ddeed80b42741c5e7ce5c0fb38b1f6"
+    },
+    {
+      "capture_complete": true,
+      "path": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/review_compat_envs/training4b-namespace-successor-controls-20261024/namespace-cases/test_nonfresh_network_and_emulated_same_user_are_refused/0/worker-execution.json",
+      "returncode": 0,
+      "sha256": "85c0481a8ec8230d89ac17c9674f8c54212ba110ee450823430b75992ba18300"
+    },
+    {
+      "capture_complete": true,
+      "path": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/review_compat_envs/training4b-namespace-successor-controls-20261024/namespace-cases/test_nonfresh_network_and_emulated_same_user_are_refused/1/worker-execution.json",
+      "returncode": 0,
+      "sha256": "b0af6d4c2a58cf5860e31db48c9f185820af7d101aa3a31ec7dbc284d5e564ad"
+    },
+    {
+      "capture_complete": false,
+      "path": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/review_compat_envs/training4b-namespace-successor-controls-20261024/namespace-cases/test_owned_pass_fds_survive_spawn_interrupt_cleanup_then_parent_finally_closes/False/worker-execution.json",
+      "returncode": -15,
+      "sha256": "6ade60c2aa2849a63f9bc31193472740e69667d51d6abc4016be529435fb06d4"
+    },
+    {
+      "capture_complete": false,
+      "path": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/review_compat_envs/training4b-namespace-successor-controls-20261024/namespace-cases/test_owned_pass_fds_survive_spawn_interrupt_cleanup_then_parent_finally_closes/True/worker-execution.json",
+      "returncode": -15,
+      "sha256": "2ca3b8ab199c9f51f10a93722e5380419f42e3d635190d03f107ae6308079f45"
+    }
+  ],
+  "previousStage4bClosureSha256": "009804472ccd52670758bd9ee21595a4f9520c47e85dda770d3f3420a692c6eb",
+  "pytestOrFrameworkExecution": false,
+  "result": {
+    "accepted": false,
+    "merged": false,
+    "returncode": 0,
+    "runnerSha256": "0352303a3c0c94bd8f8f8f4651a31476dd5769ecad3ede88c4ed2cb51c5e5a8a",
+    "stderrSha256": "95922c98d01a77c4417d30b51e6502b76f2bdecde9a0d7ef832e102b0566fa25",
+    "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "schema": "TEST-ONLY-training4b-namespace-controls/1",
+  "sourceFiles": {
+    "assured_aeb/perception/training_worker.py": "389adad15132a25e15e5bad8cc36e2e42a2bf1353d4d8067943882e21c04f48e",
+    "tests/test_training_fit.py": "f122eb345d7dbebf06c174845f7e68ff05ac7426ffe29d958b80a8978b3f3575",
+    "tests/test_training_namespace.py": "17a068f406a838e515921916c638346d8d14589dc89f552dfc3b95c90ce0914c",
+    "tests/test_training_supervisor.py": "14076f4ba4fd650aac0f98682e99279a8caf61ffc3d55a619631724349fee024",
+    "tests/training4b_integration.py": "c272d132ee69a30a1e480ba8d3d87fa4fc5caf5807144b52857e3ebfba9a3687",
+    "tests/training4b_supervisor.py": "fa7c237c1ec5fefbd4876f67352f84f0ab50705e2dfb36b51b8740dfcbe8f553"
+  },
+  "sourceRevision": "b6f7e0bcf86c2655a57a1d006c7c5e9cc8989abc",
+  "stage4bClosureSha256": "99de5a1c70cb684ca9df0cc9f24054ce067a20a121a3ac014d7488d7ab845020",
+  "tests": 18
+}

@@ -1,0 +1,80 @@
+[
+  {
+    "id": "training4b-owning",
+    "repository": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/worktrees/xverse-blueprints/phase8-wp09-training4b-20261024",
+    "revision": "d47ddf9e7bab9e5ab08a1cf1707e406ed83204ae",
+    "cwd": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/worktrees/xverse-blueprints/phase8-wp09-training4b-20261024/automotive/assured-aeb",
+    "command": [
+      "/dev/shm/compat-p6-venv/bin/python",
+      "-I",
+      "-B",
+      "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/repositories/distributed_safety_critical_thesis/specs/002-assured-aeb/review/run_blueprints_pytest.py",
+      "--compat-source",
+      "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/repositories/xverse-compat/src",
+      "--compat-revision",
+      "f5b3957ca84cccfd98cddd9eb3ab95b0a4643eed",
+      "--",
+      "tests",
+      "-q",
+      "-ra",
+      "-p",
+      "no:cacheprovider",
+      "--tb=short"
+    ],
+    "environment": {
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+      "XVERSE_PLATFORM_PROFILES": "/tmp/codex-xverse-review-20261024-q93eotxv/xdl/profiles",
+      "XVERSE_AEB_SENSOR_SITE": "/dev/shm/xverse-aeb-sensor-20261024/venv/lib/python3.13/site-packages",
+      "XVERSE_COMPAT_SENSOR_ENV": "/dev/shm/xverse-aeb-sensor-20261024",
+      "XVERSE_COMPAT_SRC": "/home/jefferson/xverse-compat/src",
+      "XVERSE_AEB_U4_SITE": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/cache/xverse-aeb-inference-20261024/venv/lib/python3.13/site-packages",
+      "TMPDIR": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/codex-training4b-namespace-verification-20261024",
+      "XDG_CACHE_HOME": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/cache"
+    },
+    "timeout_s": 900
+  },
+  {
+    "id": "training4b-genuine-isolated",
+    "repository": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/worktrees/xverse-blueprints/phase8-wp09-training4b-20261024",
+    "revision": "d47ddf9e7bab9e5ab08a1cf1707e406ed83204ae",
+    "cwd": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/worktrees/xverse-blueprints/phase8-wp09-training4b-20261024/automotive/assured-aeb",
+    "command": [
+      "/home/jefferson/.pyenv/versions/3.13.13/bin/python3.13",
+      "-S",
+      "-s",
+      "-B",
+      "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/worktrees/xverse-blueprints/phase8-wp09-training4b-20261024/automotive/assured-aeb/tests/training4b_integration.py",
+      "--identity",
+      "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/cache/xverse-aeb-training-20261024/identity.json",
+      "--lock",
+      "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/repositories/xverse-compat/tools/training/training.lock",
+      "--python",
+      "/home/jefferson/.pyenv/versions/3.13.13/bin/python3.13",
+      "--compat-source",
+      "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/repositories/xverse-compat/src",
+      "--scratch",
+      "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/codex-training4b-namespace-verification-20261024/genuine-attempt",
+      "--memory-bytes",
+      "8589934592",
+      "--disk-bytes",
+      "67108864",
+      "--timeout",
+      "300",
+      "--cleanup-term-seconds",
+      "15",
+      "--cleanup-kill-seconds",
+      "10"
+    ],
+    "environment": {
+      "PYTHONPATH": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/worktrees/xverse-blueprints/phase8-wp09-training4b-20261024/automotive/assured-aeb:/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/worktrees/xverse-blueprints/phase8-wp09-training4b-20261024/automotive/assured-aeb/tests:/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/repositories/xverse-compat/src",
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "TMPDIR": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/codex-training4b-namespace-verification-20261024",
+      "XDG_CACHE_HOME": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/cache"
+    },
+    "timeout_s": 1500,
+    "engineering_bounds_purpose": "TEST-ONLY synthetic fixture; not scientific protocol values",
+    "identity_sha256": "f24dfe62164c32bb6e98f5e8b1a7ab2d7e1bf3712bedc84a70c06a0e70c4d578",
+    "source_closure_sha256": "99de5a1c70cb684ca9df0cc9f24054ce067a20a121a3ac014d7488d7ab845020"
+  }
+]

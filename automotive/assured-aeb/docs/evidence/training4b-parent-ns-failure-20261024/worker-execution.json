@@ -1,0 +1,98 @@
+{
+  "accepted": false,
+  "capture_complete": true,
+  "cleanup": {
+    "complete": true,
+    "errors": [],
+    "kill_sent": false,
+    "term_sent": false
+  },
+  "command": [
+    "unshare",
+    "-rn",
+    "/home/jefferson/.pyenv/versions/3.13.13/bin/python3.13",
+    "-S",
+    "-s",
+    "-B",
+    "-m",
+    "assured_aeb.perception.training_worker",
+    "--job",
+    "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/codex-training4b-verification-20261024/genuine-attempt/case-0/job.json",
+    "--locations",
+    "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/codex-training4b-verification-20261024/genuine-attempt/case-0/locations.json",
+    "--stage",
+    "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/codex-training4b-verification-20261024/genuine-attempt/case-0/stage.json",
+    "--identity",
+    "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/cache/xverse-aeb-training-20261024/identity.json",
+    "--lock",
+    "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/repositories/xverse-compat/tools/training/training.lock",
+    "--parent-netns",
+    "net:[4026531840]",
+    "--output",
+    "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/codex-training4b-verification-20261024/genuine-attempt/case-0/trained",
+    "--max-record-bytes",
+    "1000000"
+  ],
+  "context": {
+    "expected_success": true,
+    "output": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/codex-training4b-verification-20261024/genuine-attempt/case-0/trained",
+    "parent_netns": "net:[4026531840]",
+    "purpose": "TEST-ONLY-synthetic-training4b"
+  },
+  "cwd": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/worktrees/xverse-blueprints/phase8-wp09-training4b-20261024/automotive/assured-aeb",
+  "elapsed_seconds": 0.11482514394447207,
+  "engineering_bounds": {
+    "kill_seconds": 10.0,
+    "term_seconds": 15.0,
+    "worker_seconds": 300
+  },
+  "environment": {
+    "HOME": "/nonexistent-training4b-home",
+    "MKL_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1",
+    "PATH": "/usr/bin:/bin",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PYTHONPATH": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/cache/xverse-aeb-training-20261024/venv/lib/python3.13/site-packages:/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/worktrees/xverse-blueprints/phase8-wp09-training4b-20261024/automotive/assured-aeb:/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/repositories/xverse-compat/src",
+    "TMPDIR": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/codex-training4b-verification-20261024/genuine-attempt",
+    "TORCHINDUCTOR_CACHE_DIR": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/codex-training4b-verification-20261024/genuine-attempt/cache/inductor",
+    "TORCH_HOME": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/codex-training4b-verification-20261024/genuine-attempt/cache/torch",
+    "TRITON_CACHE_DIR": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/codex-training4b-verification-20261024/genuine-attempt/cache/triton",
+    "XDG_CACHE_HOME": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/codex-training4b-verification-20261024/genuine-attempt/cache"
+  },
+  "failure": null,
+  "finished_utc": "2026-10-24T18:46:51.898606+00:00",
+  "inputs_after": {
+    "admissionSourceClosureSha256": "d83ba1f5e7ce1056d82a924157aad617d64db84862e4be4005abf47fcf1a3e32",
+    "files": {
+      "driver": "3c245351911f9b9c77f3c4f347a3113f354ef4e34217c0706403c224b8b3eb68",
+      "identity": "f24dfe62164c32bb6e98f5e8b1a7ab2d7e1bf3712bedc84a70c06a0e70c4d578",
+      "job.json": "4842d46c725a57c8473414d1cc2905f0c04b857ca688fca8d13739d3fbdbf8ce",
+      "locations.json": "d6ff99fff38660428763a20d0af29ea053dbc4265da281d03754a8a191965834",
+      "lock": "95109db70c7e20931330423e15c68cd24af93629c812523cca3612d91dc78b6b",
+      "stage.json": "38a0516c5ba7c67bf4c9bb09c9a893ade7895d815adf8ab9e1166717e8294baf"
+    },
+    "parentNetns": "net:[4026531840]",
+    "stageSourceClosureSha256": "009804472ccd52670758bd9ee21595a4f9520c47e85dda770d3f3420a692c6eb"
+  },
+  "inputs_before": {
+    "admissionSourceClosureSha256": "d83ba1f5e7ce1056d82a924157aad617d64db84862e4be4005abf47fcf1a3e32",
+    "files": {
+      "driver": "3c245351911f9b9c77f3c4f347a3113f354ef4e34217c0706403c224b8b3eb68",
+      "identity": "f24dfe62164c32bb6e98f5e8b1a7ab2d7e1bf3712bedc84a70c06a0e70c4d578",
+      "job.json": "4842d46c725a57c8473414d1cc2905f0c04b857ca688fca8d13739d3fbdbf8ce",
+      "locations.json": "d6ff99fff38660428763a20d0af29ea053dbc4265da281d03754a8a191965834",
+      "lock": "95109db70c7e20931330423e15c68cd24af93629c812523cca3612d91dc78b6b",
+      "stage.json": "38a0516c5ba7c67bf4c9bb09c9a893ade7895d815adf8ab9e1166717e8294baf"
+    },
+    "parentNetns": "net:[4026531840]",
+    "stageSourceClosureSha256": "009804472ccd52670758bd9ee21595a4f9520c47e85dda770d3f3420a692c6eb"
+  },
+  "merged": false,
+  "returncode": 1,
+  "schema": "TEST-ONLY-training4b-worker-execution/1",
+  "started_utc": "2026-10-24T18:46:51.783795+00:00",
+  "stderr_sha256": "bc2873eb98e390195f2f392ef3b873746a878ae6040e12c43cba1e80cac3f363",
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "supervisor_sha256": "d349bbc3587bee95dac96eaf983555296a9bc635f3cbb02dfed002df54c4a1ae",
+  "timed_out": false
+}

@@ -1,0 +1,11 @@
+{
+  "pid": 3246243,
+  "candidate": "d47ddf9e7bab9e5ab08a1cf1707e406ed83204ae",
+  "script": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/repositories/distributed_safety_critical_thesis/specs/002-assured-aeb/review/codex-training4b-namespace-verification-20261024/run_queue.py",
+  "script_sha256": "718fe7cf1f303c3e3e6ec110ff0782d1befb55722f93d861e76ebd67e038755f",
+  "jobs_sha256": "f5f4f279b27a89c2090657782acf8a8b433005e9c1b85da4bd39232ef5b85dd5",
+  "previous_failed_run": "/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/repositories/distributed_safety_critical_thesis/specs/002-assured-aeb/review/codex-training4b-verification-20261024",
+  "new_source_closure": "99de5a1c70cb684ca9df0cc9f24054ce067a20a121a3ac014d7488d7ab845020",
+  "accepted": false,
+  "merged": false
+}
