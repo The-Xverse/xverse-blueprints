@@ -68,3 +68,26 @@ def test_store_parameters_are_refused(tmp_path, kwargs):
         S.FrameStore(tmp_path, **kwargs)
     with pytest.raises(ValueError):
         S.FrameStore("relative/root", free_space_floor_bytes=0, compression_level=6, frame_length=None)
+
+
+def test_rename_is_followed_by_a_directory_fsync(tmp_path, monkeypatch):  # finding 4 / LOW-2
+    store = S.FrameStore(tmp_path, free_space_floor_bytes=0, compression_level=6, frame_length=4096)
+    synced = []
+    monkeypatch.setattr(S, "_fsync_dir", lambda path: synced.append(path))
+    raw, sha = frame(seed=7)
+    store.put(raw, sha)
+    assert synced == [tmp_path / sha[:2]]
+
+
+def test_stale_temporary_files_are_swept_on_open(tmp_path):  # finding 4 / LOW-2
+    raw, sha = frame(seed=8)
+    S.FrameStore(tmp_path, free_space_floor_bytes=0, compression_level=6, frame_length=4096).put(raw, sha)
+    shard = tmp_path / sha[:2]
+    (shard / ".tmp-abc123.zlib").write_bytes(b"partial")
+    (shard / ".tmp-keep.txt").write_bytes(b"not ours")
+    (tmp_path / "notes").mkdir()
+    (tmp_path / "notes" / ".tmp-x.zlib").write_bytes(b"outside a shard")
+    store = S.FrameStore(tmp_path, free_space_floor_bytes=0, compression_level=6, frame_length=4096)
+    assert store.swept == 1 and not (shard / ".tmp-abc123.zlib").exists()
+    assert (shard / ".tmp-keep.txt").exists() and (tmp_path / "notes" / ".tmp-x.zlib").exists()
+    assert store.get(sha) == raw

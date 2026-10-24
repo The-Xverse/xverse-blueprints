@@ -48,12 +48,30 @@ def items(frames):
     return [{"frame": f, "rawSha256": hashlib.sha256(f"frame-{f}".encode()).hexdigest()} for f in frames]
 
 
+def scenario(declared, adjacent=None):
+    """A live-scenario file (compat schema 2) and its digest; the target is declared or not (finding 4 / LOW-1)."""
+
+    record = {"schema": "xverse-compat.carla-live-scenario/2", "egoBlueprint": "vehicle.test", "spawnPointIndex": 7,
+              "map": "Town10HD_Opt"}
+    if declared:
+        record["target"] = {"blueprint": "vehicle.test", "roleName": L.TARGET_ROLE, "distanceAheadM": 30.0,
+                            "hold": "brake-and-hand-brake"}
+        if adjacent:
+            record["target"]["adjacentLane"] = adjacent
+    data = json.dumps(record, sort_keys=True).encode()
+    return data, hashlib.sha256(data).hexdigest()
+
+
+def run_labels(data, frames, *, declared=True):
+    sc, sha = scenario(declared)
+    return L.label_run(data, items(frames), params(), scenario=sc, scenario_sha256=sha)
+
+
 def label_one(target_entry, *, declared=True, ego_entry=None):
     roles = {L.EGO_ROLE: ego_entry or entry(0.0)}
     if target_entry is not None:
         roles[L.TARGET_ROLE] = target_entry
-    labels, excluded = L.label_run(observer([(5, roles)], target=declared), items([5]), params(), target_declared=declared)
-    return labels, excluded
+    return run_labels(observer([(5, roles)], target=declared), [5], declared=declared)
 
 
 # ---- parameters ----------------------------------------------------------------------------------------------
@@ -76,7 +94,7 @@ def test_label_parameters_are_refused(mutate):
 
 def test_label_run_requires_validated_params():
     with pytest.raises(TypeError):
-        L.label_run(observer([]), [], None, target_declared=True)
+        L.label_run(observer([]), [], None, scenario=scenario(True)[0], scenario_sha256=scenario(True)[1])
 
 
 # ---- geometry ------------------------------------------------------------------------------------------------
@@ -129,6 +147,56 @@ def test_distance_bins(distance, expected):
     assert L.distance_bin(False, distance, (10.0, 20.0, 40.0)) == "no-obstacle"
 
 
+def test_yawed_target_visibility_uses_the_footprint_not_a_tied_corner():  # finding 3 MEDIUM-1 probe (reviewer)
+    # Yawed 90° at (5.5, 3.0): footprint x in [4.6, 6.4], y in [0.8, 5.2]. The corner (4.6, 0.8) is in the corridor and
+    # in the 90° field of view (|y| <= 3.1 at dx = 3.1); the tied corner (4.6, 5.2) is outside it.
+    target = entry(5.5, y=2.9, yaw=90.0)  # the box offset locationM.x = 0.1 lies along the yawed target's +y
+    (label,), _ = label_one(target)
+    assert label["distanceM"] == pytest.approx(2.2)
+    assert label["inCorridor"] and label["visible"] and label["obstacle"] and label["distanceBin"] == "bin-0"
+
+
+def test_corner_order_does_not_change_visibility():  # the mirrored probe ties on the other side
+    left, _ = label_one(entry(5.5, y=-3.0 + 0.1, yaw=-90.0))
+    right, _ = label_one(entry(5.5, y=3.0 - 0.1, yaw=90.0))
+    assert left[0]["visible"] and right[0]["visible"] and left[0]["distanceM"] == pytest.approx(right[0]["distanceM"])
+
+
+def test_footprint_entirely_outside_the_wedge_is_not_visible():
+    (label,), _ = label_one(entry(4.0, y=8.0))  # camera-relative dx <= 4.8 < |y| >= 7.1
+    assert not label["visible"] and not label["obstacle"]
+
+
+def test_clip_half_plane_keeps_the_boundary_and_drops_the_outside():
+    square = [(1.0, 1.0), (1.0, -1.0), (-1.0, -1.0), (-1.0, 1.0)]
+    assert L.clip_half_plane(square, 1.0, 0.0) and all(x >= -1e-12 for x, _ in L.clip_half_plane(square, 1.0, 0.0))
+    assert L.clip_half_plane([(p[0] - 3.0, p[1]) for p in square], 1.0, 0.0) == []
+    touching = L.clip_half_plane([(p[0] - 1.0, p[1]) for p in square], 1.0, 0.0)
+    assert touching and max(x for x, _ in touching) == 0.0
+
+
+def test_declared_target_comes_from_the_verified_scenario():  # finding 4 / LOW-1
+    data = observer([(5, {L.EGO_ROLE: entry(0.0), L.TARGET_ROLE: entry(30.0)})])
+    sc, sha = scenario(True)
+    with pytest.raises(ValueError, match="scenarioSha256"):
+        L.label_run(data, items([5]), params(), scenario=sc + b" ", scenario_sha256=sha)
+    with pytest.raises(TypeError):
+        L.label_run(data, items([5]), params(), target_declared=True)  # the caller flag is gone
+    labels, excluded = run_labels(data, [5], declared=False)  # no target declared, yet one is present
+    assert labels == [] and excluded == {"undeclared-target-present": 1}
+    adjacent, sha = scenario(True, {"side": "left", "direction": "opposite"})
+    (label,), _ = L.label_run(data, items([5]), params(), scenario=adjacent, scenario_sha256=sha)
+    assert label["obstacle"]  # the label is geometric; placement is recorded in the manifest
+
+
+def test_labels_digest_is_canonical_and_binds_the_code():
+    data = observer([(5, {L.EGO_ROLE: entry(0.0), L.TARGET_ROLE: entry(30.0)})])
+    labels, _ = run_labels(data, [5])
+    assert L.labels_digest(labels) == hashlib.sha256(L.canonical(labels)).hexdigest()
+    changed = [dict(labels[0], provenance=dict(labels[0]["provenance"], labelCodeSha256="0" * 64))]
+    assert L.labels_digest(changed) != L.labels_digest(labels)
+
+
 # ---- join, exclusions, provenance ----------------------------------------------------------------------------
 
 def test_run_without_target_gives_negatives():
@@ -146,20 +214,20 @@ def test_unusable_target_states_are_excluded_and_counted(target, reason):
 
 def test_missing_observer_record_ego_and_bounding_box_are_excluded():
     data = observer([(5, {L.EGO_ROLE: {"status": "absent"}, L.TARGET_ROLE: entry(30.0)})])
-    labels, excluded = L.label_run(data, items([4, 5]), params(), target_declared=True)
+    labels, excluded = run_labels(data, [4, 5])
     assert labels == [] and excluded == {"no-observer-record": 1, "ego-not-observed": 1}
     data = observer([(5, {L.EGO_ROLE: entry(0.0), L.TARGET_ROLE: entry(30.0)})], boxes=False)
-    assert L.label_run(data, items([5]), params(), target_declared=True)[1] == {"ego-bounding-box": 1}
+    assert run_labels(data, [5])[1] == {"ego-bounding-box": 1}
 
 
 def test_non_evaluation_observer_file_is_refused():
     with pytest.raises(ValueError):
-        L.label_run(observer([], header={"header": True, "schema": L.OBSERVER_SCHEMA}), [], params(), target_declared=True)
+        run_labels(observer([], header={"header": True, "schema": L.OBSERVER_SCHEMA}), [])
 
 
 def test_provenance_and_no_pixels():
     data = observer([(5, {L.EGO_ROLE: entry(0.0), L.TARGET_ROLE: entry(30.0)})])
-    (label,), _ = L.label_run(data, items([5]), params(), target_declared=True)
+    (label,), _ = run_labels(data, [5])
     provenance = label["provenance"]
     assert provenance["observerSha256"] == hashlib.sha256(data).hexdigest()
     assert data.decode().splitlines()[provenance["observerLine"] - 1].startswith('{"frame": 5')

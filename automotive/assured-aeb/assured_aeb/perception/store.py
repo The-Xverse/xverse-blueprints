@@ -3,6 +3,10 @@
 Raw verified frames are stored losslessly with ``zlib`` under ``<root>/<sha[:2]>/<sha>.zlib``, keyed by their
 ``rawSha256``. The root (the proposed loop10 dataset path of design §2), the free-space floor (TODO: author decision)
 and the compression level are required, with no default. Records carry digests and sizes, never bytes.
+
+Durability (review-wp09-labels finding 4, LOW-2): the shard directory is fsynced after the rename. Stale ``.tmp-*``
+files left by an interrupted write are removed when the store is opened. The store assumes a single writer: the
+free-space check and the write are not atomic with respect to other writers.
 """
 
 from __future__ import annotations
@@ -16,6 +20,16 @@ import tempfile
 import zlib
 
 HEX64 = re.compile(r"[0-9a-f]{64}\Z")
+SHARD = re.compile(r"[0-9a-f]{2}\Z")
+TEMP_PREFIX, TEMP_SUFFIX = ".tmp-", ".zlib"
+
+
+def _fsync_dir(path: Path) -> None:
+    fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
 
 
 class FrameStoreError(RuntimeError):
@@ -35,6 +49,23 @@ class FrameStore:
         if frame_length is not None and (type(frame_length) is not int or frame_length <= 0):
             raise ValueError("frame_length must be a positive integer or None")
         self.root, self.floor, self.level, self.frame_length = root, free_space_floor_bytes, compression_level, frame_length
+        self.swept = self._sweep()
+
+    def _sweep(self) -> int:
+        """Remove stale temporary files of interrupted writes in the shard directories (single writer, at open)."""
+
+        removed = 0
+        for shard in self.root.iterdir():
+            if not (shard.is_dir() and not shard.is_symlink() and SHARD.match(shard.name)):
+                continue
+            stale = [entry for entry in shard.iterdir() if entry.name.startswith(TEMP_PREFIX)
+                     and entry.name.endswith(TEMP_SUFFIX) and entry.is_file() and not entry.is_symlink()]
+            for entry in stale:
+                entry.unlink()
+            if stale:
+                _fsync_dir(shard)
+            removed += len(stale)
+        return removed
 
     def path(self, raw_sha256: str) -> Path:
         if not (isinstance(raw_sha256, str) and HEX64.match(raw_sha256)):
@@ -58,13 +89,14 @@ class FrameStore:
         target.parent.mkdir(parents=True, exist_ok=True)
         if shutil.disk_usage(target.parent).free - len(packed) < self.floor:
             raise FrameStoreError("refused: the write would fall below the free-space floor")
-        fd, temp = tempfile.mkstemp(dir=target.parent, prefix=".tmp-", suffix=".zlib")
+        fd, temp = tempfile.mkstemp(dir=target.parent, prefix=TEMP_PREFIX, suffix=TEMP_SUFFIX)
         try:
             with os.fdopen(fd, "wb") as handle:
                 handle.write(packed)
                 handle.flush()
                 os.fsync(handle.fileno())
             os.replace(temp, target)
+            _fsync_dir(target.parent)  # make the rename durable (LOW-2)
         except BaseException:
             if os.path.exists(temp):
                 os.unlink(temp)

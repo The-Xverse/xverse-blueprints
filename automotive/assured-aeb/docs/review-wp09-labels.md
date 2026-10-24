@@ -386,3 +386,77 @@ accept or merge anything.
      writer, at open time only.
    - A test covers both: the directory fsync is observed, and stale temporary files are swept.
 6. Run the tests and the checker, record finding 5, and commit.
+
+## Finding 5: repair result (2026-10-24 15:41:12)
+
+**What changed, per finding 4.**
+
+1. **MEDIUM-1 (`labels.py`).**
+   - `geometry` clips the camera-relative footprint with the two half-planes of the horizontal wedge, using the new
+     `clip_half_plane` (Sutherland–Hodgman; boundary points kept).
+   - It applies the vertical test at the clipped region's largest range. No corner is selected any more, and the
+     distance uses only the minimum range.
+   - Tests:
+     - the reviewer's probe (yawed 90° at (5.5, 3.0)) gives distance 2.2 m, in the corridor, visible, an obstacle,
+       `bin-0`;
+     - its mirror image on the other side gives the same result;
+     - a footprint wholly outside the wedge is not visible;
+     - the boundary and outside behaviour of the clipping.
+   - **Regression check:** the pre-repair `labels.py` (`HEAD` `7456784`, run from a scratch copy) returns
+     `visible: False` for the probe, which reproduces the defect.
+2. **MEDIUM-2 and LOW-1 (new `perception/scenario.py`; `labels.py`; `manifest.py`).**
+   - `verified_scenario(bytes, sha256)` verifies the digest first. It then derives `spawnPointIndex`, `map` and
+     `targetPlacement` (`none`, `ego-lane`, `adjacent-lane{side, direction}`).
+   - `label_run` now takes `scenario=` and `scenario_sha256=`. The caller flag `target_declared` is gone: passing it
+     raises `TypeError`, which a test shows.
+   - `check_manifest(manifest, scenarios)` takes a **required** mapping from run identifier to scenario file. It
+     refuses:
+     - a missing file;
+     - a digest mismatch;
+     - a recorded placement that differs from the derived one;
+     - a malformed placement;
+     - a spawn-point or map mismatch;
+     - a schema-1 scenario with no map.
+   - The manifest records no host path (a test checks this).
+3. **MEDIUM-3 (`manifest.py`).**
+   - The schema is now `assured-aeb.dataset-manifest/2`.
+   - A run's `segment` is `{map, roadId, sectionId}`, and `evaluation.segment` is a required declared parameter.
+   - Training and calibration runs on the evaluation segment are refused whatever their spawn point. Tests: spawn
+     point 2 on it, for training and for calibration.
+   - A test-split run on it is reported.
+   - Another lane section of the same road is admitted.
+4. **MEDIUM-4.**
+   - `labels.labels_digest` gives the SHA-256 of the canonical label list.
+   - The manifest binds the top-level `labelCodeSha256` and a per-run `labelsSha256`, both refused unless they are
+     SHA-256 hex.
+   - Test: changing `LABEL_CODE_SHA256` changes the run's labels digest and the dataset identity.
+5. **LOW-2 (`store.py`).**
+   - After `os.replace`, the shard directory is fsynced (a test observes the call).
+   - On open, the store removes `.tmp-*.zlib` files in the two-hex shard directories only, then fsyncs each shard it
+     touched. It counts them in `swept`.
+   - A test shows that the stale file is removed, while other names and non-shard directories are kept.
+   - The single-writer assumption is stated in the module docstring.
+
+**Commands** (`/dev/shm/compat-p6-venv/bin/python -I`, rc.1 profiles):
+- the three perception test files: 87 passed (56 before);
+- the whole suite: 258 passed (227 before);
+- `check_topology.py`: exit 0;
+- `__pycache__` removed before the commit.
+
+**Residuals (updating finding 2's list).**
+- Residual 4: "visibility judged on the nearest corner" is **closed** by MEDIUM-1.
+  - What remains is the planar, flat-road model, and the vertical prism, now stated.
+  - **New option, not adopted:** test visibility only on the in-corridor part of the footprint. It is stricter for
+    targets that are partly in the corridor at close range. It would need a decision if wanted.
+- **New residual 7, `TODO: engineering verification`.** The value of `evaluation.segment`: the OpenDRIVE road and
+  lane section of Town10HD_Opt spawn point 1 (P-2 map verification).
+  - Each run's `segment` must also be read from the live spawn waypoint (`road_id`, `section_id`) by the increment
+    #6 recorder. It is never typed by hand.
+- **New residual 8, an obligation outside this repository's WP-09 scope.** Refusing evaluation runs whose scenario
+  declares `adjacentLane` belongs to WP-10 #5 (the run command) and WP-16 (scenario selection), per decisions.md "WP-09
+  data separation" (1). It is not implemented here.
+- **Residual 9.** `scenario.py` mirrors only the placement members of compat `target_of`. Compat's full validation
+  stays at spawn. If compat's live-scenario schema changes, this mirror must change too: an unknown schema is refused.
+- Residuals 1, 2, 3, 5 and 6 are unchanged.
+
+**Status.** These are repairs on the candidate only. Acceptance and the merge are still pending.

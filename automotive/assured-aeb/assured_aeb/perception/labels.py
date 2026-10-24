@@ -19,6 +19,8 @@ import math
 from pathlib import Path
 from typing import Any, Iterable
 
+from .scenario import verified_scenario
+
 LABEL_PARAMS = "assured-aeb.perception-label-params/1"
 LABEL = "assured-aeb.perception-label/1"
 OBSERVER_SCHEMA = "xverse-compat.evaluation-observer/2"
@@ -158,6 +160,24 @@ def rectangles_intersect(a: list[tuple[float, float]], b: list[tuple[float, floa
     return True
 
 
+def clip_half_plane(polygon: list[tuple[float, float]], a: float, b: float) -> list[tuple[float, float]]:
+    """Clip a convex polygon to the half-plane ``a·x + b·y >= 0`` (Sutherland-Hodgman; boundary points are kept)."""
+
+    out: list[tuple[float, float]] = []
+    for i, end in enumerate(polygon):
+        start = polygon[i - 1]
+        fs, fe = a * start[0] + b * start[1], a * end[0] + b * end[1]
+        if fe >= 0:
+            if fs < 0:
+                t = fs / (fs - fe)
+                out.append((start[0] + t * (end[0] - start[0]), start[1] + t * (end[1] - start[1])))
+            out.append(end)
+        elif fs >= 0:
+            t = fs / (fs - fe)
+            out.append((start[0] + t * (end[0] - start[0]), start[1] + t * (end[1] - start[1])))
+    return out
+
+
 def geometry(ego: dict[str, Any], ego_box: dict[str, Any], target: dict[str, Any], target_box: dict[str, Any],
              params: LabelParams) -> dict[str, Any]:
     """Distance, corridor and visibility of the target in the ego frame (finding 1 §1.2)."""
@@ -172,18 +192,24 @@ def geometry(ego: dict[str, Any], ego_box: dict[str, Any], target: dict[str, Any
                      for sx, sy in ((1, 1), (1, -1), (-1, -1), (-1, 1))]
     corners = [(_dot((x - ex, y - ey), f_e), _dot((x - ex, y - ey), r_e)) for x, y in corners_world]
     x_front = ego_box["locationM"][0] + ego_box["extentM"][0]
-    nearest = min(corners, key=lambda c: c[0])
-    distance = nearest[0] - x_front
+    distance = min(c[0] for c in corners) - x_front  # the minimum range only; no corner is selected
     corridor = [(x_front, -params.half_width_m), (x_front + params.max_range_m, -params.half_width_m),
                 (x_front + params.max_range_m, params.half_width_m), (x_front, params.half_width_m)]
     in_corridor = rectangles_intersect(corridor, corners)
     mx, my, mz = params.camera_mount_m
-    dx, dy = nearest[0] - mx, nearest[1] - my
     half_h = math.radians(params.fov_deg) / 2
-    half_v = math.atan(math.tan(half_h) * params.height / params.width)  # pinhole vertical half field of view
+    tan_h = math.tan(half_h)
+    tan_v = tan_h * params.height / params.width  # pinhole vertical half field of view (tangent)
+    # Finding 4 / MEDIUM-1: the footprint (camera-relative) clipped by the horizontal wedge |dy| <= tan(h)·dx, not
+    # one corner picked by index among tied ones. The box is a vertical prism and the vertical aperture widens with
+    # range, so part of it is in the vertical field of view iff it is at the clipped region's largest range.
+    region = [(x - mx, y - my) for x, y in corners]
+    region = clip_half_plane(clip_half_plane(region, tan_h, -1.0), tan_h, 1.0)
     z_centre = (target["location"][2] + loc_t[2]) - (ez + mz)
-    visible = dx > 0 and abs(math.atan2(dy, dx)) <= half_h and \
-        z_centre - ext_t[2] <= dx * math.tan(half_v) and z_centre + ext_t[2] >= -dx * math.tan(half_v)
+    visible = False
+    if region:
+        far = max(p[0] for p in region)
+        visible = far > 0 and z_centre - ext_t[2] <= far * tan_v and z_centre + ext_t[2] >= -far * tan_v
     return {"distanceM": distance, "inCorridor": in_corridor, "visible": visible}
 
 
@@ -202,12 +228,22 @@ def distance_bin(obstacle: bool, distance: float | None, edges: tuple[float, ...
 # Join
 # --------------------------------------------------------------------------------------------------
 
+def labels_digest(labels: list[dict[str, Any]]) -> str:
+    """SHA-256 of the canonical label list of one run (finding 4 / MEDIUM-4: bound into the dataset identity)."""
+
+    return hashlib.sha256(canonical(labels)).hexdigest()
+
+
 def label_run(observer: bytes, camera_items: Iterable[dict[str, Any]], params: LabelParams, *,
-              target_declared: bool) -> tuple[list[dict[str, Any]], Counter]:
-    """Label every camera frame of one run; return ``(labels, exclusions by reason)``. No pixels are read."""
+              scenario: bytes, scenario_sha256: str) -> tuple[list[dict[str, Any]], Counter]:
+    """Label every camera frame of one run; return ``(labels, exclusions by reason)``. No pixels are read.
+
+    Whether a target is declared comes from the verified scenario file (finding 4 / LOW-1), never from a caller flag.
+    """
 
     if type(params) is not LabelParams:
         raise TypeError("LabelParams.from_record is required (no default parameters)")
+    target_declared = verified_scenario(scenario, scenario_sha256)["targetPlacement"]["kind"] != "none"
     data = parse_observer(observer)
     labels, excluded = [], Counter()
     for item in camera_items:
