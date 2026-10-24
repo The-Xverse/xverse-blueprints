@@ -134,10 +134,14 @@ def parse_model_schema(record: Any) -> tuple[list, list]:
 def _verdict(checks, name):
     entry = checks.get(name) if isinstance(checks, dict) else None
     if not isinstance(entry, dict) or set(entry) != {"verdict", "failed"} or not isinstance(entry["failed"], list) \
-            or not all(isinstance(v, str) for v in entry["failed"]):
+            or not all(isinstance(v, str) and v.strip() for v in entry["failed"]):
         return None
     value = entry.get("verdict")
-    return value if isinstance(value, str) and value in ("pass", "fail", "not-evaluated") else None
+    if value == "fail" and entry["failed"]:
+        return value
+    if value in ("pass", "not-evaluated") and not entry["failed"]:
+        return value
+    return None
 
 
 def _result_ok(result, labels):
@@ -250,6 +254,8 @@ class CameraInference:
         failed = [name for name, value in (("integrity", quality["integrity"]), ("front-zone-plausibility", quality["plausibility"]),
                                           ("sensor-logical", quality["sensorLogical"]), ("sensor-plausibility", quality["sensorPlausibility"]))
                   if value != "pass"]
+        if not isinstance(sensor, dict) or set(sensor) != {"logical", "plausibility", "statistical"}:
+            failed.append("sensor-check-classes")
         if checks["sequence"] not in ("ok", "gap"):
             failed.append("sequence")
         if checks["fresh"] is not True:

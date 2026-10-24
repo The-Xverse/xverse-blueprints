@@ -327,3 +327,23 @@ inference function on an inconsistent check or a fourth self-check class. Preser
 cases per class/form, the undeclared class and a genuine SmartCamera -> FrontZone positive/failure control.
 Heavy verification remains deferred until the coordinator releases the host. After implementation the parent
 will independently re-review this narrow repair before acceptance; no pytest or numerical framework is run here.
+
+## Finding 6: R13ML-1 implementation and limited verification (Codex, 2026-10-24)
+
+Implemented the separate design of finding 5 (`cf467d3`): `_verdict` now checks consistent pass/not-evaluated versus
+failure-code forms, and the public consumer closes the sensor-self-check map to its three declared classes. The
+synthetic statistical-failure fixture now includes a real failed code. Added 22 regression cases: six contradictory/
+unknown forms across three classes, a fourth class, contradictory front-zone integrity, and two genuine owned
+SmartCamera -> FrontZone controls (passing and deliberately failing the explicit TEST-ONLY mean-luma threshold).
+Valid statistical failure is still `DEGRADED`; nothing chooses or changes a scientific threshold.
+
+AST parsing and `git diff --check` pass. A tiny pinned `-S -s -B` standard-library public-consumer probe used the
+actual owned corruption/camera/front-zone producer and a synthetic inference callable: its valid record is
+`NOMINAL`, contradictory logical-pass and undeclared fourth-class records are `UNCERTAIN` without an inference
+call, and a source-conforming statistical failure is `DEGRADED`. Neither NumPy nor ONNX Runtime nor pytest was
+imported. This does not replace the unrun full suite or the nine genuine-loader numerical probes in finding 3.
+
+Independent parent re-review is now required; no acceptance or merge is claimed. To exercise the new regression
+cases after the host slot is released, the finding-3 full-suite command remains applicable; a focused first pass is
+that command with `tests/test_camera_inference.py` in place of `tests`. The fixture's scientific/model approval and
+all remaining wiring, protocol and live gates are unchanged.

@@ -318,7 +318,7 @@ def test_explicit_statistical_or_ood_failure_is_degraded(cause, tmp_path):
     _spool_file(tmp_path)
     evidence, output = _evidence(), copy.deepcopy(RESULT)
     if cause == "sensor":
-        evidence["checks"]["sensorSelfCheck"]["statistical"]["verdict"] = "fail"
+        evidence["checks"]["sensorSelfCheck"]["statistical"] = {"verdict": "fail", "failed": ["mean-luma"]}
     else:
         output["oodFlag"] = True
     with C.SpoolReader(tmp_path) as spool:
@@ -378,3 +378,68 @@ def test_fixture_regenerates_from_the_genuine_shared_preprocessing_binding(tmp_p
                             env=env, capture_output=True, text=True, timeout=30)
     assert result.returncode == 0, result.stderr
     assert output.read_bytes() == FIXTURE.read_bytes()
+
+
+# R13ML-1: source check forms, independently reviewed before these repairs.
+@pytest.mark.parametrize("check_name", ["logical", "plausibility", "statistical"])
+@pytest.mark.parametrize("malformed", [
+    {"verdict": "pass", "failed": ["bad-input"]},
+    {"verdict": "not-evaluated", "failed": ["bad-input"]},
+    {"verdict": "fail", "failed": []}, {"verdict": "fail", "failed": [""]},
+    {"verdict": "fail", "failed": [1]}, {"verdict": "unknown", "failed": []},
+])
+def test_contradictory_sensor_check_never_calls_inference(check_name, malformed, tmp_path):
+    calls = []
+    evidence = _evidence()
+    evidence["checks"]["sensorSelfCheck"][check_name] = copy.deepcopy(malformed)
+    with C.SpoolReader(tmp_path) as spool:
+        result = _role(spool, lambda raw: calls.append(raw) or copy.deepcopy(RESULT)).step(evidence)
+    assert calls == [] and result["state"] == "UNCERTAIN"
+    assert all(result[key] is None for key in C.RESULT_MEMBERS)
+
+
+def test_an_undeclared_fourth_sensor_class_never_calls_inference(tmp_path):
+    calls = []
+    evidence = _evidence()
+    evidence["checks"]["sensorSelfCheck"]["fourth-class"] = {"verdict": "pass", "failed": []}
+    with C.SpoolReader(tmp_path) as spool:
+        result = _role(spool, lambda raw: calls.append(raw) or copy.deepcopy(RESULT)).step(evidence)
+    assert calls == [] and result["state"] == "UNCERTAIN"
+    assert "sensor-check-classes" in result["reason"]
+
+
+def test_front_integrity_pass_with_failed_codes_is_unknown(tmp_path):
+    evidence = _evidence()
+    evidence["checks"]["integrity"] = {"verdict": "pass", "failed": ["bad-input"]}
+    calls = []
+    with C.SpoolReader(tmp_path) as spool:
+        result = _role(spool, lambda raw: calls.append(raw) or copy.deepcopy(RESULT)).step(evidence)
+    assert calls == [] and result["state"] == "UNCERTAIN"
+
+
+@pytest.mark.parametrize("statistical_failure", [False, True])
+def test_genuine_smart_camera_and_front_zone_forms_remain_usable(statistical_failure, tmp_path):
+    from assured_aeb import camera_chain as chain, radar_zone as zone
+    fmt = dict(G["FMT"])
+    stage = chain.CorruptionStage(chain.CorruptionSchedule.from_record(
+        {"schema": chain.CORRUPTION, "seed": 7, "frameFormat": fmt, "events": []}))
+    stage.bind_origin(1000)
+    item = {"type": "item", "flowId": "camera", "sequence": 1, "originNs": 1000, "frame": 7,
+            "value": {"width": 16, "height": 16, "fovDeg": 90.0, "rawSha256": SHA, "rawLength": len(PIXELS)}}
+    delivered, raw = stage.process(item, PIXELS)
+    camera = chain.SmartCamera(chain.SmartCameraParams.from_record({"schema": chain.CAMERA_CHECKS, "frameFormat": fmt,
+        "stats": {"statsStride": 1, "darkLevel": 8, "brightLevel": 247, "sharpnessBoxLog2": 1},
+        "thresholds": {"minMeanLuma": 255.0 if statistical_failure else 0.0, "maxMeanLuma": 255.0,
+                       "minStdLuma": 0.0, "maxStdLuma": 255.0, "maxDarkFraction": 1.0, "maxBrightFraction": 1.0,
+                       "minHighFrequencyVariance": 0.0, "maxHighFrequencyVariance": 65536.0}}))
+    front = zone.FrontZone(zone.FrontZoneParams.from_record({"schema": zone.FRONT_ZONE,
+                                                           "cameraFreshnessWindowNs": 1000, "radarFreshnessWindowNs": 1000}))
+    evidence = dict(front.step(1000, [("smart-camera-evidence", camera.step(1000, delivered, raw))]))[C.STREAM]
+    assert set(evidence["checks"]["sensorSelfCheck"]) == {"logical", "plausibility", "statistical"}
+    _spool_file(tmp_path)
+    calls = []
+    with C.SpoolReader(tmp_path) as spool:
+        result = _role(spool, lambda raw: calls.append(raw) or copy.deepcopy(RESULT)).step(evidence)
+    assert calls == [PIXELS]
+    assert result["state"] == ("DEGRADED" if statistical_failure else "NOMINAL")
+    assert F._perception_ok(result)
