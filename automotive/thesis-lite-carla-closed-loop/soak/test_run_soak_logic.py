@@ -196,12 +196,47 @@ def test_every_server_start_gets_one_warm_up_excluded_from_the_statistics(soak):
     assert [w["status"] for w in report["warmUps"]] == ["PASS"] * 3 and report["valid"]
 
 
-def test_a_failed_warm_up_is_recorded_and_does_not_stop_the_soak(soak):
+def test_a_clean_readiness_failure_in_a_warm_up_is_excused(soak, monkeypatch):
     s, fake = soak(["PASS"] * 3 + ["FAIL"], warm_up=True)  # three gap no-carla runs, then the first warm-up FAILs
+    monkeypatch.setattr(run_soak, "clean_readiness_failure", lambda entry, run_dir: True)
     assert s.execute() == 0
     report = json.loads((s.out / "soak-report.json").read_text())
-    assert report["warmUps"][0]["status"] == "FAIL" and report["valid"]
+    assert report["warmUps"][0]["status"] == "FAIL" and report["warmUps"][0]["warmUpExcused"] and report["valid"]
     assert report["cases"]["nominal"]["failures"] == 0
+
+
+def test_any_other_warm_up_failure_stops_the_soak(soak, monkeypatch):
+    """DR-19 (2): for example a restore failure or a residue in the warm-up is a criterion failure (finding 50 MEDIUM-1)."""
+    s, fake = soak(["PASS"] * 3 + ["FAIL"], warm_up=True)
+    monkeypatch.setattr(run_soak, "clean_readiness_failure", lambda entry, run_dir: False)
+    assert s.execute() == 2
+    manifest = json.loads(s.manifest.read_text())
+    assert manifest["state"] == "stopped" and "warm-up" in manifest["stopReason"]
+    assert len(fake.runs) == 4  # nothing ran after the failed warm-up
+
+
+def _write_run(tmp_path, diagnostic="ML-PROBE-NOT-READY", cleanup=True, residue=""):
+    run_dir = tmp_path / "w"
+    run_dir.mkdir()
+    (run_dir / "maestro-run.json").write_text(json.dumps({"dispatchDiagnostic": diagnostic, "cleanupComplete": cleanup}))
+    (run_dir / "residue-processes.txt").write_text(residue)
+    return run_dir
+
+
+@pytest.mark.parametrize("change, excused", [
+    ({}, True),
+    ({"diagnostic": "ML-SCHEDULE-COLLECTION-INCOMPLETE"}, False),
+    ({"cleanup": False}, False),
+    ({"residue": "123 python3 -m xverse_compat.live.driver"}, False),
+    ({"healthy": False}, False),
+    ({"checks": ["P1.succeededWithMarkers", "P3.guardDestroyedOwned"]}, False),
+])
+def test_clean_readiness_failure(tmp_path, change, excused):
+    run_dir = _write_run(tmp_path, **{k: v for k, v in change.items() if k in ("diagnostic", "cleanup", "residue")})
+    entry = {"healthAfter": {"healthy": change.get("healthy", True)},
+             "audit": {"failedChecks": change.get("checks", ["P1.succeededWithMarkers", "P8.pathHolds"])}}
+    assert run_soak.clean_readiness_failure(entry, run_dir) is excused
+    assert run_soak.clean_readiness_failure(entry, tmp_path / "missing") is False
 
 
 def test_a_warm_up_that_leaves_the_server_unhealthy_is_a_failed_start(soak):

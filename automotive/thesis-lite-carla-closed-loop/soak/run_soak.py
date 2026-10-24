@@ -27,10 +27,15 @@ Protocol, fixed before the first run (FR-019):
   P1), not a server failure; a run counts as PASS only if its harness also exited 0 (its own assertions); a server
   that fails to start twice in a row stops the soak; every server failure, including those during repeats and
   failed restarts, counts toward the limit of 3 and is recorded in the manifest.
-- Warm-up (S1c finding 47; thesis DR-18): after every healthy CARLA server start, one warm-up nominal run through
-  the same Maestro path. It is recorded (status, audit, ready latencies) and reported separately under ``warmUps``,
-  and is excluded from the case statistics, the validity share and P2. A failed warm-up does not stop the soak;
-  a warm-up that leaves the server unhealthy (INVALID) is a failed start (a server failure, DR-11).
+- Warm-up (S1c findings 47 and 51; thesis DR-18 (2), narrowed by DR-19 (2)): after every healthy CARLA server
+  start, one warm-up nominal run through the same Maestro path, in a ``warmup-<stamp>-nominal`` directory. It is
+  recorded (status, audit, ready latencies) and reported separately under ``warmUps``, and is excluded from the case
+  statistics, the validity share and P2. Only a clean start-up readiness failure is excused (``ML-PROBE-NOT-READY``,
+  cleanup complete, healthy after, no residue, audit failures within WARM_UP_EXCUSED_CHECKS); any other failed
+  warm-up is a criterion failure and stops the soak. A warm-up that leaves the server unhealthy (INVALID) is a
+  failed start (a server failure, DR-11).
+- Run directories (DR-19 (3), H2): run-live.sh stages the units' run directory on tmpfs during the run and copies
+  it into the evidence directory at cleanup; durability is that of the copy after the run.
 Writes ``soak-manifest.json`` (append-only run list) and, at the end, ``soak-report.json``.
 """
 
@@ -59,6 +64,25 @@ RATE_CASES = ("nominal", "freeze-vcu", "cancel-paused", "long-run")
 ROUNDS, BLOCK, BASELINE_EVERY = 30, 10, 3
 NO_CARLA_GAPS = (3, 3, 2, 2)
 WARM_UP_CASE = "nominal"  # DR-18: one warm-up run after every CARLA server start
+# DR-19 (2): the audit failures that follow from a run that never started; only these are excused in a warm-up
+WARM_UP_EXCUSED_CHECKS = frozenset({"P1.flowRootClosedComplete", "P1.maestroRootClosedComplete", "P1.succeededWithMarkers",
+                                    "P8.pathHolds"})
+
+
+class CriterionStop(Exception):
+    """A criterion failure found inside a server start (a warm-up), which stops the soak (FR-020)."""
+
+
+def clean_readiness_failure(entry: dict, run_dir: Path) -> bool:
+    """DR-19 (2): a warm-up FAIL is excused only if it is a clean start-up readiness failure."""
+    try:
+        record = json.loads((run_dir / "maestro-run.json").read_text())
+        residue = (run_dir / "residue-processes.txt").read_text().strip()
+    except (OSError, ValueError):
+        return False
+    return (record.get("dispatchDiagnostic") == "ML-PROBE-NOT-READY" and record.get("cleanupComplete") is True
+            and bool((entry.get("healthAfter") or {}).get("healthy")) and not residue
+            and set((entry.get("audit") or {}).get("failedChecks") or ()) <= WARM_UP_EXCUSED_CHECKS)
 LOAD_START_MAX, LOAD_RUN_MAX, LOAD_PERIOD_S = 5.0, 10.0, 5.0
 MAX_SERVER_FAILURES, INVALID_SHARE = 3, 0.10
 
@@ -269,8 +293,11 @@ class Soak:
     def run_one(self, case: str, *, carla: bool) -> dict:
         self._check_pins()
         stamp = time.strftime("%Y%m%dT%H%M%S")
-        run_dir = self.out / ("baseline-" + stamp if case == "baseline" else f"lite-{stamp}-{case}")
-        entry = {"case": case, "run": run_dir.name, "server": self.server_index if carla else None}
+        warm = getattr(self, "_warming", False)  # a warm-up is tagged before its first save (finding 50, LOW-1)
+        run_dir = self.out / ("baseline-" + stamp if case == "baseline" else f"{'warmup' if warm else 'lite'}-{stamp}-{case}")
+        entry = {"case": "warm-up" if warm else case, "run": run_dir.name, "server": self.server_index if carla else None}
+        if warm:
+            entry.update(warmUp=True, warmUpCase=case)
         if carla:
             entry["healthBefore"] = health(self.home)
         env = dict(os.environ, XVERSE_COMPAT_SRC=str(self.compat))
@@ -322,13 +349,22 @@ class Soak:
         return server_dir, healthy
 
     def _warm_up(self) -> bool:
-        """One warm-up nominal run after a server start (DR-18): recorded, excluded from the statistics, never a
-        soak stop. Returns False when the warm-up left the server unhealthy (INVALID)."""
+        """One warm-up nominal run after a server start (DR-18 (2), DR-19 (2)): recorded and excluded from the
+        statistics. Returns False when it left the server unhealthy (INVALID); raises CriterionStop when it failed in
+        any way other than a clean start-up readiness failure."""
         self._wait_load()
-        entry = self.run_one(WARM_UP_CASE, carla=True)
+        self._warming = True
+        try:
+            entry = self.run_one(WARM_UP_CASE, carla=True)
+        finally:
+            self._warming = False
         entry.update(warmUp=True, case="warm-up", warmUpCase=WARM_UP_CASE,
                      readyLatencyS=_ready_latency_of(self.out / entry["run"]))
+        if entry["status"] == "FAIL":
+            entry["warmUpExcused"] = clean_readiness_failure(entry, self.out / entry["run"])
         self._save()
+        if entry["status"] == "FAIL" and not entry["warmUpExcused"]:
+            raise CriterionStop(f"criterion failure in warm-up {entry['run']} (DR-19; FR-020)")
         return entry["status"] != "INVALID"
 
     def _restart(self, reason: str, failed_starts: int = 0):
@@ -374,7 +410,10 @@ class Soak:
             print("refused: run_soak.py, health_check.py and audit.py must equal the pinned blueprints copies", file=sys.stderr)
             return 4
         try:
-            return self._execute()
+            try:
+                return self._execute()
+            except CriterionStop as stop:  # a warm-up failure that is not a clean readiness failure (DR-19)
+                return self._stop(str(stop))
         finally:  # any exit, including a pin change (SystemExit) or a crash, leaves no server running (finding 36)
             if carla_pids():
                 stop_server(self.out / f"carla-server-{self.server_index}")
@@ -485,7 +524,8 @@ def summarize(runs: list[dict]) -> dict:
         out["cases"][case]["p8PathsOfPassingRuns"] = paths
         out["cases"][case]["flowRootStates"] = sorted({(e.get("flowRoot") or {}).get("writerState") or "n/a" for e in items})
     out["serverEvents"] = [r for r in runs if "serverEvent" in r]
-    out["warmUps"] = [{k: r.get(k) for k in ("run", "server", "status", "audit", "readyLatencyS")} for r in runs if r.get("warmUp")]
+    out["warmUps"] = [{k: r.get(k) for k in ("run", "server", "status", "warmUpExcused", "audit", "readyLatencyS")}
+                      for r in runs if r.get("warmUp")]
     pooled = sum(out["cases"].get(c, {}).get("valid", 0) for c in RATE_CASES)
     out["pooledRateCases"] = {"valid": pooled, "upperBound95": upper_bound(pooled)}
     out["valid"] = valid

@@ -81,13 +81,12 @@ OBSERVE_TICK = 24
 # The thaw must come <= cadence 5 s - health_scan_seconds 1.52 s = 3.48 s after the VCU's last health success
 # (S1c finding 18). Without the observe probe that success can be up to ~1.7 s (measured gap) before the freeze;
 # 10 ticks (0.50-1.00 s measured) keep the worst case inside the bound up to a ~0.15 s mean cycle (S1c findings 19
-# and 24). Tick 40 fell only 0.08-0.89 s after the stimulus throttle start (a ~3.45 s segment), so the freeze is
-# ~1.1-2.0 s into the segment (finding 22). It starts at tick 61, one tick after the observe at tick 60, so that
-# observe really probes the VCU (a frozen unit's probe returns its cached observation; finding 24, MEDIUM-1).
-# The case fails unless the freeze lies inside the throttle segment (finding 24, LOW-1). After the S1b adoption, tick
-# 61 lay 2.79-3.84 s into the ~3.5 s host-timed segment and ended past it once at load 9.2 (S1c finding 48). Placed
-# from the recorded Argus tick clocks and stimulus samples of ten runs, including the observe step's own cost, tick 25
-# leaves at least 0.94 s before and 0.96 s after the freeze; the observe stays one tick before it.
+# and 24). The freeze starts one tick after the observe, so that observe really probes the VCU (a frozen unit's probe
+# returns its cached observation; finding 24, MEDIUM-1), and the case fails unless the freeze lies inside the stimulus
+# throttle segment (finding 24, LOW-1). After the S1b adoption, the earlier tick 61 lay 2.79-3.84 s into the ~3.5 s
+# host-timed segment and ended past it once at load 9.2 (S1c finding 48). Placed from the recorded Argus tick clocks
+# and stimulus samples of ten runs (dev2-dev4; method in S1c finding 51, LOW-4), including the observe step's own
+# cost, tick 25 leaves about 0.9 s before and after the freeze.
 FREEZE_AT, FREEZE_TICKS = 25, 10
 RETAINED_MAX = 4 * 1024 * 1024  # ~2.2 KB per event, ~560 events at 400 ticks; above the 1 MiB default
 POLL = 0.05
@@ -106,12 +105,13 @@ MARKER_PROBE = "nonce-marker"
 # once (S1c finding 44, M3). 3.5 s then let the start step reach the bootstrap lease under load, so a cancel had no
 # native close time left (S1c finding 45-46; platform S1b-stack findings 22-25, RA1/RA2/RA5). Maestro now admits a
 # marker window only if W <= 5 - (2 native close + op failure statement + 0.25) - op = 2.75 - 2 x 0.38 = 1.99 s, renews
-# the lease before a marker start step, and records a cut window (ML-PROBE-WINDOW-CUT). 1.7 s (attempts at 0, 0.725
-# and 1.45 s; DR-17) was uncut in nine runs, but the adapter's first run after a CARLA server start took 1.31-1.36 s
-# and once more than 1.45 s (S1c finding 47). The owned window is therefore 1.95 s (attempts at 0, 0.85 and 1.70 s),
-# inside the 1.99 s bound (thesis DR-18); the soak also warms each server up with one recorded, excluded nominal run.
-# Every owned unit's ready latency is recorded (readyLatencyS). The VCU keeps the fixture's 1 s.
-OWNED_READINESS_TIMEOUT_S = 1.95
+# the lease before a marker start step, and caps the window at run time against the lease (a cut is recorded as
+# ML-PROBE-WINDOW-CUT). The owned window is 1.7 s (attempts at 0, 0.725 and 1.45 s; DR-17, DR-19): its run-time slack
+# was 0.35-0.51 s, while 1.95 s left only 0.017-0.063 s under load (S1c finding 50, HIGH-1). The adapter's first run
+# after a CARLA server start can take 1.3 s to more than 1.7 s (findings 47-49); the soak therefore warms each server
+# up with one recorded, excluded run (DR-18 (2), narrowed by DR-19). Every owned unit's ready latency is recorded
+# (readyLatencyS). The VCU keeps the fixture's 1 s.
+OWNED_READINESS_TIMEOUT_S = 1.7
 ORDER = ("lite-driver", "carla-adapter", "legacy-vcu", "driver-stimulus")
 # the fixture's flow source starts first: the driver is the source of the actuation-command flow to the adapter
 RENAME = {"source-instance": "lite-driver-instance", "sink-instance": "carla-adapter-instance",
@@ -131,7 +131,10 @@ ENVIRONMENT_DIGEST = pin(b"owned-environment")
 
 def _drain_facts(drain):
     """Public fields of a platform drain record (BootstrapDrain or PersistenceDrain), for attribution only."""
-    return None if drain is None else {k: v for k, v in vars(drain).items() if isinstance(v, (bool, int, str, type(None)))}
+    from dataclasses import fields  # noqa: PLC0415  (every field, including the init=False defaults; finding 50 LOW-7)
+
+    return None if drain is None else {f.name: getattr(drain, f.name) for f in fields(drain)
+                                       if isinstance(getattr(drain, f.name), (bool, int, str, type(None)))}
 
 
 def _rename(value):
