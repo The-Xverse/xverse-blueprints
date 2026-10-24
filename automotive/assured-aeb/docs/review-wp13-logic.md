@@ -386,3 +386,47 @@ Suite-log SHA-256: `721cc9a9c8143f9e43b4ef4b1d8782ac7ca565f0559b8794f569a0fd68f1
 This is a repaired candidate, not an accepted delivery. A reviewer independent of this repair must re-review it before
 acceptance and merge. R13-5 (WP-15 terminal reconciliation) remains carried. Current main also contains WP-12b and
 WP-13 #4b, which this branch does not yet include; assembled-main verification remains required at delivery.
+
+## Finding 6: independent re-review of `8d3ec9a` (2026-10-24), CHANGES REQUIRED
+
+Reviewer: separate Codex reviewer agent, independent of the repairs in finding 5. Reviewed the complete repair diff
+from `a74cd38`, the surrounding fusion/fallback/latch/arbiter code, findings 1 to 5, the added regression cases and
+WP-13's accepted R-1/R-2/R-3 rules. The candidate tracked tree was clean at review entry.
+
+**Closed by the repair.** The stale-camera/positive-radar case now holds the active latch and clears the absence
+counter. Failed fallback radar qualification likewise holds rather than counts absence. An uncertain decision breaks
+an otherwise consecutive observed-absence sequence. Negative ego speed is unusable, and absent/not-evaluated radar
+statistical evidence is uncertain. The producer-state-forwarding and selected-source-only arbiter rules are unchanged.
+The stricter perception schema and declared-bin check avoid the malformed-member cases recorded in finding 3.
+
+**R13-6, MEDIUM, repair before acceptance: large JSON integers still escape numeric qualification as exceptions.**
+`assured_aeb/checks.py:18-19` calls `math.isfinite` on an arbitrary Python integer, which converts it to a float.
+A valid JSON integer `10**1000` (1001 digits, below the hub's 64 KiB line bound) raises
+`OverflowError: int too large to convert to float`. With the otherwise unchanged TEST-ONLY fixtures, each of these
+independently reproduced the uncaught exception:
+- `perception(WORLD)["occupancyProbability"] = 10**1000`;
+- `perception(WORLD)["binProbabilities"] = [10**1000]`;
+- `perception(WORLD)["oodScore"] = 10**1000`;
+- fallback qualified ego evidence `{speedMps: 10**1000, originNs: WORLD, state: "NOMINAL"}`.
+
+The first three enter `fusion_aeb._perception_ok` (lines 62-65); the fourth enters
+`vc_functional.RadarFallback._ego` (line 70). They terminate the step instead of returning unusable/`UNCERTAIN`
+evidence. The helper predates this repair, but the expanded numeric-member validation now directly relies on it and
+finding 5 claims malformed fields do not crash. Use a non-throwing finite/representability check, preserve bool
+rejection, and add regression cases for large positive and negative JSON integers in the numeric consumer paths.
+Inspect the analogous `parameters._number` conversion when deciding the repair scope; malformed startup parameters
+must be rejected rather than selected as a usable runtime value. No new physical limit or protocol threshold is
+needed for this correction.
+
+**Checks actually performed.** No pytest or heavy process was started because the coordinator's full platform run
+was active. A small standard-library implementation probe imported the existing fixture builders and directly called
+four existing regression functions (stale camera, invalid fallback radar, interrupted absence and negative ego speed);
+all four passed. The four independent large-integer probes above all raised the stated `OverflowError` on the pinned
+`/dev/shm/compat-p6-venv/bin/python -I -B`, with bytecode disabled. `git diff --check` passes. The 365-test full result
+in finding 5 is retained evidence from the repair author and was not repeated by this reviewer.
+
+**Carried scope boundaries.** R13-5 terminal behaviour remains unresolved with WP-15 DN-1; terminal wiring stays
+unaccepted. Input-order/freshness qualification, complete FR-007 records, source identity at role boundaries and unit
+cadences remain the recorded WP-14 integration obligations; this offline increment does not demonstrate their runtime
+composition. Existing probability-normalization/bin-count binding and freeze consistency obligations remain carried.
+No acceptance, merge, live execution, protocol value or scientific claim follows from this review.
