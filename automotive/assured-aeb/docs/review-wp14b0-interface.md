@@ -59,7 +59,7 @@ Sol/high is recommended for exact owner/consumer reconciliation; no model switch
 
 Only syntax, small stdlib direct controls and document-generation comparisons are permitted during the active
 platform regression. No pytest/NumPy/ORT/torch/Argus durable work, download, factory/live run or acceptance/merge.
-Independent source review, root-scheduled complete suites/topology evidence and accepted14e dependency are delivery
+Independent source review, root-scheduled complete suites/topology evidence and accepted 14e dependency are delivery
 gates. O-2/V04 remains allocated to later14b qualification; these metadata changes are not its completion or a
 scientific confidence/quality proof. All threshold values/minima/numeric freeze and remaining startup/deadline
 observation design questions stay open. Recommend a DRAFT Note23 update only after later acceptance, never automatic.
@@ -355,3 +355,67 @@ deferred. Thesis remains read-only during coordinator relocation; its prior comp
 retained, with no new freshness claim or canonical-note mutation. Source repair is scoped to finding4's metadata
 attribution defect; later14b qualification/diagnostic/startup/scientific decisions remain open. Sol/high is
 recommended for independent review of this narrow successor. No acceptance or merge is claimed.
+
+## Finding 7: independent re-review of R14b0-1 binding successor, PASS (Codex, 2026-10-24)
+
+Reviewed clean `eaaaffbdd026cdb8e9bd28c167784cdaa9c3a032`, source repair
+`e102ec0357d2c36a14f1f57569893366600822b7`, pre-code design `1a230cd` and my prior independent finding 4
+(`c0cd027`). The reviewer did not author this repair and changed no product/test source. Sol/high remains the
+recommended profile for this small binding boundary; no model switch or measured comparison is claimed.
+
+**R14b0-1 is closed at source-review level.** The new frozen/slotted exact `ModelOutputBinding` constructor takes
+metadata, calls the genuine PP code-binding verification and canonical record parser, and derives both retained
+fields from that single parsed record. The retained state is only the immutable actual label tuple and its derived
+postprocess digest; no independently supplied order/hash pair, full PP record, default or alternate parser is added.
+Usual caller metadata mutation cannot change it. This is an API immutability and record/code consistency check,
+not language-level security against deliberate private-state manipulation or an attestation of a model file.
+
+Fusion requires that exact binding type explicitly and checks the full class set/count against its projected
+distance edges. It accepts permutations within the correct vocabulary and indexes the actual selected label in
+the bound order. The incoming original postprocessSha256 must match before either new confidence scalar is
+computed; mismatches yield null rather than a guessed value. The original provenance, productive camera view,
+association/decision/latch/hold path and functional fields are retained. The occupancy equation still uses the
+admitted `>=` threshold; selected distance confidence is not replaced by the maximum vector element. No new wire
+field, probability vector, class-order payload, indicator, raw OODscore, scientific number or authority is added.
+
+The decisive regression uses actual digest-verified TEST-ONLY model bytes through the existing compat byte loader
+and bounded static model reader, then builds the binding from that model's inspected public metadata. The genuine
+SmartCamera/FrontZone/CameraInference-contract fixture uses the same parsed PP order and derived model/postprocess
+digests. The previously failing permutation now reports bin-2 confidence 0.7 from its actual position, while a
+different valid PP binding against the incoming provenance reports both confidences null. Generic PP/CI arbitrary-
+order support is preserved; PP/CI source and the PP code hash are unchanged. This fixture's inference callable
+remains deterministic/model-free and proves no ORT execution or calibration quality.
+
+The explicitly recorded trusted 14f obligation remains necessary: obtain this binding from the **same digest-
+verified admitted frozen model metadata** used by genuine CameraInference.load, before readiness. Constructing a
+binding from an arbitrary self-consistent mapping alone does not prove that relationship. No private CI state is
+read by the helper; the actual composition/full CI.load/ORT readiness path is still deferred, not silently claimed
+as implemented by these module controls. This remaining gate is explicit in the design/source/docs.
+
+The migration diff changes only actual Fusion construction arguments and fixture PP provenance where needed;
+existing invalid-parameter assertions retain their stimulus. The production repair is confined to the small binding
+class, Fusion admission and provenance-gated confidence calculation. Existing schemas/active logical and wire
+versions/X-COM policies/generated XDL/artifact pins and WP04 records are unchanged by this successor. The prior
+independent 301-document/46-version-only comparison remains applicable to those unchanged generated paths; no new
+compiled-plan/capacity evidence is claimed.
+
+**Actually performed independently on this successor:** all **14** current interface stdlib methods directly
+called and passed, including the genuine frozen-byte permutation, immutable/detached/no-pair/type/count/set/code/
+canonical refusals, provenance mismatch, actual selected index rather than max, threshold boundaries, owner/endpoint/
+arbiter version checks, schema/generated-document controls and twelve prechange/current productive pairs across
+canonical/permuted/mismatched bindings. Two genuine U4 methods also passed: complete typed nominal candidate chain
+and same-cycle/new-genuine-basis refusal. Seven Python AST parses and `git diff --check` passed. The probe asserted
+no pytest/numpy/torch/ONNX/ORT modules loaded. All temporary data used explicit loop10 `scratch/review_wp15` TMPDIR;
+the worktree stayed clean and source unchanged before this review-only edit.
+
+Freshness was rechecked after thesis relocation: its physical root is external loop10, fetch succeeded,
+HEAD/upstream remain d97fdd1167bbd48b97aad5d4071ad59403665f42, no incoming canonical-note change, working note
+blob ba244ddb7df388386455524ab7667d4a1e86d5a3 unchanged from completely read context; no pull/note edit. No test
+runner, framework/session, durable Argus, topology compilation, download, factory/live execution or acceptance/
+merge occurred. These direct checks are not an owning suite or actual model-quality result.
+
+Verdict: PASS for this scoped source repair; my earlier selected-class binding finding is resolved by the explicit
+verified-record boundary. Full root-scheduled focused/owning/topology/compiled/capacity verification, accepted 14e
+dependency, actual 14f composition and assembled integration remain gates before delivery. Later 14b/14c/WP15
+qualification/startup/timing policy, actual confidence minima/calibration support, AD27 and all scientific/live
+authority boundaries remain unchanged. This reviewer accepts or merges nothing.
