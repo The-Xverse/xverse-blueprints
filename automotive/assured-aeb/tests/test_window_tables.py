@@ -9,6 +9,7 @@ import ast
 import copy
 from fractions import Fraction
 import hashlib
+from importlib.util import resolve_name
 import json
 from pathlib import Path
 import unittest
@@ -16,6 +17,33 @@ from unittest.mock import patch
 
 from assured_aeb.protocol import Protocol, RECORD_SCHEMA
 from assured_aeb import window_tables as W
+
+
+# Explicit reviewed roles (WP17a/b/d); new files remain guarded by default.
+OFFLINE_MODULES = frozenset({"window_tables", "protocol", "protocol_audit", "projection_builder"})
+OFFLINE_IMPORT_ROOTS = frozenset("assured_aeb." + name for name in OFFLINE_MODULES) | {"assured_aeb.perception"}
+
+
+def runtime_inventory(package):
+    return [source for source in sorted(package.glob("*.py")) if source.stem not in OFFLINE_MODULES]
+
+
+def offline_imports(source, *, package="assured_aeb"):
+    """Static import boundary only; resolve module/member relative forms without importing product modules."""
+    refused = set()
+    for node in ast.walk(ast.parse(source)):
+        targets = []
+        if isinstance(node, ast.Import):
+            targets = [alias.name for alias in node.names]
+        elif isinstance(node, ast.ImportFrom):
+            module = resolve_name("." * node.level + (node.module or ""), package) if node.level else node.module or ""
+            targets = [module, *(module + "." + alias.name for alias in node.names if alias.name != "*")]
+        for target in targets:
+            # Bare local-module imports are also forbidden, not only package-qualified ones.
+            if target.split(".", 1)[0] in OFFLINE_MODULES:
+                target = "assured_aeb." + target
+            refused.update(root for root in OFFLINE_IMPORT_ROOTS if target == root or target.startswith(root + "."))
+    return refused
 
 
 def entry(value, unit, category="policy"):
@@ -337,16 +365,44 @@ class WindowTablesTests(unittest.TestCase):
         self.assertEqual(result["window.TEST-ONLY-camera.validity"]["roundedUpperNs"], 250_000_000)
 
     def test_generator_and_protocol_are_not_imported_by_runtime_inventory(self):
-        # These are all current runtime modules on this dependency candidate; offline tooling is excluded by role.
+        # Scan source only: offline builder's legitimate Protocol import is not runtime execution.
         package = Path(W.__file__).parent
-        for source in package.glob("*.py"):
-            if source.name in ("window_tables.py", "protocol.py", "protocol_audit.py"):
-                continue
-            for node in ast.walk(ast.parse(source.read_text())):
-                if isinstance(node, ast.ImportFrom):
-                    self.assertNotIn(node.module, ("window_tables", "protocol", "assured_aeb.window_tables", "assured_aeb.protocol"), source.name)
-                if isinstance(node, ast.Import):
-                    self.assertFalse(any(alias.name in ("assured_aeb.window_tables", "assured_aeb.protocol") for alias in node.names), source.name)
+        for source in runtime_inventory(package):
+            self.assertFalse(offline_imports(source.read_text()), source.name)
+
+    def test_runtime_inventory_keeps_runtime_reader_and_excludes_actual_offline_builder(self):
+        package = Path(W.__file__).parent
+        inventory = {source.stem for source in runtime_inventory(package)}
+        self.assertIn("runtime_projection", inventory)
+        self.assertIn("__init__", inventory)
+        self.assertEqual(inventory, {source.stem for source in package.glob("*.py")} - OFFLINE_MODULES)
+        builder = (package / "projection_builder.py").read_text()
+        self.assertTrue(ast.get_docstring(ast.parse(builder)).startswith("OFFLINE projection generator"))
+        self.assertIn("assured_aeb.protocol", offline_imports(builder))
+
+    def test_runtime_import_guard_refuses_actual_offline_targets_and_relative_forms(self):
+        for name in sorted(OFFLINE_MODULES):
+            for source in (f"import assured_aeb.{name}", f"import assured_aeb.{name} as tool",
+                           f"from assured_aeb.{name} import symbol", f"from assured_aeb import {name} as tool",
+                           f"from .{name} import symbol", f"from . import {name} as tool",
+                           f"import {name}", f"from {name} import symbol"):
+                with self.subTest(source=source):
+                    self.assertEqual(offline_imports(source), {"assured_aeb." + name})
+            for source in (f"from ..{name} import symbol", f"from .. import {name} as tool"):
+                with self.subTest(source=source, package="assured_aeb.runtime"):
+                    self.assertEqual(offline_imports(source, package="assured_aeb.runtime"), {"assured_aeb." + name})
+        for source in ("from .perception import labels", "import assured_aeb.perception.manifest as manifest"):
+            with self.subTest(source=source):
+                self.assertEqual(offline_imports(source), {"assured_aeb.perception"})
+
+    def test_runtime_import_guard_preserves_runtime_relative_and_unrelated_symbols(self):
+        for source in ("from .runtime_projection import verified_projection", "from . import runtime_projection as reader",
+                       "import assured_aeb.parameters as parameters", "from .checks import is_number",
+                       "from some_library import protocol", "from urllib import parse as protocol",
+                       "from other_package.protocol import value", "from .protocol_adapter import Protocol",
+                       'import json\ntext = "from . import protocol"'):
+            with self.subTest(source=source):
+                self.assertFalse(offline_imports(source))
 
     def test_requires_admitted_protocol(self):
         with self.assertRaises(W.TableRefused) as caught:
