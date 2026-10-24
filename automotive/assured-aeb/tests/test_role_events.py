@@ -35,7 +35,9 @@ def opened(tmp_path, role_plan):
     runs = {}
     def open_unit(unit, *, selected_roles=None, admitted_plan=None):
         root = tmp_path / unit
-        writer = EvidenceStore.open_run(root, run_id="argus-roles-"+unit, plan=admitted_plan if admitted_plan is not None else role_plan)
+        writer = EvidenceStore.open_run(root, run_id="argus-roles-"+unit, plan=admitted_plan if admitted_plan is not None else role_plan,
+                                        clocks={"simulation": {"domain": "carla-simulation", "unit": "ns", "value": 0}})
+        runs[unit] = (root, writer, None)
         adapter = E.RoleEvents(writer, unit=unit, roles=selected_roles if selected_roles is not None else ROLES[unit], clock_domain="carla-simulation",
                                maximum_record_bytes=EvidenceLimits().max_payload_bytes)
         runs[unit] = (root, writer, adapter)
@@ -176,3 +178,30 @@ def test_equal_request_ids_with_different_payload_digests_never_form_a_strict_mr
     joined = join_role_events(close_and_read(runs))
     assert len(joined[("mrc-request","m1",E.payload_digest(request))]) == 1
     assert len(joined[("mrc-request","m1",E.payload_digest(changed))]) == 1
+
+
+def test_writer_requires_explicit_matching_clock_before_adapter_claim(tmp_path, role_plan):
+    from xverse.argus import EvidenceLimits, EvidenceStore
+    for index, clocks in enumerate((None, {"simulation": {"domain": "test-other-domain", "unit": "ns", "value": 0}})):
+        writer = EvidenceStore.open_run(tmp_path / str(index), run_id="argus-roles-vehicle-loop", plan=role_plan, clocks=clocks)
+        try:
+            for _ in range(2):
+                with pytest.raises(C.ContractError, match="simulator clock must be declared"):
+                    E.RoleEvents(writer, unit="vehicle-loop", roles=("mrc-sink",), clock_domain="carla-simulation",
+                                 maximum_record_bytes=EvidenceLimits().max_payload_bytes)
+        finally:
+            writer.abort(reason="test-only mismatched clock cleanup")
+    root = tmp_path / "matching"
+    writer = EvidenceStore.open_run(root, run_id="argus-roles-vehicle-loop", plan=role_plan,
+                                   clocks={"simulation": {"domain": "carla-simulation", "unit": "ns", "value": 0}})
+    try:
+        events = E.RoleEvents(writer, unit="vehicle-loop", roles=("mrc-sink",), clock_domain="carla-simulation",
+                              maximum_record_bytes=EvidenceLimits().max_payload_bytes)
+        emit(events, "mrc-sink", "mrc-request-received")
+        writer.finalize()
+        records = list(EvidenceStore.read_run(root).records())
+        assert len(records) == 1
+        assert records[0]["clocks"]["simulation"] == {"domain": "carla-simulation", "unit": "ns", "value": 100}
+    finally:
+        if writer.writer_state == "open":
+            writer.abort(reason="test-only matching clock cleanup")
