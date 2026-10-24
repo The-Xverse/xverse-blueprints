@@ -430,3 +430,22 @@ unaccepted. Input-order/freshness qualification, complete FR-007 records, source
 cadences remain the recorded WP-14 integration obligations; this offline increment does not demonstrate their runtime
 composition. Existing probability-normalization/bin-count binding and freeze consistency obligations remain carried.
 No acceptance, merge, live execution, protocol value or scientific claim follows from this review.
+
+## Finding 7: R13-6 repair design, recorded before code (2026-10-24)
+
+This is a separate repair pass after independent finding 6. Scope: numeric qualification only; no latch policy,
+terminal policy, protocol value, unit wiring or unrelated source change.
+
+- Make `checks.is_number` return false for exact Python ints/floats that cannot be converted to a finite float;
+  catch the conversion's `OverflowError` instead of allowing it to escape. Keep booleans, numeric subclasses and
+  non-numeric objects rejected. This is an implementation representability check, not a new physical bound.
+- Make `parameters._number` delegate to that same predicate, removing its duplicate unchecked conversion. Numeric,
+  coordinate and bin-edge parameter kinds then raise their existing `ValueError` at the public projection/role
+  consumer for oversized values. Pure-integer parameter kinds retain their declared semantics.
+- Add positive and negative large JSON-integer regression cases through perception/fusion, fallback ego speed,
+  radar qualification and the arbiter's non-finite-request handling. The cases must check the intended uncertain
+  or bounded-hold output, including preservation of an already active latch, rather than merely helper return values.
+- Add public role-construction cases for the numeric parameter kinds and a representative accepted finite value/
+  boolean refusal control. Use existing TEST-ONLY projections; do not invent a protocol range or tolerance.
+- While the full platform regression is running, perform only small deterministic probes and source syntax checks.
+  The owning blueprint suite and fresh independent re-review remain queued before acceptance or merge.
