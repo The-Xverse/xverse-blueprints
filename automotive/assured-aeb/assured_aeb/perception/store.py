@@ -4,9 +4,12 @@ Raw verified frames are stored losslessly with ``zlib`` under ``<root>/<sha[:2]>
 ``rawSha256``. The root (the proposed loop10 dataset path of design §2), the free-space floor (TODO: author decision)
 and the compression level are required, with no default. Records carry digests and sizes, never bytes.
 
-Durability (review-wp09-labels finding 4, LOW-2): the shard directory is fsynced after the rename. Stale ``.tmp-*``
-files left by an interrupted write are removed when the store is opened. The store assumes a single writer: the
-free-space check and the write are not atomic with respect to other writers.
+Durability (review-wp09-labels finding 4, LOW-2; finding 7, LOW-4): the shard directory is fsynced after the rename,
+and the root is fsynced after a new shard directory is created. Stale ``.tmp-*`` files left by an interrupted write
+are removed only when the store is opened ``writable``; a read-only open never sweeps and refuses ``put``, so a
+reader cannot remove a writer's in-flight file. The store assumes a single *writer*: two concurrent writable opens
+are not excluded (no lock is decided), and the free-space check and the write are not atomic with respect to other
+writers.
 """
 
 from __future__ import annotations
@@ -38,7 +41,7 @@ class FrameStoreError(RuntimeError):
 
 class FrameStore:
     def __init__(self, root: str | os.PathLike, *, free_space_floor_bytes: int, compression_level: int,
-                 frame_length: int | None) -> None:
+                 frame_length: int | None, writable: bool) -> None:
         root = Path(root)
         if not root.is_absolute() or not root.is_dir():
             raise ValueError("root must be an existing absolute directory (no default)")
@@ -48,11 +51,14 @@ class FrameStore:
             raise ValueError("compression_level must be an integer in [0, 9]")
         if frame_length is not None and (type(frame_length) is not int or frame_length <= 0):
             raise ValueError("frame_length must be a positive integer or None")
+        if type(writable) is not bool:
+            raise ValueError("writable must be a bool (no default)")
         self.root, self.floor, self.level, self.frame_length = root, free_space_floor_bytes, compression_level, frame_length
-        self.swept = self._sweep()
+        self.writable = writable
+        self.swept = self._sweep() if writable else 0
 
     def _sweep(self) -> int:
-        """Remove stale temporary files of interrupted writes in the shard directories (single writer, at open)."""
+        """Remove stale temporary files of interrupted writes in the shard directories (writable open only)."""
 
         removed = 0
         for shard in self.root.iterdir():
@@ -75,6 +81,8 @@ class FrameStore:
     def put(self, raw: bytes, raw_sha256: str) -> dict:
         """Store one verified frame; return ``{rawSha256, rawBytes, storedBytes, status}`` (never the bytes)."""
 
+        if not self.writable:
+            raise FrameStoreError("refused: the store was opened read-only")
         target = self.path(raw_sha256)
         if hashlib.sha256(raw).hexdigest() != raw_sha256:
             raise FrameStoreError("frame bytes do not match rawSha256")
@@ -86,7 +94,12 @@ class FrameStore:
                 raise FrameStoreError("stored frame differs")
             return {"rawSha256": raw_sha256, "rawBytes": len(raw), "storedBytes": target.stat().st_size, "status": "present"}
         packed = zlib.compress(raw, self.level)
-        target.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            target.parent.mkdir()
+        except FileExistsError:
+            pass
+        else:
+            _fsync_dir(self.root)  # make the new shard entry durable (finding 7, LOW-4)
         if shutil.disk_usage(target.parent).free - len(packed) < self.floor:
             raise FrameStoreError("refused: the write would fall below the free-space floor")
         fd, temp = tempfile.mkstemp(dir=target.parent, prefix=TEMP_PREFIX, suffix=TEMP_SUFFIX)

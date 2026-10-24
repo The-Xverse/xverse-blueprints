@@ -25,7 +25,20 @@ LABEL_PARAMS = "assured-aeb.perception-label-params/1"
 LABEL = "assured-aeb.perception-label/1"
 OBSERVER_SCHEMA = "xverse-compat.evaluation-observer/2"
 EGO_ROLE, TARGET_ROLE = "xverse-lite-ego", "xverse-lite-target"
-LABEL_CODE_SHA256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+#: The label-code closure, named and ordered (review-wp09-labels finding 6 LOW-2): ``label_run`` depends on
+#: ``scenario.verified_scenario`` for whether a target is declared.
+LABEL_CODE_FILES = ("labels.py", "scenario.py")
+
+
+def label_code_digest(directory: Path) -> str:
+    """SHA-256 of the canonical ``[{file, sha256}]`` list over ``LABEL_CODE_FILES`` in ``directory``."""
+
+    entries = [{"file": name, "sha256": hashlib.sha256((Path(directory) / name).read_bytes()).hexdigest()}
+               for name in LABEL_CODE_FILES]
+    return hashlib.sha256(json.dumps(entries, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+LABEL_CODE_SHA256 = label_code_digest(Path(__file__).resolve().parent)
 
 
 def _number(value: Any) -> bool:

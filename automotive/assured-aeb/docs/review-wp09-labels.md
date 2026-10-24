@@ -758,3 +758,50 @@ No pytest or heavy work is run while the coordinator's full platform regression 
 stdlib fixture probes are permitted now; the full owning suite and independent re-review remain pending before
 acceptance or merge. No CARLA, inference runtime, download, live data, dataset-root or soak-path operation is authorized
 by this completion.
+
+## Finding 9: amendment-1 completion result (2026-10-24; full suite and independent re-review pending)
+
+Completed the inherited five-file repair after the source-preserving review/design commit `eb6ed59`:
+- retained Claude's schema `/3`, per-run `traversedSections`, whole-run evaluation-section refusal, actual label-list
+  verification, two-file label-code closure and writable-only sweep/root-fsync changes;
+- migrated every manifest test to the required scenario and label mappings and canonical section sets. Positive
+  fixtures now use actual `label_run` results with matching observer bytes, label parameter/code digests and distinct
+  per-run frame bytes. They no longer pass placeholder label identities;
+- added the decided upstream-spawn/second-protected-section, canonical/malformed set, actual label-digest/provenance,
+  foreign/duplicate frame, missing-label and scenario-only code-change cases;
+- completed malformed run-id/split/frame-table guards before hash/set use and unique labelled-frame detection;
+- marked the existing scenario fixture spawn, target distance, hold and test blueprint settings explicitly as
+  test-only values. Camera configuration remains sourced, and no protocol value was selected.
+
+**Bounded checks actually performed now.** A small direct fixture probe, without a pytest runner, passed **36 checks**
+in about 0.3 s. It covered the actual-label positive manifest, protected-section crossing and test-split reporting,
+canonical/malformed section sets, all provenance bindings, missing/different label records, foreign/duplicate frames,
+malformed hash-key members, scenario-only source sensitivity, read-only sweep refusal, read-only versus writable
+second-open behaviour during a put, and first-shard root fsync versus existing-shard fsync. All seven changed Python
+files compile in memory; `git diff --check` passes. The first probe invocation used a wrong relative edit path and was
+corrected before the successful complete direct check; it was not a product failure. No CARLA, inference runtime,
+pytest runner, download, live dataset or soak path was used.
+
+The original five-file dirty-state snapshot remains at
+`docs/evidence/wp09-claude-dirty-before-codex-20261024/`. Its patch still hashes to
+`0e75f85d6ab5101a7eb4a91934627e26c5a977c87c74fedfd0ad4ccce1787eff`; it can be reconstructed against the recorded
+`c992ac7` base. No original edit was stashed, discarded or silently replaced.
+
+**Required next full-suite command, only after the coordinator's platform regression has finished:** from
+`automotive/assured-aeb`, run:
+
+```sh
+env PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 \
+  XVERSE_PLATFORM_PROFILES=/tmp/codex-xverse-review-20261024-q93eotxv/xdl/profiles \
+  /dev/shm/compat-p6-venv/bin/python -I -B -m pytest -q -p no:cacheprovider tests --tb=short
+```
+
+Then independently re-review the complete source/test repair and later verify its assembly with current main.
+The full suite has **not** been run on this repair, and no acceptance or merge is claimed.
+
+**Unchanged residuals from finding 7.** Recorder #6 must supply every recorded ego section and bind the declared map
+and observer digest to actual observer-header/world bytes; map-name comparison and schema-1 stray-map refusal remain
+its explicit LOW-3 obligations. Verification of the label parameter digest against its source record and observer
+bytes also belongs to #6. Actual map sections and dataset parameters remain TODO. Target-occupied sections and multiple
+writable opens remain the declared scope/ single-writer limits, not repaired capabilities. Existing planar geometry,
+visibility and offline-only evidence limits continue to apply. No principal-data or scientific claim follows.

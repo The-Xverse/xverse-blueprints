@@ -8,6 +8,11 @@ compat.
 
 The refusal of adjacent-lane targets in evaluation runs is not done here. It belongs to evaluation-run admission
 (WP-10 #5 / WP-16; decisions.md "WP-09 data separation" (1)).
+
+The ``map`` returned here is the scenario's *declared* map. Binding it to the loaded world is an obligation of
+increment #6 (review-wp09-labels finding 6 LOW-3; decisions.md "WP-09 data separation, amendment 1"): the map comes
+from the evaluation-only observer header (``world.get_map().name``), its comparison with ``Town10HD_Opt`` is
+``TODO: engineering verification``, and a schema-1 scenario's stray ``map`` member is refused there.
 """
 
 from __future__ import annotations

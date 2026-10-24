@@ -1,6 +1,6 @@
 """Offline tests of the WP-09 perception labels on hand-built observer v2 files (no CARLA, no run).
 
-Extents, corridor and bin edges below are TEST VALUES; the protocol values are TODO (AD-02, WP-09; after D-1/D-2).
+Extents, corridor, bin edges and the named scenario fixture settings below are TEST VALUES; the protocol values are TODO (AD-02, WP-09; after D-1/D-2).
 The camera values are the configured ones (compat scenario.py 31 CAMERA_MOUNT; carla-sensors.json camera).
 """
 
@@ -21,6 +21,10 @@ PARAMS_RECORD = {"schema": L.LABEL_PARAMS, "corridor": {"halfWidthM": 1.5, "maxR
                  "distanceBinEdgesM": [10.0, 20.0, 40.0], "camera": dict(CAMERA)}  # corridor and edges: test values
 EGO_BOX = {"extentM": [2.4, 1.0, 0.75], "locationM": [0.0, 0.0, 0.7]}  # test values
 TARGET_BOX = {"extentM": [2.2, 0.9, 0.75], "locationM": [0.1, 0.0, 0.7]}  # test values
+TEST_SPAWN_POINT, TEST_ALTERNATE_SPAWN_POINT = 7, 3
+TEST_BLUEPRINT = "vehicle.test"
+TEST_TARGET_DISTANCE_M, TEST_TARGET_HOLD = 30.0, "brake-and-hand-brake"
+
 
 
 def params():
@@ -51,11 +55,11 @@ def items(frames):
 def scenario(declared, adjacent=None):
     """A live-scenario file (compat schema 2) and its digest; the target is declared or not (finding 4 / LOW-1)."""
 
-    record = {"schema": "xverse-compat.carla-live-scenario/2", "egoBlueprint": "vehicle.test", "spawnPointIndex": 7,
+    record = {"schema": "xverse-compat.carla-live-scenario/2", "egoBlueprint": TEST_BLUEPRINT, "spawnPointIndex": TEST_SPAWN_POINT,
               "map": "Town10HD_Opt"}
     if declared:
-        record["target"] = {"blueprint": "vehicle.test", "roleName": L.TARGET_ROLE, "distanceAheadM": 30.0,
-                            "hold": "brake-and-hand-brake"}
+        record["target"] = {"blueprint": TEST_BLUEPRINT, "roleName": L.TARGET_ROLE, "distanceAheadM": TEST_TARGET_DISTANCE_M,
+                            "hold": TEST_TARGET_HOLD}
         if adjacent:
             record["target"]["adjacentLane"] = adjacent
     data = json.dumps(record, sort_keys=True).encode()
