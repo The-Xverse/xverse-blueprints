@@ -118,3 +118,15 @@ FR-028/V21 remain partial pending runtime/composition checks. FR-024/AD-27 freez
 deferred; FR-034/#5 is separate. Keep the accepted design's REF-002 dispositions and recorder#6 truth limits.
 No launcher, training/export/calibration worker, tensor, publication marker or generated scientific result is
 implemented. Independent source review and actual owning/assembled suite gates remain before acceptance.
+
+## Finding 2: bounded scenario snapshots before consumer implementation (2026-10-24)
+
+The genuine `check_manifest` reopens each scenario using an unbounded `Path.read_bytes`. An immutable-input
+assumption alone would not preserve the new consumer's read bound if a source changed before that reopen.
+Keep the existing manifest API/product untouched. After a bounded regular-file source read and digest check,
+create temporary validation-only scenario snapshots of those exact private bytes; invoke `check_manifest`
+against those snapshots and actual private label lists, then clean the temporary directory automatically.
+This is temporary engineering validation storage, not an output/candidate directory or publication. No original
+source/store is written and no manifest evidence or source identity is substituted: snapshots are byte-identical
+to the verified actual inputs. Bound each and the total snapshot sizes by admitted source/disk limits. Every
+observer/label/run-parameter record is likewise consumed from a private bounded byte snapshot in memory.
