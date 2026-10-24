@@ -61,6 +61,28 @@ def _method(value, expected, name):
     require(value == expected and type(value) is type(expected), f"{name}: supported value is {expected!r}")
 
 
+def validate_frame_format(record):
+    frame = exact(record, {"schema", "width", "height", "encoding"}, "frame format")
+    _method(frame["schema"], "xverse-compat.camera-frame-format/1", "frame schema")
+    _method(frame["encoding"], "bgra8", "frame encoding")
+    for key in ("width", "height"):
+        integer(frame[key], "frame " + key, 1, sys.maxsize)
+    return frame
+
+
+def validate_separation(record):
+    sep = exact(record, {"schema", "categories", "evaluationSections"}, "separation record")
+    _method(sep["schema"], SEPARATION, "separation schema")
+    exact(sep["categories"], CATEGORIES, "P4 categories")
+    seen = set()
+    for name, seeds in sep["categories"].items():
+        _ordered(seeds, name + " seeds", _seed)
+        require(not seen.intersection(seeds), "P4 seed categories overlap")
+        seen.update(seeds)
+    require(M.sections_ok(sep["evaluationSections"]), "canonical evaluation section set required")
+    return sep
+
+
 class TrainingJob:
     """Private validated record; obtain through from_bytes, inspect through record() copies."""
 
@@ -96,6 +118,11 @@ class TrainingJob:
     def parameter_count(self):
         return self._parameter_count
 
+    @property
+    def memory_ledger(self):
+        """Necessary tensor-storage planning only; not an estimate/guarantee of actual process peak memory."""
+        return copy.deepcopy(self._memory_ledger)
+
     def _validate(self, byte_count):
         r = exact(self._record, {"schema", "identity", "dataset", "separation", "trainingPartition", "preprocessing",
                                 "architecture", "optimisation", "calibrationFit", "oodFit", "verification", "environments"}, "job")
@@ -129,26 +156,14 @@ class TrainingJob:
         require(record_digest(dataset["labelParams"]) == dataset["labelParamsSha256"], "label parameter digest mismatch")
         params = L.LabelParams.from_record(dataset["labelParams"])
         self._class_order = ("no-obstacle", "overlap", *(f"bin-{i}" for i in range(len(params.bin_edges_m))), "beyond")
-        frame = exact(dataset["frameFormat"], {"schema", "width", "height", "encoding"}, "frame format")
-        _method(frame["schema"], "xverse-compat.camera-frame-format/1", "frame schema")
-        _method(frame["encoding"], "bgra8", "frame encoding")
-        for key in ("width", "height"):
-            integer(frame[key], "frame " + key, 1, sys.maxsize)
+        frame = validate_frame_format(dataset["frameFormat"])
         require((frame["width"], frame["height"]) == (params.width, params.height), "label camera/frame format mismatch")
         require(record_digest(frame) == dataset["frameFormatSha256"], "frame-format digest mismatch")
         self._frame_bytes = 4 * frame["width"] * frame["height"]
         require(self.frame_bytes <= limits["rawFrameBytes"] <= limits["memoryBytes"], "frame exceeds engineering byte bounds")
         separation = exact(r["separation"], {"record", "sha256"}, "separation")
         require(digest(separation["sha256"], "separation digest") == record_digest(separation["record"]), "separation digest mismatch")
-        sep = exact(separation["record"], {"schema", "categories", "evaluationSections"}, "separation record")
-        _method(sep["schema"], SEPARATION, "separation schema")
-        exact(sep["categories"], CATEGORIES, "P4 categories")
-        seen = set()
-        for name, seeds in sep["categories"].items():
-            _ordered(seeds, name + " seeds", _seed)
-            require(not seen.intersection(seeds), "P4 seed categories overlap")
-            seen.update(seeds)
-        require(M.sections_ok(sep["evaluationSections"]), "canonical evaluation section set required")
+        validate_separation(separation["record"])
         partitions = exact(r["trainingPartition"], {"fit", "selection"}, "training partition")
         for name, values in partitions.items():
             _ordered(values, name + " runs", text)
@@ -204,6 +219,7 @@ class TrainingJob:
             channels = out
             activation = max(activation, out * height * width)
         classes = len(self.class_order)
+        activation = max(activation, 1 + classes)  # Both required head outputs coexist; flatten aliases GAP storage.
         parameter_count += channels * (1 + classes) + int(a["occupancyBias"]) + (classes if a["binBias"] else 0)
         self._parameter_count = parameter_count
         require(parameter_count <= limits["modelParameters"] and parameter_count * 4 <= limits["outputBytes"],
@@ -236,6 +252,14 @@ class TrainingJob:
         _method(select["weighting"], "equal-examples", "selection weighting")
         require(activation * opt["batchSize"] <= limits["tensorElements"]
                 and activation * opt["batchSize"] * 4 <= limits["memoryBytes"], "activation exceeds declared engineering bounds")
+        weights, gradients = parameter_count * 4, parameter_count * 4
+        momentum = parameter_count * 4 if opt["momentum"] > 0 else 0
+        activation_bytes = activation * opt["batchSize"] * 4
+        necessary = max(weights + activation_bytes, weights + gradients + momentum)
+        self._memory_ledger = {"dtype": "float32", "bytesPerElement": 4, "trainableParameters": parameter_count,
+                               "weightBytes": weights, "gradientBytes": gradients, "momentumBytes": momentum,
+                               "maximumBatchActivationBytes": activation_bytes, "necessaryMemoryBytes": necessary}
+        require(necessary <= limits["memoryBytes"], "necessary resident float32 tensor storage exceeds memoryBytes")
         require(limits["outputBytes"] <= limits["diskBytes"], "output/disk byte bounds inconsistent")
         calibration = exact(r["calibrationFit"], {"method", "status", "reference", "occupancyTemperatures", "binTemperatures",
                                                   "population", "weighting", "ties"}, "calibrationFit")

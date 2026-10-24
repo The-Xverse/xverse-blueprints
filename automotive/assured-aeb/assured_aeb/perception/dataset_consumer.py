@@ -8,8 +8,8 @@ import tempfile
 from . import labels as L, manifest as M
 from .scenario import verified_scenario
 from .training_io import (absolute, digest, exact, integer, parse_json, read_frame, read_regular,
-                          record_digest, require, sha, text)
-from .training_record import PARTITIONS, TrainingJob
+                          record_digest, require, sha, text, validate_store_root)
+from .training_record import PARTITIONS, TrainingJob, validate_frame_format, validate_separation
 
 LOCATIONS = "assured-aeb.training-source-locations/1"
 SOURCE_INDEX = "assured-aeb.training-source-index/1"
@@ -189,13 +189,18 @@ def admit_dataset(job, locations):
     run_ids = _manifest_shape(manifest, limits["samples"])
     require(record_digest(manifest) == record["dataset"]["manifestSha256"], "manifest digest mismatch")
     require(set(sources["runs"]) == run_ids, "source locators must cover exactly the manifest runs")
-    for name, expected in (("labelParams", record["dataset"]["labelParams"]), ("frameFormat", record["dataset"]["frameFormat"]),
-                           ("separation", record["separation"]["record"])):
-        require(source_json(sources[name]) == expected, name + " actual source record mismatch")
-    params = L.LabelParams.from_record(record["dataset"]["labelParams"])
+    actual = {}
+    for name, expected_digest in (("labelParams", record["dataset"]["labelParamsSha256"]),
+                                   ("frameFormat", record["dataset"]["frameFormatSha256"]),
+                                   ("separation", record["separation"]["sha256"])):
+        actual[name] = source_json(sources[name])
+        require(record_digest(actual[name]) == expected_digest, name + " actual canonical source digest mismatch")
+    params = L.LabelParams.from_record(actual["labelParams"])
+    frame_format = validate_frame_format(actual["frameFormat"])
+    frame_bytes = 4 * frame_format["width"] * frame_format["height"]
     require(manifest["labelParamsDigest"] == params.digest and manifest["labelCodeSha256"] == L.LABEL_CODE_SHA256,
             "manifest label parameter/code identity mismatch")
-    separation = record["separation"]["record"]
+    separation = validate_separation(actual["separation"])
     require(manifest["evaluation"]["seeds"] == separation["categories"]["evaluation"]
             and manifest["evaluation"]["segmentSections"] == separation["evaluationSections"], "manifest/P4 evaluation mismatch")
     index = source_json(sources["sourceIndex"])
@@ -257,9 +262,8 @@ def admit_dataset(job, locations):
         for name in job.class_order:
             counts[partition]["classes"][name] += stats["classes"][name]
         per_run[rid] = {"partition": partition, "counts": stats, "recorderExclusions": copy.deepcopy(indexed[rid]["exclusions"])}
-        root = Path(paths["store"])
-        require(root.is_dir() and not root.is_symlink(), "existing read-only nonsymlink store root required")
-        stores[rid] = str(root)
+        validate_store_root(paths["store"])
+        stores[rid] = paths["store"]  # Each actual read independently anchors descriptors, not a racy Path precheck.
     require(not fit_seeds.intersection(selection_seeds), "fit/selection seeds overlap")
     # Give the unmodified owner validator exact bounded snapshots, never a mutable unbounded reopen of sources.
     require(sum(map(len, scenario_bytes.values())) <= limits["diskBytes"], "scenario snapshots exceed disk budget")
@@ -280,14 +284,15 @@ def admit_dataset(job, locations):
             require(counts[partition][member] >= minimum[key], partition + " negative coverage below declared minimum")
         # Stream a bounded verification pass before admission; keep no corpus of raw bytes. Iteration rechecks.
         for rid, label in samples[partition]:
-            read_frame(stores[rid], label["rawSha256"], expected_bytes=job.frame_bytes,
+            read_frame(stores[rid], label["rawSha256"], expected_bytes=frame_bytes,
                        compressed_limit=limits["compressedFrameBytes"], raw_limit=limits["rawFrameBytes"])
     obj = AdmittedDataset()
     obj._samples, obj._stores, obj._limits = samples, stores, copy.deepcopy(limits)
-    obj._classes, obj._frame_bytes = tuple(job.class_order), job.frame_bytes
+    obj._classes, obj._frame_bytes = tuple(job.class_order), frame_bytes
     obj._report = {"schema": REPORT, "jobSha256": job.sha256, "manifestSha256": record_digest(manifest),
                    "sourceIndexSha256": record_digest(index), "separationSha256": record["separation"]["sha256"],
                    "classOrder": list(job.class_order), "counts": counts, "runs": per_run, "manifestReports": reports,
+                   "necessaryMemoryLedger": job.memory_ledger,
                    "trainingUpdates": ((len(samples["fit"]) + record["optimisation"]["batchSize"] - 1)
                                        // record["optimisation"]["batchSize"] * record["optimisation"]["epochs"]),
                    "limits": ["Byte/provenance checks do not prove recorder#6 source/world-map/traversed-section truth.",

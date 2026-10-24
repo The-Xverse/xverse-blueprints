@@ -10,7 +10,8 @@ Call `TrainingJob.from_bytes(data, max_record_bytes=...)` and `SourceLocations.f
 max_record_bytes=...)` with explicit positive engineering caps and canonical UTF-8 JSON bytes. Canonical means
 Python JSON sorted keys, compact separators, ASCII escapes and no trailing newline. Duplicate keys, unsafe
 numbers, unknown/missing members and unsupported methods are refused. `record()` returns a private copy;
-job `sha256`, `class_order`, `input_shape`, `frame_bytes` and `parameter_count` are read-only scalar/tuple properties.
+job `sha256`, `class_order`, `input_shape`, `frame_bytes` and `parameter_count` are read-only scalar/tuple properties;
+`memory_ledger` returns a private copy of the necessary tensor-storage plan.
 The job binds the running named closure of training_record/training_io/dataset_consumer, not an arbitrary source
 label. A code change requires a new job closure digest.
 
@@ -68,6 +69,16 @@ Five P-4 lists and selection epochs are sorted unique; seed representations are 
 must be finite/representable; initialization bounds must also fit float32. Parameter/positive convolution sizes,
 activation bounds and training-update count are derived, not independently adjustable values.
 
+The necessary memory ledger uses actual derived float32 tensor element counts: weights and full trainable
+gradients each need `4*P` bytes, while explicit SGD momentum >0 adds one `4*P` buffer (shared by Nesterov).
+The declared maximum batched activation includes the static input/Conv/GAP shapes and both simultaneous head
+outputs, with Flatten aliasing GAP storage. The necessary floor is
+`max(weightBytes + maximumBatchActivationBytes, weightBytes + gradientBytes + momentumBytes)`.
+This covers different forward/update points without inventing simultaneous lifetimes for every temporary.
+The job is refused below the floor; equality establishes only this necessary arithmetic, not sufficiency for
+source metadata, saved backward activations, checkpoints, allocator/workspace or framework/process peak memory.
+There is no safety factor or invented resource value. Actual memory enforcement/measurement remains 4b–4e.
+
 Source locations have schema `assured-aeb.training-source-locations/1` and exact members
 `schema, manifest, labelParams, frameFormat, separation, sourceIndex, runs`. Top-level source fields are absolute
 file paths. `runs` maps exactly the manifest run IDs to `scenario, labels, observer, runParams, store` absolute
@@ -85,14 +96,26 @@ An unlabelled stored frame is excluded and counted, never assigned a negative la
 test partition must contain admitted labels. Canonical traversal/order and the final short batch determine the
 reported number of future fit updates; no optimizer has run.
 
+Actual label-parameter/frame-format/separation sources must reproduce their admitted canonical-record SHA256
+and pass the same genuine typed owner validators as embedded job inputs. Those verified actual records are
+consumed. Python numeric equality (for example integer 4 versus float 4.0) never proves a pin. A changed type or
+owner-valid numeric re-encoding with a different canonical digest is refused without rewriting the expected pin;
+whitespace/key-order changes preserving canonical JSON and exact types retain the same canonical identity.
+
 The result provides `report()` (private JSON-safe copy) and `iter_samples(partition)`. The iterator accepts only
 fit/selection/calibration/test, rereads/verifies one frame at a time and yields runId/frame/raw bytes/private label/
 occupancyTarget/binIndex. Each file must be a bounded regular file, one complete zlib stream with no trailing or
 concatenated payload, exact BGRA byte length and matching digest. Store roots/shards/final files cannot be symlinks;
-the reader never creates directories or sweeps writer temporaries. Files changed after admission are checked again.
+the reader never creates directories or sweeps writer temporaries. Every absolute root component is opened with
+O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC and checked by fstat, then the shard/file is opened relative to pinned directory
+descriptors. File reads are O_RDONLY|O_NOFOLLOW|O_CLOEXEC|O_NONBLOCK and fstat-regular checked. No full pathname
+check/open follows a substituted parent. Owned descriptors close on success/failure, including read interruption.
+The anchor is per read and does not claim immutable inodes/content across separate reads. Files changed after
+admission are checked again.
 
 The report binds job/manifest/source-index/separation digests, class order, per-run/partition class and negative
-counts, unlabelled counts, supplied recorder exclusions, future training-update count and owner manifest reports.
+counts, unlabelled counts, supplied recorder exclusions, future training-update count, necessaryMemoryLedger and
+owner manifest reports.
 It records no pixels, source paths or invented exclusion reason. Byte pins and consumed-label coherence cannot
 prove recorder#6 world-map/source/traversal truth or replay planar geometry. Shared non-evaluation sections stay
 reported as limited independence. Framework/process memory/isolation, 4b–4e actual execution, #5 corruption work,

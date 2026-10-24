@@ -11,6 +11,7 @@ import zlib
 import pytest
 
 from assured_aeb.perception import dataset_consumer as D, training_record as T
+from assured_aeb.perception import training_io as IO
 from assured_aeb.perception.training_io import canonical, parse_json, read_frame, read_regular, record_digest, sha
 from training4a_fixture import admit, build, refresh_job, rehash
 
@@ -257,3 +258,165 @@ def test_runtime_never_imports_training_modules():
             elif isinstance(node, ast.ImportFrom): names = [node.module or "", *(alias.name for alias in node.names)]
             else: continue
             assert not any(offline.intersection(name.split(".")) for name in names), path
+
+
+@pytest.mark.parametrize("source,keys,value", [("labelParams", ("camera", "width"), 4.0),
+    ("frameFormat", ("width",), 4.0), ("separation", ("categories", "training"), [10.0, 11.0]),
+    ("labelParams", ("camera", "mountM"), [1.5, 0, 2.4])])
+def test_actual_source_canonical_pin_refuses_python_equal_numeric_reencoding(fixture, source, keys, value):
+    path = Path(fixture[1][source]); original = json.loads(path.read_bytes()); changed = copy.deepcopy(original)
+    target = changed
+    for key in keys[:-1]: target = target[key]
+    target[keys[-1]] = value
+    assert changed == original and record_digest(changed) != record_digest(original)
+    admitted_job_digest = record_digest(fixture[0])
+    path.write_bytes(canonical(changed))
+    with pytest.raises(ValueError, match="actual canonical source digest mismatch"):
+        admit(fixture)
+    assert record_digest(fixture[0]) == admitted_job_digest  # never rewrite the expected pins
+
+
+def test_actual_canonical_record_identity_preserves_whitespace_key_order_and_genuine_types(fixture):
+    for source in ("labelParams", "frameFormat", "separation"):
+        path = Path(fixture[1][source]); value = dict(reversed(list(json.loads(path.read_bytes()).items())))
+        path.write_bytes(json.dumps(value, indent=2, sort_keys=False).encode())
+    assert admit(fixture).report()["counts"]["fit"]["classes"]["bin-0"] == 1
+    actual = copy.deepcopy(fixture[0]["dataset"]["frameFormat"]); actual["width"] = 4.0
+    with pytest.raises(ValueError): T.validate_frame_format(actual)
+    actual = copy.deepcopy(fixture[0]["separation"]["record"]); actual["categories"]["training"] = [10.0, 11.0]
+    with pytest.raises(ValueError): T.validate_separation(actual)
+
+
+def test_parameter_dominated_model_cannot_fit_under_a_smaller_admitted_memory_budget(fixture):
+    job = fixture[0]
+    job["architecture"]["convBlocks"] = [{"outChannels": 1, "kernel": [99, 99], "stride": [1, 1],
+                                          "padding": [49, 49], "dilation": [1, 1], "bias": True}]
+    job["environments"]["limits"].update(modelParameters=100_000, memoryBytes=50_000)
+    # All old parameter/output/activation checks pass: 29416 weights need 117664 bytes, already too many.
+    with pytest.raises(ValueError, match="necessary resident float32"):
+        T.TrainingJob.from_bytes(canonical(job), max_record_bytes=1_000_000)
+    with pytest.raises(ValueError, match="necessary resident float32"):
+        admit(fixture)
+
+
+@pytest.mark.parametrize("momentum,nesterov", [(0.0, False), (0.9, False), (0.9, True)])
+def test_necessary_memory_ledger_uses_exact_weights_gradients_and_explicit_sgd_state(fixture, momentum, nesterov):
+    record = fixture[0]; record["optimisation"].update(momentum=momentum, nesterov=nesterov)
+    job = T.TrainingJob.from_bytes(canonical(record), max_record_bytes=1_000_000)
+    ledger = job.memory_ledger
+    assert ledger["trainableParameters"] == 26
+    assert ledger["dtype"] == "float32" and ledger["bytesPerElement"] == 4
+    assert ledger["weightBytes"] == ledger["gradientBytes"] == 104
+    assert ledger["momentumBytes"] == (104 if momentum else 0)
+    assert ledger["maximumBatchActivationBytes"] == 96
+    expected = 208 + (104 if momentum else 0)
+    assert ledger["necessaryMemoryBytes"] == expected
+    record["environments"]["limits"]["memoryBytes"] = expected
+    assert T.TrainingJob.from_bytes(canonical(record), max_record_bytes=1_000_000).memory_ledger == ledger
+    record["environments"]["limits"]["memoryBytes"] = expected - 1
+    with pytest.raises(ValueError, match="necessary resident float32"):
+        T.TrainingJob.from_bytes(canonical(record), max_record_bytes=1_000_000)
+    ledger["weightBytes"] = 0
+    assert job.memory_ledger["weightBytes"] == 104
+
+
+def test_two_head_output_storage_can_dominate_maximum_batch_activation(fixture):
+    record = fixture[0]
+    params = record["dataset"]["labelParams"]; params["distanceBinEdgesM"] = list(range(1, 21))
+    record["dataset"]["labelParamsSha256"] = record_digest(params)
+    record["preprocessing"]["record"]["resize"].update(width=1, height=1)
+    record["preprocessing"]["sha256"] = record_digest(record["preprocessing"]["record"])
+    record["architecture"]["convBlocks"][0]["outChannels"] = 1
+    record["optimisation"]["batchSize"] = 100
+    record["environments"]["limits"].update(batchSize=100, tensorElements=100_000)
+    classes = ["no-obstacle", "overlap", *(f"bin-{i}" for i in range(20)), "beyond"]
+    for coverage in record["verification"]["coverage"].values(): coverage["classes"] = dict.fromkeys(classes, 0)
+    refresh_job(record)
+    job = T.TrainingJob.from_bytes(canonical(record), max_record_bytes=1_000_000)
+    assert job.parameter_count == 52
+    assert job.memory_ledger["maximumBatchActivationBytes"] == 100 * (1 + len(classes)) * 4
+    assert job.memory_ledger["necessaryMemoryBytes"] == 208 + 9600
+
+
+def _small_frame_store(tmp_path):
+    root = tmp_path / "store"; root.mkdir()
+    raw = b"TEST-ONLY-frame!" * 4
+    identity = sha(raw); shard = root / identity[:2]; shard.mkdir()
+    path = shard / (identity + ".zlib"); path.write_bytes(zlib.compress(raw))
+    return root, raw, identity, shard, path
+
+
+@pytest.mark.parametrize("swap", ["before-shard-open", "after-shard-open", "after-root-open"])
+def test_descriptor_anchoring_refuses_or_survives_deterministic_directory_substitution(tmp_path, monkeypatch, swap):
+    import os
+    root, raw, identity, shard, path = _small_frame_store(tmp_path)
+    outside = tmp_path / "outside"; outside.mkdir()
+    (outside / (identity + ".zlib")).write_bytes(b"must never be read via replacement shard")
+    outside_shard = outside / identity[:2]; outside_shard.mkdir()
+    (outside_shard / (identity + ".zlib")).write_bytes(b"must never be read via replacement root")
+    original_open = os.open; changed = []
+    def hooked(name, flags, *args, **kwargs):
+        assert flags & os.O_NOFOLLOW and flags & os.O_CLOEXEC
+        assert flags & os.O_ACCMODE == os.O_RDONLY and not flags & (os.O_CREAT | os.O_TRUNC)
+        is_shard = str(name) == identity[:2] and flags & os.O_DIRECTORY
+        is_root = str(name) == root.name and flags & os.O_DIRECTORY
+        if swap == "before-shard-open" and is_shard and not changed:
+            shard.rename(root / "retired"); shard.symlink_to(outside, target_is_directory=True); changed.append(True)
+        fd = original_open(name, flags, *args, **kwargs)
+        assert not os.get_inheritable(fd)
+        if not changed and ((swap == "after-shard-open" and is_shard) or (swap == "after-root-open" and is_root)):
+            if is_shard:
+                shard.rename(root / "retired"); shard.symlink_to(outside, target_is_directory=True)
+            else:
+                root.rename(tmp_path / "retired-root"); root.symlink_to(outside, target_is_directory=True)
+            changed.append(True)
+        return fd
+    monkeypatch.setattr(os, "open", hooked)
+    if swap == "before-shard-open":
+        with pytest.raises(OSError): read_frame(root, identity, expected_bytes=len(raw), compressed_limit=1024, raw_limit=len(raw))
+    else:
+        assert read_frame(root, identity, expected_bytes=len(raw), compressed_limit=1024, raw_limit=len(raw)) == raw
+    assert changed
+
+
+@pytest.mark.parametrize("scope", ["root", "ancestor", "shard", "file"])
+def test_all_frame_directory_components_and_final_files_refuse_symlinks(tmp_path, scope):
+    root, raw, identity, shard, path = _small_frame_store(tmp_path)
+    if scope == "root":
+        root.rename(tmp_path / "real-store"); root.symlink_to(tmp_path / "real-store", target_is_directory=True)
+    elif scope == "ancestor":
+        alias = tmp_path / "alias"; alias.symlink_to(tmp_path, target_is_directory=True); root = alias / root.name
+    elif scope == "shard":
+        shard.rename(root / "real-shard"); shard.symlink_to(root / "real-shard", target_is_directory=True)
+    else:
+        target = tmp_path / "real-frame"; path.rename(target); path.symlink_to(target)
+    with pytest.raises(OSError): read_frame(root, identity, expected_bytes=len(raw), compressed_limit=1024, raw_limit=len(raw))
+
+
+@pytest.mark.parametrize("failure", ["none", "content", "missing", "interrupted", "fifo"])
+def test_frame_descriptor_scope_is_read_only_noninheritable_and_always_closed(tmp_path, monkeypatch, failure):
+    import os
+    root, raw, identity, shard, path = _small_frame_store(tmp_path)
+    if failure == "content": path.write_bytes(b"invalid-zlib")
+    if failure in ("missing", "fifo"):
+        path.unlink()
+        if failure == "fifo": os.mkfifo(path)
+    original_open = os.open; opened = []
+    def tracked(name, flags, *args, **kwargs):
+        assert flags & os.O_NOFOLLOW and flags & os.O_CLOEXEC
+        assert flags & os.O_ACCMODE == os.O_RDONLY and not flags & (os.O_CREAT | os.O_TRUNC)
+        fd = original_open(name, flags, *args, **kwargs); opened.append(fd)
+        assert not os.get_inheritable(fd)
+        return fd
+    monkeypatch.setattr(os, "open", tracked)
+    if failure == "interrupted":
+        def interrupted(fd, maximum): raise KeyboardInterrupt("TEST-ONLY read interruption")
+        monkeypatch.setattr(IO, "_read_descriptor", interrupted)
+    if failure == "none":
+        assert read_frame(root, identity, expected_bytes=len(raw), compressed_limit=1024, raw_limit=len(raw)) == raw
+    else:
+        with pytest.raises((ValueError, OSError, KeyboardInterrupt)):
+            read_frame(root, identity, expected_bytes=len(raw), compressed_limit=1024, raw_limit=len(raw))
+    assert opened
+    for fd in set(opened):
+        with pytest.raises(OSError): os.fstat(fd)

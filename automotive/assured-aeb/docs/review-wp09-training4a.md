@@ -324,3 +324,44 @@ pinned original), also test root/file/ancestor symlinks, read-only flags and des
 Only stdlib probes/AST/diff checks are authorized now. Commit the scoped successor for another independent
 review; pytest/framework/heavy execution, acceptance/merge, recorder#6 truth and all later scientific gates stay
 with the coordinator and recorded authorities.
+
+## Finding 6: scoped R4a successor, pending independent re-review (2026-10-24)
+
+Implemented after repair design `54d8240`. Actual labelParams/frameFormat/separation are bound by their existing
+expected canonical-record digest and validated through genuine LabelParams/shared closed format/separation
+validators. The verified actual records now supply label parameters, frame length and P-4 checks. Mathematical
+Python equality never authenticates those sources and expected pins are not rewritten. Raw observer/run-parameter/
+scenario file-byte identities remain unchanged. Canonical whitespace/key order remains intentionally irrelevant.
+
+The job exposes a private necessary memory ledger for actual float32 weights, full gradients and the explicit
+SGD momentum state. The floor is max(weights+maximum declared activation batch, weights+gradients+momentum), with
+both simultaneous head outputs included in the activation count. Jobs below it are refused before framework
+import; equality is only a necessary tensor-storage check. No safety factor, checkpoint-residency assumption or
+peak-memory guarantee is introduced. Actual process/tensor workspace/activation/backward/checkpoint enforcement
+and measurement remain 4b–4e, along with verification of the declared environment and numpy expectations.
+
+Frame reads now walk every root directory component with no-follow, directory, close-on-exec descriptors and
+fstat checks, then open shard/file relative to pinned directories. File reads are read-only/nonblocking,
+no-follow/close-on-exec and fstat-regular checked; the existing byte/stream/hash/length bounds remain. Even roots
+of fully unlabelled runs are descriptor-validated, without a racy Path precheck. Every later frame read takes its
+own fresh anchor and rehashes bytes. The reader creates/sweeps no store. Temporary scenario snapshots are unchanged.
+
+Added decisive regressions for all three reported Python-equal typed-source counterexamples and an owner-valid
+numeric re-encoding with a different canonical digest; unchanged pins and canonical whitespace/key-order controls;
+the 29416-parameter memory contradiction; exact zero/momentum/Nesterov storage and floor boundaries; head-output
+activation dominance; deterministic before/after shard and after-root swaps; root/ancestor/shard/file symlinks;
+read-only/noninheritable flags and closed descriptors after success, invalid content, missing file, interruption
+and FIFO refusal. Existing source/label/P-4/zlib tests remain.
+
+**Performed:** 22 targeted tiny stdlib controls passed for these source-pin/memory/directory-swap/symlink/cleanup
+boundaries. A final-source regression pass of 44 direct stdlib controls also passed, including the genuine
+12-labelled-frame producer admission/all-partition reads, all 25 method/numeric mutations, strict JSON,
+rehashed malformed labels, invalid zlib streams, canonical whitespace/order and root-only descriptor cleanup.
+Five Python AST parses and `git diff --check` passed. No pytest, numpy/torch/ONNX/ORT import, training, model
+allocation, export/calibration, durable Argus, environment-tree hashing, live data/simulator, download or factory
+execution occurred. All probe/fixture values are TEST-ONLY; these are small source checks, not the owning suite.
+
+R4a-1/R4a-2/R4a-3 are repaired at candidate source level, pending another independent re-review and coordinator-
+scheduled focused/owning/assembled suites. No acceptance/merge by this worker. Recorder#6 source/world/map/traversal
+truth, 4b–4e genuine process/framework/two-repeat evidence, #5, #7, AD-27 numeric/scientific freeze and all existing
+requirement/SADS dispositions remain unchanged. No canonical note is edited.

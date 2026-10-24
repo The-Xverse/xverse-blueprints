@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+from contextlib import ExitStack
 import json
 import math
 import os
@@ -109,29 +110,73 @@ def absolute(value, name):
 def read_regular(path, maximum):
     """Bound allocation and refuse blocking devices/FIFOs/final symlinks; locators confer no identity."""
     integer(maximum, "maximum file bytes", 1, sys.maxsize - 1)
-    fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW)
+    fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW | os.O_CLOEXEC)
     try:
-        info = os.fstat(fd)
-        require(stat.S_ISREG(info.st_mode) and info.st_size <= maximum, "bounded regular file required")
-        with os.fdopen(fd, "rb", closefd=False) as handle:
-            data = handle.read(maximum + 1)
-        require(len(data) <= maximum, "file exceeds byte bound")
-        return data
+        return _read_descriptor(fd, maximum)
     finally:
         os.close(fd)
+
+
+def _read_descriptor(fd, maximum):
+    integer(maximum, "maximum file bytes", 1, sys.maxsize - 1)
+    info = os.fstat(fd)
+    require(stat.S_ISREG(info.st_mode) and info.st_size <= maximum, "bounded regular file required")
+    with os.fdopen(fd, "rb", closefd=False) as handle:
+        data = handle.read(maximum + 1)
+    require(len(data) <= maximum, "file exceeds byte bound")
+    return data
+
+
+_DIRECTORY_FLAGS = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
+
+
+def _open_directory(name, *, dir_fd=None):
+    fd = os.open(name, _DIRECTORY_FLAGS, dir_fd=dir_fd)
+    try:
+        require(stat.S_ISDIR(os.fstat(fd).st_mode), "directory descriptor required")
+    except BaseException:
+        os.close(fd)
+        raise
+    return fd
+
+
+def _open_store_root(root):
+    """Pin every existing absolute directory component; never follow a replaced parent symlink."""
+    parts = Path(absolute(str(root), "store root")).parts
+    fd = _open_directory(parts[0])
+    try:
+        for component in parts[1:]:
+            child = _open_directory(component, dir_fd=fd)
+            os.close(fd)
+            fd = child
+    except BaseException:
+        os.close(fd)
+        raise
+    return fd
+
+
+def validate_store_root(root):
+    """Validate even an unlabelled run's existing root; frame reads take their own fresh descriptor anchor."""
+    fd = _open_store_root(root)
+    os.close(fd)
 
 
 def read_frame(root, raw_sha256, *, expected_bytes, compressed_limit, raw_limit):
     """One bounded zlib stream, exact BGRA length/digest; never creates/sweeps a store."""
     digest(raw_sha256, "rawSha256")
-    integer(expected_bytes, "expected frame bytes", 1)
-    integer(raw_limit, "raw byte bound", 1)
+    integer(expected_bytes, "expected frame bytes", 1, sys.maxsize - 1)
+    integer(raw_limit, "raw byte bound", 1, sys.maxsize - 1)
+    integer(compressed_limit, "compressed byte bound", 1, sys.maxsize - 1)
     require(expected_bytes <= raw_limit, "expected frame exceeds raw byte bound")
-    root = Path(absolute(str(root), "store root"))
-    require(root.is_dir() and not root.is_symlink(), "existing nonsymlink store root required")
-    shard = root / raw_sha256[:2]
-    require(shard.is_dir() and not shard.is_symlink(), "existing nonsymlink shard required")
-    packed = read_regular(shard / (raw_sha256 + ".zlib"), compressed_limit)
+    with ExitStack() as descriptors:
+        root_fd = _open_store_root(root)
+        descriptors.callback(os.close, root_fd)
+        shard_fd = _open_directory(raw_sha256[:2], dir_fd=root_fd)
+        descriptors.callback(os.close, shard_fd)
+        frame_fd = os.open(raw_sha256 + ".zlib", os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC | os.O_NONBLOCK,
+                           dir_fd=shard_fd)
+        descriptors.callback(os.close, frame_fd)
+        packed = _read_descriptor(frame_fd, compressed_limit)
     try:
         decoder = zlib.decompressobj()
         raw = decoder.decompress(packed, expected_bytes + 1)
