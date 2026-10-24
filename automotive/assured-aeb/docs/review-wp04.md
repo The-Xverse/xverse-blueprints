@@ -484,3 +484,15 @@ HIGH-1 is repaired, and MEDIUM-1 and LOW-1 to LOW-3 are recorded as disposed. On
 ### Recommendation
 Ready for acceptance. Record MEDIUM-A in residual 3 (or adopt the late binding), and decide LOW-A or
 state it.
+
+## Finding 7: disposition of finding 6 (2026-10-24 11:52:19; recorded before any change)
+
+This disposition is the coordinator's, under the author's delegation, and is flagged for the author's
+review. It applies the new thesis rule `decisions.md` "AD-30 delivery rule" (11:51): episode-dependent
+behaviour is keyed to episode-relative time, with the episode origin bound late from the first frame and
+no default.
+
+| Item | Disposition | Planned change |
+| --- | --- | --- |
+| MEDIUM-A | Repair (late binding) | `BrakeCommandReader` no longer takes the origin at construction. The U2 loop binds it once, from the first frame, with `bind_origin(ns)`. A second bind with a different value is refused; the same value is idempotent. While a command is held and the origin is unbound, the reader returns `None`. Before any command it returns 0.0, bound or not (WP-03 B-3). Tests include the compat `LiteVehicleLoop` order: the driver is called at tick 0 with `sim_s` = 0.0, before the first frame (`live/loop.py` 83–115 at `855878a`) |
+| LOW-A | Declared | A newer-sequence command whose origin lies in the reader's future displaces an older fresh one, so the reader returns `None` until that origin is reached. This fails closed (throttle cut, brake held). Under the AD-30 delivery rule the hub delivers at the first step boundary at or after `deliverAtNs`, so this arises only if a command is delivered before its origin |
