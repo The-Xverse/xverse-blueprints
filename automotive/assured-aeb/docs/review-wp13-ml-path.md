@@ -418,3 +418,9 @@ all **5** malformed-check controls (fourth class, front integrity, logical, plau
 assertions as required. Restored the current test module alias afterwards. The negative control demonstrates that
 usable frames reach the old erroneous inference path and the tests detect it. Neither pytest nor NumPy/ORT/torch
 was imported; full/numerical suite verification is still pending. This closes finding 9's test-setup gap only.
+
+## Independent successor verification and delegated acceptance (Codex, 2026-10-24)
+
+Reviewed exact candidate `d7d4db50ee98203142e694ac759ed6d4daab8255` and its test-only successor diff. The corrected test independently exercises the approved production contract; source behavior is unchanged by that repair. Actual complete owning suite: **599 passed in 34.62s**, no skips. Receipt and full log: thesis `specs/002-assured-aeb/review/codex-successor-verification-20261024/ml-path/` (log SHA-256 `6d5d2575c0c456d5fbbefd47f583132bd5b99e62ee7fa8df82e67a3fcd56cbb7`). The prior failure remains retained and is not counted as a pass.
+
+Accepted under the recorded author engineering delegation, flagged for author review, for isolated main assembly and complete assembled-suite verification. Scope: Frozen local-model contract, genuine pinned inference session path and diagnostic refusal only. All nine network-isolated genuine numerical/refusal/telemetry modes executed with no skips. Temperature/entropy implementations are selectable methods pending AD03, not approved calibrations or scientific thresholds. No real trained model, fit claim or live runtime wiring. Carried review limits remain; no protocol freeze, live execution or scientific acceptance follows.
