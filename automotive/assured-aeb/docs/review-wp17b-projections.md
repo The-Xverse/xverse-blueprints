@@ -126,3 +126,33 @@ Deferred owning suite: the same interpreter/options with `tests`, rc.1 `XVERSE_P
 `XVERSE_AEB_SENSOR_SITE`, after the platform regression releases the heavy-test slot.
 Candidate remains unaccepted and unmerged. No real table, protocol value, live/principal run, M1 or scientific claim
 was created or validated by this review.
+
+## Finding 4: separately recorded publication repair design before code (2026-10-24)
+
+The coordinator dispositioned both findings before repair. This successor changes only mechanical publication
+binding and reserved-name handling; actual projection membership, category classification, table approval, process
+provenance and live/principal admission remain separate gates.
+
+- Change `write_bundle` to require keyword-only `expected_table_sha256` and `protocol_record_sha256`, with no defaults.
+  These are admitted caller inputs, independent of the receipt being checked; this helper cannot authenticate the
+  table from a self-declared receipt. Validate both pin forms and require exact receipt equality.
+- Define a closed projection-pins receipt contract/schema: schema, protocolRecordSha256, tableSha256 and units only;
+  each unit has exactly sha256 and identifiers. Validate hash forms, own-unit names, duplicate-free identifier lists,
+  and exact unit inventory. Decode each output through the standard-library own-unit reader using the admitted
+  protocol digest and the receipt's expected unit/hash/identifiers, so mismatched schema/protocol/unit/id evidence
+  is refused before publication.
+- Snapshot the output mapping and canonical receipt bytes before writing, and perform all validation/serialization
+  before creating the fresh directory. Bytes and the checked snapshot, rather than later caller mutations, are what
+  is published. A later I/O failure remains an unaccepted diagnostic partial artifact; no durability/authentication
+  claim is added. Existing bundle paths remain exclusive and are never overwritten.
+- Reserve `projection-pins` as a publication unit name. Reject it in the reviewed role inventory/generator and in
+  publication before directory creation, and express the reservation in the relevant table/receipt schemas.
+  The reserved filename is a tool representation choice, not a scientific parameter or a new runtime unit.
+- Regress missing/extra/wrong receipt members, malformed or mismatched admitted table/protocol pins, per-file hash,
+  output schema/protocol/unit/identifier mismatch, receipt identifier mismatch, duplicate identifiers and the
+  reserved name. Include coherent fresh publication and existing-directory non-overwrite controls. Every synthetic
+  parameter and table membership remains TEST-ONLY. Update the documented API and all existing calls.
+
+The finding 3 review was committed separately before this design. Implement next, run only AST/JSON parsing and tiny
+standard-library probes while the platform regression owns the heavy-test slot, then commit the repair distinctly.
+The coordinator will independently review the repaired delta; focused and full owning pytest remain queued.
