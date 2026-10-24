@@ -80,6 +80,8 @@ def qualify_radar(message: Any, stream: str, now_ns: int, freshness_ns: int) -> 
         detections = [tuple(float(v) for v in r) for r in rows]
     if failures:
         state = "UNCERTAIN"
+    elif _verdict(sensor, "statistical") not in ("pass", "fail"):
+        state, failures = "UNCERTAIN", ["sensor-statistical-unknown"]
     elif _verdict(sensor, "statistical") == "fail":
         state, failures = "DEGRADED", ["sensor-statistical"]
     else:
@@ -158,6 +160,12 @@ class Latch:
                 if self.absent >= self.rule.release_absent_cycles:
                     self.latched, self.absent = False, 0
         return self.rule.brake_level if self.latched else 0.0
+
+    def uncertain(self) -> float:
+        """An unqualified decision cannot establish absence or a release speed (R13-1)."""
+
+        self.absent = 0
+        return self.hold()
 
     def hold(self) -> float:
         """A step that is not a decision cycle (no input): the latch neither counts nor releases."""

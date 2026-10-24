@@ -12,6 +12,7 @@ Every value is read by identifier from the FR-028 projection.
 
 from __future__ import annotations
 
+import json
 import math
 from typing import Any
 
@@ -54,10 +55,28 @@ def bin_interval(predicted: Any, edges: list[float]) -> tuple[float, float] | No
 
 
 def _perception_ok(record: Any) -> bool:
-    return (isinstance(record, dict) and set(record) == PERCEPTION_MEMBERS and record["schema"] == PERCEPTION_OUTPUT
-            and record["source"] == "perception" and is_int(record["originNs"]) and isinstance(record["frameSha256"], str)
-            and HEX64.match(record["frameSha256"]) is not None and is_number(record["occupancyProbability"])
-            and 0 <= record["occupancyProbability"] <= 1 and type(record["oodFlag"]) is bool and isinstance(record["state"], str))
+    if not (isinstance(record, dict) and set(record) == PERCEPTION_MEMBERS and record["schema"] == PERCEPTION_OUTPUT
+            and record["source"] == "perception" and is_int(record["originNs"])
+            and is_int(record["frame"]) and record["frame"] >= 0
+            and isinstance(record["frameSha256"], str) and HEX64.fullmatch(record["frameSha256"]) is not None
+            and is_number(record["occupancyProbability"]) and 0 <= record["occupancyProbability"] <= 1
+            and isinstance(record["binProbabilities"], list) and bool(record["binProbabilities"])
+            and all(is_number(v) and 0 <= v <= 1 for v in record["binProbabilities"])
+            and isinstance(record["predictedBin"], str) and is_number(record["oodScore"])
+            and type(record["oodFlag"]) is bool and record["state"] in ("NOMINAL", "DEGRADED", "UNCERTAIN", "UNSAFE")
+            and isinstance(record["inputQuality"], dict)
+            and (record["reason"] is None or isinstance(record["reason"], str))):
+        return False
+    provenance = record["provenance"]
+    if not (isinstance(provenance, dict)
+            and set(provenance) == {"modelDigest", "preprocessParamsSha256", "postprocessSha256"}
+            and all(isinstance(v, str) and HEX64.fullmatch(v) is not None for v in provenance.values())):
+        return False
+    try:
+        json.dumps(record["inputQuality"], allow_nan=False)
+    except (ValueError, TypeError):
+        return False
+    return True
 
 
 class FusionRiskAeb:
@@ -126,7 +145,12 @@ class FusionRiskAeb:
             hypothesis["residualM"] = self.rule.residual(hypothesis["distanceM"], hypothesis["closingSpeedMps"])
             fired = hypothesis["residualM"] <= 0
             v_c = self.rule.conservative(hypothesis["distanceM"], hypothesis["closingSpeedMps"])[1]
-        request = self.latch.decide(hypothesis["present"], fired, v_c) if decision else self.latch.hold()
+        if not decision:
+            request = self.latch.hold()
+        elif camera_state not in USABLE or radar_state not in USABLE or outcome == "UNCERTAIN":
+            request = self.latch.uncertain()
+        else:
+            request = self.latch.decide(hypothesis["present"], fired, v_c)
         state = "UNCERTAIN" if not decision else weakest(camera_state, radar_state, *([outcome] if outcome else []))
         return {"schema": ADAS_CYCLE, "source": SOURCE, "cycle": self.cycle, "sequence": self.sequence, "originNs": now_ns,
                 "brakeRequest": request, "fired": fired, "latched": self.latch.latched, "reason": reason,
@@ -145,7 +169,8 @@ class FusionRiskAeb:
             return {"state": "UNCERTAIN", "failures": ["no-perception-output"], "originNs": None, "ageNs": None,
                     "frameSha256": None, "occupancyProbability": None, "predictedBin": None, "oodFlag": None,
                     "provenance": None}, "UNCERTAIN", None
-        if not _perception_ok(record):
+        if not _perception_ok(record) or record["predictedBin"] not in {
+                "no-obstacle", "overlap", "beyond", *(f"bin-{i}" for i in range(len(self.edges)))}:
             return {"state": "UNCERTAIN", "failures": ["perception-output-malformed"], "originNs": None, "ageNs": None,
                     "frameSha256": None, "occupancyProbability": None, "predictedBin": None, "oodFlag": None,
                     "provenance": None}, "UNCERTAIN", None

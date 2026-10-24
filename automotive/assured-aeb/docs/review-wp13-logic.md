@@ -361,3 +361,28 @@ projection and independently stated expected outputs. Run the full owning suite 
 
 After repair, a fresh independent re-review is still required before delegated acceptance or merge. Do not amend
 unrelated worktrees or the canonical dynamic note, and do not supply a protocol value.
+
+## Finding 5: R13-1 to R13-4 repair verification (Codex, 2026-10-24; re-review pending)
+
+Implemented finding 4 after its separate design commit `2c2c047`:
+- `Latch.uncertain()` holds an active brake and resets the observed-absence counter; fusion and fallback call it
+  on unusable evidence rather than incrementing absence. Simulator steps with no decision keep `hold()`.
+- Fusion validates perception field types, finite probability/OOD values, declared bins and digest provenance;
+  malformed or undeclared values become unusable evidence without firing or crashing.
+- An unavailable radar statistical verdict is `UNCERTAIN`; explicit `fail` stays `DEGRADED`.
+- Negative qualified ego speed is `UNCERTAIN` and cannot fire fallback.
+
+Added 31 regression cases, including the stale-camera/positive-radar sequence, fallback integrity loss, interrupted
+absence qualification, invalid perception members and each provenance digest, unknown statistical checks and negative
+speed. All numeric values remain TEST-ONLY and use the pre-existing projection. No arbiter, terminal policy, protocol
+value, role wiring or live execution was changed.
+
+Full owning suite with rc.1 platform profiles and the pinned test interpreter:
+`env PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 XVERSE_PLATFORM_PROFILES=<rc.1>/xdl/profiles
+/dev/shm/compat-p6-venv/bin/python -I -B -m pytest -q -p no:cacheprovider tests --tb=short`.
+Result: **365 passed**, no skip, in 30.44 s (334 before repair). `git diff --check` passes.
+Suite-log SHA-256: `721cc9a9c8143f9e43b4ef4b1d8782ac7ca565f0559b8794f569a0fd68f198e1`.
+
+This is a repaired candidate, not an accepted delivery. A reviewer independent of this repair must re-review it before
+acceptance and merge. R13-5 (WP-15 terminal reconciliation) remains carried. Current main also contains WP-12b and
+WP-13 #4b, which this branch does not yet include; assembled-main verification remains required at delivery.

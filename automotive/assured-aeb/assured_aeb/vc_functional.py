@@ -68,7 +68,7 @@ class RadarFallback:
     def _ego(self, now_ns: int) -> tuple[str, str | None, dict[str, Any]]:
         speed = self.speed
         if not (isinstance(speed, dict) and set(speed) == {"speedMps", "originNs", "state"} and is_number(speed["speedMps"])
-                and is_int(speed["originNs"])):
+                and speed["speedMps"] >= 0 and is_int(speed["originNs"])):
             return "UNCERTAIN", "ego-speed-unknown", {"state": "UNCERTAIN", "speedMps": None, "ageNs": None}
         age = now_ns - speed["originNs"]
         record = {"state": weakest(speed["state"]), "speedMps": float(speed["speedMps"]), "ageNs": age}
@@ -112,11 +112,12 @@ class RadarFallback:
             hypothesis["residualM"] = self.rule.residual(selected[1], selected[2])
             v_c = self.rule.conservative(selected[1], selected[2])[1]
             fired = reason is None and hypothesis["residualM"] <= 0  # the ODD gate and the ego speed gate firing only
-        if decision:
-            # A failed gate never fires, but a held latch continues to its own release condition (finding 1 §1.6).
-            request = self.latch.decide(hypothesis["present"], fired, v_c)
-        else:
+        if not decision:
             request = self.latch.hold()
+        elif radar_state not in USABLE or ego_state not in USABLE:
+            request = self.latch.uncertain()
+        else:
+            request = self.latch.decide(hypothesis["present"], fired, v_c)
         state = "UNCERTAIN" if not decision else weakest(radar_state, ego_state)
         return {"schema": FALLBACK_REQUEST, "source": "radar-fallback", "cycle": self.cycle, "sequence": self.sequence,
                 "originNs": now_ns, "brakeRequest": request, "fired": fired, "latched": self.latch.latched, "reason": reason,

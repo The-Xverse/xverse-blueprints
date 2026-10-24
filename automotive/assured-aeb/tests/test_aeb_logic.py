@@ -465,3 +465,88 @@ def test_logic_modules_import_no_ml_and_u4_u5_stay_apart():
         assert not any(x in name for name in imported for x in ("onnxruntime", "numpy", "perception", "labels")), module
     assert "vc_functional" not in names["fusion_aeb"] and "fusion_aeb" not in names["vc_functional"]
     assert "radar_zone" not in names["fusion_aeb"] | names["vc_functional"] | names["aeb_rule"]
+
+
+# Independent-review regressions R13-1 to R13-4; all values are the existing TEST-ONLY fixture values.
+
+def test_stale_camera_with_positive_radar_cannot_release_a_fired_latch():
+    fusion, radar = F.FusionRiskAeb(projection()), Radar()
+    first = fusion.step(WORLD, radar=radar.at(WORLD, NEAR), perception=perception(WORLD))
+    assert first["brakeRequest"] == 1.0
+    for cycle in range(1, 5):
+        now = WORLD + cycle * 100 * MS
+        record = fusion.step(now, radar=radar.at(now, NEAR))
+        assert record["brakeRequest"] == 1.0
+        assert record["state"] == "UNCERTAIN" and record["reason"] == "camera-unusable"
+        assert fusion.latch.absent == 0
+
+
+def test_unknown_radar_cannot_release_the_fallback_latch():
+    fallback, radar = V.RadarFallback(projection()), Radar()
+    def speed(now):
+        return {"speedMps": 12.0, "originNs": now, "state": "NOMINAL"}
+    first = fallback.step(WORLD, radar=radar.at(WORLD, NEAR, V.RADAR_STREAM), ego_speed=speed(WORLD))
+    assert first["brakeRequest"] == 1.0
+    for cycle in range(1, 5):
+        now = WORLD + cycle * 50 * MS
+        message = radar.at(now, NEAR, V.RADAR_STREAM)
+        message["checks"]["integrity"]["verdict"] = "fail"
+        record = fallback.step(now, radar=message, ego_speed=speed(now))
+        assert record["brakeRequest"] == 1.0 and record["state"] == "UNCERTAIN"
+        assert fallback.latch.absent == 0
+
+
+def test_uncertainty_breaks_consecutive_observed_absence():
+    latch = A.Latch(A.rule_from(TEST_ONLY_ENTRIES, "aeb"))
+    assert latch.decide(True, True, 12.0) == 1.0
+    assert latch.decide(False, False, None) == 1.0
+    assert latch.decide(False, False, None) == 1.0
+    assert latch.uncertain() == 1.0 and latch.absent == 0
+    assert latch.decide(False, False, None) == 1.0
+    assert latch.decide(False, False, None) == 1.0
+    assert latch.decide(False, False, None) == 0.0
+
+
+@pytest.mark.parametrize("key,value", [
+    ("frame", "invalid"), ("frame", -1), ("frame", True),
+    ("oodScore", math.nan), ("oodScore", math.inf), ("oodScore", True),
+    ("binProbabilities", "invalid"), ("binProbabilities", []), ("binProbabilities", [math.nan]),
+    ("binProbabilities", [-0.1]), ("binProbabilities", [1.1]), ("binProbabilities", [True]),
+    ("provenance", None), ("provenance", {}),
+    ("inputQuality", None), ("inputQuality", {"value": math.nan}),
+    ("predictedBin", "bin-9999"), ("predictedBin", "bin-" + "9" * 5000),
+    ("reason", 1), ("state", "unknown"),
+])
+def test_malformed_perception_fields_are_unusable_without_crashing(key, value):
+    record = perception(WORLD)
+    record[key] = value
+    result = F.FusionRiskAeb(projection()).step(WORLD, radar=Radar().at(WORLD, NEAR), perception=record)
+    assert result["state"] == "UNCERTAIN" and result["reason"] == "camera-unusable"
+    assert result["brakeRequest"] == 0.0
+
+
+@pytest.mark.parametrize("key", ["modelDigest", "preprocessParamsSha256", "postprocessSha256"])
+def test_each_perception_provenance_digest_is_checked(key):
+    record = perception(WORLD)
+    record["provenance"][key] = "not-a-digest"
+    result = F.FusionRiskAeb(projection()).step(WORLD, radar=Radar().at(WORLD, NEAR), perception=record)
+    assert result["state"] == "UNCERTAIN" and result["reason"] == "camera-unusable"
+
+
+@pytest.mark.parametrize("check", [None, {}, {"verdict": "not-evaluated"}, {"verdict": "unknown"}])
+def test_unavailable_radar_statistical_check_is_uncertain(check):
+    message = Radar().at(WORLD, NEAR)
+    if check is None:
+        message["checks"]["sensorSelfCheck"].pop("statistical")
+    else:
+        message["checks"]["sensorSelfCheck"]["statistical"] = check
+    view = A.qualify_radar(message, F.RADAR_STREAM, WORLD, 80 * MS)
+    assert view.state == "UNCERTAIN" and "sensor-statistical-unknown" in view.failures
+
+
+def test_negative_ego_speed_cannot_satisfy_the_degraded_odd():
+    result = V.RadarFallback(projection()).step(
+        WORLD, radar=Radar().at(WORLD, NEAR, V.RADAR_STREAM),
+        ego_speed={"speedMps": -100.0, "originNs": WORLD, "state": "NOMINAL"})
+    assert result["state"] == "UNCERTAIN" and result["reason"] == "ego-speed-unknown"
+    assert result["fired"] is False and result["brakeRequest"] == 0.0
