@@ -115,3 +115,14 @@ The same read-only pass checked actual pinned torch SGD signature (source only, 
 maximize/foreach/differentiable/fused flags used here. Identified fixture/API typo and a no-op tamper byte in draft
 tests were corrected during initial writing before this review. The pre-repair stdlib pass performed33 small
 controls with genuine label/store/manifest admission and safe-weight corruption cases; no pytest/framework.
+
+## Finding 3: safe weight consumption needs an external expected pin (2026-10-24)
+
+Before repairing: decode checks internally consistent hashes/job/stage and the exact non-executable shape/finite
+contract, but read_weights accepted its co-located descriptor's hashes as the only file pins. That proves structural
+consistency, not correspondence to the selected weights named by a separately hash-bound training report. Make
+read_weights require expected descriptor/blob digests from the caller's admitted report/input binding and check
+those before decoding.4c must independently admit that report's expected digest; a mutable co-located report is
+not an identity source. Keep the lower-level decoder as bounded structural validation of supplied bytes, and use
+it on freshly generated own bytes before writing. Add a public-reader case replacing both descriptor and blob with
+a different structurally valid/rehashed package: unchanged external expected report pins must still refuse.
