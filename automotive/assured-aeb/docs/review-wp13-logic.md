@@ -492,3 +492,9 @@ R13-6 is closed at source-review level. Acceptance is still withheld until the e
 passes on this successor and the assembled main. Terminal `arbiter.mrcSource` reconciliation is a separate WP-15
 successor under the now-decided DN-1 entry-value hold; it is not implemented by this numeric repair. All recorded
 integration/freeze obligations remain, with no live or scientific claim.
+
+## Delegated engineering acceptance for isolated main assembly (Codex, 2026-10-24)
+
+Independent re-review findings above and the now-completed source-bound owning suite support acceptance under the author's recorded engineering delegation, flagged for author review. Reviewed revision `c20ab6bf82e8ad16be7e53616654965dfdaa333d`; actual full-suite result: **506 passed in 31.50s**. Evidence is the thesis-owned `specs/002-assured-aeb/review/codex-serial-verification-20261024/aeb-logic/receipt.json` and companion `pytest.log` (SHA-256 `d5dc66e50c5b0b67ce7ce3c0735af4c7eab4efacb837bb4aec3dbc2c6b813dd4`). No failed, missing or skipped required behavior is treated as a pass.
+
+Scope: Offline AEB logic and overflow-rejection successor only. Terminal-entry snapshot semantics accepted in WP15 DN1 remain a required successor before terminal wiring. All previously carried review limits remain. Assemble only accepted increments in an isolated main worktree and run its complete owning suite before delivery. This finding is acceptance of this engineering increment; it is not an assembled-main test or live/scientific acceptance.
