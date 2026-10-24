@@ -533,3 +533,11 @@ The next step is acceptance and a merge. Neither has happened.
 
 ### Recommendation
 Ready for acceptance and merge. Update residual 4 to cite the numpy decision, and decide LOW-A with D-3.
+
+## 7. Acceptance (written at 15:28:30 2026-10-24)
+
+- **Accepted** under the author's delegation of 2026-10-24 (thesis `specs/002-assured-aeb/decisions.md` §G, §J,
+  §K and the rows cited in this log). It is flagged for the author's review.
+- **Basis:** findings 3 and 6 (both PASS WITH NOTES), repairs in findings 4-5; suite 253 passed, checker exit 0.
+- Residual 4 is decided by thesis `decisions.md` "U2/U3 numpy": the WP-13 numpy port must match these standard-library reference tests exactly (edges, flooring, interior), or declare each difference. LOW-A (a contrast-normalised sharpness indicator) is decided with the D-3 characterisation.
+- **Merged** into blueprints main and pushed (see the merge commit).
