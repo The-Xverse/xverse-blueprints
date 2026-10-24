@@ -379,3 +379,43 @@ real keyword+SIGKILL and warning+ImportError counterexamples, genuine Python ref
 and output-symlink refusal. Full log and current test/helper hashes retained in docs/evidence/training4b-supervisor-
 classification-20261024/. No pytest, framework, genuine training, source-tree environment scan or acceptance ran.
 Independent successor review and actual owning/fresh isolated framework verification remain mandatory.
+
+## Finding 10: independent refusal-classification successor review — PASS (2026-10-24)
+
+Independently reviewed exact clean source pin `40786acbc36edae17ffe6821fa4374c144738080`, finding8's recorded
+pre-code disposition, finding9 and the driver/contract/helper/control delta. R4b-3 is repaired. The driver now
+calls the shared classifier only after requiring complete capture. The classifier independently requires exact
+integer Python exit1, absent output including a dangling symlink, and the final stderr line to be an allowed
+ValueError/RuntimeError/OverflowError with nonfinite/overflow in its message. It rejects negative signal status,
+earlier warning keywords, unrelated final exception types and an OverflowError class name whose message lacks
+the reason. No remaining source blocker was identified in the reviewed4b increment. This is a source verdict,
+not implementation acceptance or evidence that real framework fitting has succeeded.
+
+Independently reran all eight real tiny supervisor unittest controls: **8 passed in4.719s, exit0** using
+`/usr/bin/python3.13 -S -s -B` and explicit loop10 TMPDIR. The real keyword-plus-SIGKILL and warning-plus-ImportError
+counterexamples are now refused; actual ValueError/RuntimeError refusal cases pass; class-name-only and output
+symlink cases refuse. Normal/nonzero capture, timeout/partial output, TERM-ignoring descendant KILL/reap/group
+absence, spawn-assignment interruption, post-assignment interruption, missing executable, drift and no-overwrite
+controls remain passing. No framework or namespace worker was launched by these controls.
+
+Fifteen additional direct stdlib classifier cases cover the accepted exception forms, signal/float/bool status,
+incomplete capture, earlier warnings, unsupported/followed final lines, empty diagnostics and existing file/
+directory output. All pass. Exact AST comparison confirms `capture_attempt`, `_cleanup` and `_group_exists` are
+unchanged from independently reviewed7c02bee, so finding8's separate capture-I/O controls remain applicable.
+All three changed Python test/helper files parse. Their actual hashes and the complete root8-test log hash match
+`docs/evidence/training4b-supervisor-classification-20261024/receipt.json`.
+
+Complete independent stdout/stderr and command/status/hash record are external at
+`codex-20261024/scratch/review_wp15/training4b-refusal-successor-review-20261024/` (`unittest.stdout.log`,
+`unittest.stderr.log`, `review-controls.json`). Stderr SHA256 is
+`b20d64ea87a036b0da268f01ad2e91d36e29cfa7f12e5f6e62ec4ed41fd0fb89`; stdout is empty. Original failed-version
+findings, seven-test logs and classification witnesses remain preserved separately. No partial or failed model
+attempt was overwritten or converted into training evidence.
+
+All four product modules and all three4a files remain byte-identical to03987de; closures remain
+`009804472ccd52670758bd9ee21595a4f9520c47e85dda770d3f3420a692c6eb` and
+`d83ba1f5e7ce1056d82a924157aad617d64db84862e4be4005abf47fcf1a3e32`.
+Allowed all-partition integrity admission remains separate from fit/selection-only computation. No pytest,
+Torch/NumPy/ORT, actual unshare training worker, environment-tree walk, scientific value, acceptance or merge
+occurred. Parent4a owning verification/acceptance and root-scheduled genuine4b repeated fitting/held-out invariance/
+nonfinite refusal remain pending, followed by separate4c–4e and all scientific/AD27 gates.
