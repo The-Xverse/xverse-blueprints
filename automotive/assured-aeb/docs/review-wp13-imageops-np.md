@@ -94,3 +94,65 @@ It has the same function names, signatures and declared semantics as `imageops.p
    800×600 frame is recorded, with no budget claimed.
 3. The unit entries that select the port, and record the selection in evidence, come later (WP-10 #5 and the
    U2/U3 entries).
+
+## Finding 2: implementation result (2026-10-24 16:03:50)
+
+**Files.**
+- `assured_aeb/imageops_np.py` (new).
+- `assured_aeb/camera_chain.py`:
+  - `_ops`, and a keyword-only `ops` on `CorruptionStage` and `SmartCamera`;
+  - the four corruption calls and `image_statistics` now go through `self.ops`;
+  - the `MAX_BOX_LOG2` checks still use the reference constant, which the port re-exports.
+- `tests/imageops_np_probe.py` and `tests/test_imageops_np.py` (new).
+- `imageops.py` is unchanged.
+
+**Bit-exact result** (the probe in the unit pattern):
+- command: `env -i PATH=/usr/bin PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=<sensor site>:<assured-aeb>` with
+  `python3.13 -S -s -B`;
+- the sensor site is `/dev/shm/xverse-aeb-sensor-20261024/venv/lib/python3.13/site-packages`, from compat `efd5b6a`;
+- **1119 comparisons, 0 failures**;
+- numpy 2.5.4 was loaded from the sensor venv, and `site` was not imported;
+- the coverage is as designed (§1.3), with three independently seeded frame sets, the 800×600 frame and the camera
+  chain end to end;
+- the camera chain gives the same delivered bytes, the same `frameSha256`, identical smart-camera self-check records
+  and identical stage evidence over nine frames crossing every corruption kind, including overlapping noise and blur.
+
+**Negative control.**
+- An in-memory patch, with no file changed, flipped one bit of `imageops_np.box_blur`'s first output byte.
+- The probe then exits 1 with 269 failures.
+- The comparisons are therefore not vacuous.
+
+**Informative timing** (one run, 800×600 BGRA, this host; **not a budget**; D-4c):
+
+| Operation | numpy | reference |
+| --- | --- | --- |
+| exposure | 16.4 ms | 2.8 ms |
+| add_noise | 10.9 ms | 38.7 ms |
+| box_blur (log2 3) | 21.3 ms | 52.9 ms |
+| luma | 3.1 ms | 8.8 ms |
+| image_statistics (stride 4, sharpness 2) | 5.9 ms | 75.0 ms |
+
+- The port's exposure is slower than the reference's `bytes.translate`.
+- Both are bit-exact, so a later increment may route exposure to the reference inside `imageops_np` without any
+  semantic change. That is recorded here, not done.
+
+**Commands** (`/dev/shm/compat-p6-venv/bin/python -I`, rc.1 profiles):
+- with `XVERSE_AEB_SENSOR_SITE` set:
+  - `tests/test_imageops_np.py`, `tests/test_camera_chain.py` and `tests/test_imageops.py`: 65 passed;
+  - the whole suite: 291 passed (287 on main plus 4);
+- without it: `tests/test_imageops_np.py` gives 3 passed and 1 skipped;
+- `check_topology.py`: exit 0;
+- `__pycache__` removed;
+- no bytecode was written into the sensor venv.
+
+**Residuals.**
+1. Bit-exactness holds for numpy 2.5.4 on this host only. A different pin or host requires re-running the probe
+   (R-7).
+2. The per-frame budget is D-4c, and the exposure routing is optional (above).
+3. Later increments must:
+   - select `ops=imageops_np` in the U2/U3 unit entries;
+   - record the selection and the probe result in run evidence;
+   - build the loop10 sensor venv (compat residual 1).
+4. The `/dev/shm` sensor venv disappears at reboot. The test then skips, and does not fail.
+
+**Status.** Candidate only. The independent review, acceptance and the merge are pending.
