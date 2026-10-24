@@ -11,9 +11,10 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
 import re
 from typing import Any, Iterable, Mapping
+
+from .checks import is_number
 
 PROJECTION = "assured-aeb.runtime-parameter-projection/1"
 IDENTIFIER = re.compile(r"[a-z][A-Za-z0-9]*(?:\.[A-Za-z][A-Za-z0-9_]*)+\Z")
@@ -24,7 +25,7 @@ KINDS = ("positive-number", "non-negative-number", "probability", "unit-interval
 
 
 def _number(value: Any) -> bool:
-    return type(value) in (int, float) and math.isfinite(value)
+    return is_number(value)
 
 
 def _valid(kind: str, value: Any, choices: tuple[str, ...] | None) -> bool:

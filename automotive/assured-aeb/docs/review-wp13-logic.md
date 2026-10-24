@@ -318,3 +318,177 @@ epoch shifted by 7 s gives the same stream relative to its epoch.
    - `fusion.distanceBinEdgesM` must equal the label bin edges.
 
 **Status.** Engineering evidence on the candidate only. The independent review, acceptance and the merge are pending.
+
+## Finding 3: independent read-only Codex review (2026-10-24), CHANGES REQUIRED
+
+Input: `a74cd38ab5f38ad2ead524795f2f001dcd5bb948`. No code changed during this review. Adversarial probes used
+only the existing TEST-ONLY values and real U3 message builders in `tests/test_aeb_logic.py`.
+
+- **R13-1, MAJOR:** `FusionRiskAeb.step` counts unusable perception as an absent hypothesis. After a valid fired
+  cycle, three decision cycles with fresh positive radar and stale camera output produce brake requests
+  `[1.0, 1.0, 1.0, 0.0]`, final state `UNCERTAIN`, reason `camera-unusable`. Unknown evidence is not an observed
+  disappearance; the absence-release counter must not advance on unusable inputs. The same defect exists when
+  fallback radar qualification fails. This is separate from the arbiter's expressly decided bounded hold policy.
+- **R13-2, MEDIUM:** `_perception_ok` does not validate most of its declared members. A record with string `frame`,
+  NaN `oodScore`, string `binProbabilities` and null `provenance` is accepted as `NOMINAL` and fires a brake request.
+  Finding 1 §1.5 says all members are checked. Validate structural types, finite probabilities/OOD evidence,
+  declared bin names and digest provenance, without selecting any calibration method or tolerance.
+- **R13-3, MEDIUM:** removing the radar sensor's `statistical` check yields `NOMINAL` with no failure. Missing or
+  not-evaluated check evidence must be `UNCERTAIN`; an explicit statistical `fail` may remain `DEGRADED`.
+- **R13-4, MEDIUM:** a qualified ego speed of `-100.0` is accepted as `NOMINAL` and fires fallback. Speed is a
+  non-negative magnitude (WP-05); malformed negative evidence cannot satisfy the degraded-ODD bound.
+- **R13-5, carried integration obligation:** terminal behaviour is not decided here. The existing `arbiter.mrcSource`
+  alternatives differ from WP-15 DN-1's proposed hold-at-entry rule. Keep terminal wiring unaccepted until WP-15
+  is decided and the implementation reconciled. No new terminal policy is selected by this review.
+
+The initial candidate is not accepted or merged.
+
+## Finding 4: repair design, before code (Codex, 2026-10-24)
+
+Repair R13-1 to R13-4 only. An uncertain decision holds the latch and clears its absence counter so uncertainty
+cannot complete a consecutive observed-absence sequence. The absence-release rule otherwise stays unchanged;
+no-source simulator steps keep their existing non-decision hold semantics. Fusion uses this uncertain path for
+unusable camera/radar input and unresolved positive-camera disagreement; fallback uses it when radar or ego-speed
+qualification is unusable. Ordinary corroboration, the arbiter's state forwarding and its selected-source-only
+bounded hold are unchanged.
+
+Validate every perception member structurally: non-negative integer frame, finite occupancy/bin probabilities in
+[0, 1], finite OOD score, boolean OOD flag, declared bin name, JSON-safe quality object, the three digest provenance
+members, known state and optional string reason. Probability normalization tolerance and model bin-count binding
+remain WP-13 #3/WP-14 integration obligations; no tolerance is invented here. Missing/not-evaluated radar statistical
+checks become uncertain. Negative ego speed becomes unknown. Add regression cases using the existing test-only
+projection and independently stated expected outputs. Run the full owning suite with rc.1 profiles.
+
+After repair, a fresh independent re-review is still required before delegated acceptance or merge. Do not amend
+unrelated worktrees or the canonical dynamic note, and do not supply a protocol value.
+
+## Finding 5: R13-1 to R13-4 repair verification (Codex, 2026-10-24; re-review pending)
+
+Implemented finding 4 after its separate design commit `2c2c047`:
+- `Latch.uncertain()` holds an active brake and resets the observed-absence counter; fusion and fallback call it
+  on unusable evidence rather than incrementing absence. Simulator steps with no decision keep `hold()`.
+- Fusion validates perception field types, finite probability/OOD values, declared bins and digest provenance;
+  malformed or undeclared values become unusable evidence without firing or crashing.
+- An unavailable radar statistical verdict is `UNCERTAIN`; explicit `fail` stays `DEGRADED`.
+- Negative qualified ego speed is `UNCERTAIN` and cannot fire fallback.
+
+Added 31 regression cases, including the stale-camera/positive-radar sequence, fallback integrity loss, interrupted
+absence qualification, invalid perception members and each provenance digest, unknown statistical checks and negative
+speed. All numeric values remain TEST-ONLY and use the pre-existing projection. No arbiter, terminal policy, protocol
+value, role wiring or live execution was changed.
+
+Full owning suite with rc.1 platform profiles and the pinned test interpreter:
+`env PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 XVERSE_PLATFORM_PROFILES=<rc.1>/xdl/profiles
+/dev/shm/compat-p6-venv/bin/python -I -B -m pytest -q -p no:cacheprovider tests --tb=short`.
+Result: **365 passed**, no skip, in 30.44 s (334 before repair). `git diff --check` passes.
+Suite-log SHA-256: `721cc9a9c8143f9e43b4ef4b1d8782ac7ca565f0559b8794f569a0fd68f198e1`.
+
+This is a repaired candidate, not an accepted delivery. A reviewer independent of this repair must re-review it before
+acceptance and merge. R13-5 (WP-15 terminal reconciliation) remains carried. Current main also contains WP-12b and
+WP-13 #4b, which this branch does not yet include; assembled-main verification remains required at delivery.
+
+## Finding 6: independent re-review of `8d3ec9a` (2026-10-24), CHANGES REQUIRED
+
+Reviewer: separate Codex reviewer agent, independent of the repairs in finding 5. Reviewed the complete repair diff
+from `a74cd38`, the surrounding fusion/fallback/latch/arbiter code, findings 1 to 5, the added regression cases and
+WP-13's accepted R-1/R-2/R-3 rules. The candidate tracked tree was clean at review entry.
+
+**Closed by the repair.** The stale-camera/positive-radar case now holds the active latch and clears the absence
+counter. Failed fallback radar qualification likewise holds rather than counts absence. An uncertain decision breaks
+an otherwise consecutive observed-absence sequence. Negative ego speed is unusable, and absent/not-evaluated radar
+statistical evidence is uncertain. The producer-state-forwarding and selected-source-only arbiter rules are unchanged.
+The stricter perception schema and declared-bin check avoid the malformed-member cases recorded in finding 3.
+
+**R13-6, MEDIUM, repair before acceptance: large JSON integers still escape numeric qualification as exceptions.**
+`assured_aeb/checks.py:18-19` calls `math.isfinite` on an arbitrary Python integer, which converts it to a float.
+A valid JSON integer `10**1000` (1001 digits, below the hub's 64 KiB line bound) raises
+`OverflowError: int too large to convert to float`. With the otherwise unchanged TEST-ONLY fixtures, each of these
+independently reproduced the uncaught exception:
+- `perception(WORLD)["occupancyProbability"] = 10**1000`;
+- `perception(WORLD)["binProbabilities"] = [10**1000]`;
+- `perception(WORLD)["oodScore"] = 10**1000`;
+- fallback qualified ego evidence `{speedMps: 10**1000, originNs: WORLD, state: "NOMINAL"}`.
+
+The first three enter `fusion_aeb._perception_ok` (lines 62-65); the fourth enters
+`vc_functional.RadarFallback._ego` (line 70). They terminate the step instead of returning unusable/`UNCERTAIN`
+evidence. The helper predates this repair, but the expanded numeric-member validation now directly relies on it and
+finding 5 claims malformed fields do not crash. Use a non-throwing finite/representability check, preserve bool
+rejection, and add regression cases for large positive and negative JSON integers in the numeric consumer paths.
+Inspect the analogous `parameters._number` conversion when deciding the repair scope; malformed startup parameters
+must be rejected rather than selected as a usable runtime value. No new physical limit or protocol threshold is
+needed for this correction.
+
+**Checks actually performed.** No pytest or heavy process was started because the coordinator's full platform run
+was active. A small standard-library implementation probe imported the existing fixture builders and directly called
+four existing regression functions (stale camera, invalid fallback radar, interrupted absence and negative ego speed);
+all four passed. The four independent large-integer probes above all raised the stated `OverflowError` on the pinned
+`/dev/shm/compat-p6-venv/bin/python -I -B`, with bytecode disabled. `git diff --check` passes. The 365-test full result
+in finding 5 is retained evidence from the repair author and was not repeated by this reviewer.
+
+**Carried scope boundaries.** R13-5 terminal behaviour remains unresolved with WP-15 DN-1; terminal wiring stays
+unaccepted. Input-order/freshness qualification, complete FR-007 records, source identity at role boundaries and unit
+cadences remain the recorded WP-14 integration obligations; this offline increment does not demonstrate their runtime
+composition. Existing probability-normalization/bin-count binding and freeze consistency obligations remain carried.
+No acceptance, merge, live execution, protocol value or scientific claim follows from this review.
+
+## Finding 7: R13-6 repair design, recorded before code (2026-10-24)
+
+This is a separate repair pass after independent finding 6. Scope: numeric qualification only; no latch policy,
+terminal policy, protocol value, unit wiring or unrelated source change.
+
+- Make `checks.is_number` return false for exact Python ints/floats that cannot be converted to a finite float;
+  catch the conversion's `OverflowError` instead of allowing it to escape. Keep booleans, numeric subclasses and
+  non-numeric objects rejected. This is an implementation representability check, not a new physical bound.
+- Make `parameters._number` delegate to that same predicate, removing its duplicate unchecked conversion. Numeric,
+  coordinate and bin-edge parameter kinds then raise their existing `ValueError` at the public projection/role
+  consumer for oversized values. Pure-integer parameter kinds retain their declared semantics.
+- Add positive and negative large JSON-integer regression cases through perception/fusion, fallback ego speed,
+  radar qualification and the arbiter's non-finite-request handling. The cases must check the intended uncertain
+  or bounded-hold output, including preservation of an already active latch, rather than merely helper return values.
+- Add public role-construction cases for the numeric parameter kinds and a representative accepted finite value/
+  boolean refusal control. Use existing TEST-ONLY projections; do not invent a protocol range or tolerance.
+- While the full platform regression is running, perform only small deterministic probes and source syntax checks.
+  The owning blueprint suite and fresh independent re-review remain queued before acceptance or merge.
+
+## Finding 8: R13-6 repair result and bounded checks (2026-10-24; full suite/re-review pending)
+
+The independent reviewer switched to a separate repair-author pass after finding 6 and committed finding 7's design
+as `dd54fd5` before these source changes. `checks.is_number` now rejects unsupported exact numeric types and catches
+float-conversion overflow, returning false. `parameters._number` delegates to this shared predicate; its duplicate
+unchecked conversion and unused `math` import are removed. No other productive logic or terminal policy changed.
+The shared predicate also preserves the existing bool/subclass rejection and finite float semantics.
+
+Added **25 regression cases** through public consumer paths, using 1001-digit positive and negative JSON integers:
+- six perception cases keep an already active fusion latch and report unusable camera evidence;
+- two fallback ego-speed cases report uncertain evidence and retain an active latch;
+- two radar-detection cases report malformed detections with an empty qualified detection set;
+- two arbiter cases use only the existing selected-source bounded hold, then return `no-valid-source` after it;
+- twelve numeric parameter cases cover scalar, coordinate and bin-edge kinds and obtain a named `ValueError`;
+- one public projection control preserves an ordinary finite value and bool refusal.
+
+**Checks performed now:** a small direct probe called all 25 new cases without starting pytest; all passed.
+It also called four existing R13-1/R13-4 regression functions directly; all passed. Syntax compilation in memory
+passed for `checks.py`, `parameters.py` and `tests/test_aeb_logic.py`; `git diff --check` passed. These checks took
+under a second and launched no simulation, inference, heavy suite or platform process.
+
+**Still required:** the full owning blueprint suite, including the pre-existing camera/radar users of the shared
+predicate, and a fresh review independent of this R13-6 repair. The 365-test result of finding 5 predates this repair
+and is not a full-regression result for it. R13-5 and all other carried composition/freeze obligations are unchanged.
+This candidate is not accepted or merged. No protocol bound, tolerance, live execution or scientific result is set.
+
+## Finding 9: independent root review of the R13-6 successor (2026-10-24), PASS; full suite queued
+
+Reviewer: parent Codex, independent of the worker's overflow repair `2926cd886bac7190ea463498ab51539ef35bb492`.
+Reviewed the entire delta after design `dd54fd5`: the shared non-throwing numeric predicate, parameters' delegation,
+all 25 regression cases and finding 8. No product change was made in this pass. The earlier independent worker
+review in finding 6 covers the parent's preceding R13-1 to R13-4 changes; the two review scopes are distinct.
+
+Confirmed the predicate rejects oversized positive/negative JSON integers, NaN/infinity, bool and string while
+preserving finite exact numeric values. Direct tiny probes independently exercised 12 public-consumer cases:
+perception fields, fallback speed, radar detections and the arbiter's selected-source bounded hold. All passed;
+`git diff --check` passes. No pytest or heavy process was started during the active platform regression.
+
+R13-6 is closed at source-review level. Acceptance is still withheld until the entire owning blueprint suite
+passes on this successor and the assembled main. Terminal `arbiter.mrcSource` reconciliation is a separate WP-15
+successor under the now-decided DN-1 entry-value hold; it is not implemented by this numeric repair. All recorded
+integration/freeze obligations remain, with no live or scientific claim.

@@ -78,12 +78,50 @@ PY313 = "/home/jefferson/.pyenv/versions/3.13.13/bin/python3.13"
 ENVIRONMENT_ID = "assured-aeb-owned"
 UNMAPPED = "unmapped:frames-per-tick-measured-per-run"
 PROVIDER = {"id": "maestro-process-v1", "kind": "process"}
+#: Unit command isolation (thesis decisions.md "WP-09 #3 unit isolation", R-1; review-wp12b finding 1), mirroring the
+#: WP-08b U4 template (compat ``xverse_compat/inference/unit.py``): no ``site``, no user site, no bytecode.
+INTERPRETER_FLAGS = ("-S", "-s", "-B")
+FIXED_ENVIRONMENT = {"PYTHONDONTWRITEBYTECODE": "1"}
+#: The U4 inference settings of the WP-08b template, for the inference host only.
+INFERENCE_UNIT = "adas-hpc"
+INFERENCE_ENVIRONMENT = {"ORT_DISABLE_TELEMETRY": "1", "OMP_NUM_THREADS": "1", "OPENBLAS_NUM_THREADS": "1"}
 
 
 def uid(unit: str) -> str:
     """System element id of a unit instance (ids are unique across all System collections)."""
 
     return f"{unit}-unit"
+
+
+def unit_module(unit: str) -> str:
+    return f"assured_aeb.units.{unit.replace('-', '_')}"
+
+
+def unit_arguments(unit: str) -> list[str]:
+    """Return the declared argument vector of ``unit`` (after the executable): the isolation flags, then ``-m``."""
+
+    return [*INTERPRETER_FLAGS, "-m", unit_module(unit)]
+
+
+def fixed_environment(unit: str) -> dict[str, str]:
+    return {**FIXED_ENVIRONMENT, **(INFERENCE_ENVIRONMENT if unit == INFERENCE_UNIT else {})}
+
+
+def unit_environment(unit: str, site_packages, *, home, extra_paths=()) -> dict[str, str]:
+    """Return the complete environment of ``unit``, supplied by the run harness (the process payload holds names only).
+
+    ``PYTHONPATH`` names the unit venv's own site-packages first, then ``extra_paths`` (for example the compat and
+    blueprint sources). ``home`` is the harness's run-scoped home, as in the Phase 7 harness.
+    """
+
+    paths = [str(site_packages), *(str(p) for p in extra_paths)]
+    return {"PATH": "/usr/bin", "HOME": str(home), **fixed_environment(unit), "PYTHONPATH": ":".join(paths)}
+
+
+def environment_names(unit: str) -> list[str]:
+    """The declared ``environmentNames`` of ``unit``: the sorted keys of :func:`unit_environment` (Phase 7 rule)."""
+
+    return sorted(unit_environment(unit, "site-packages", home="home"))
 
 
 def todo(kind: str, ref: str) -> str:
@@ -585,13 +623,16 @@ def deployment(arm: str, pins: dict[str, str], form: str = "topology") -> dict[s
                              "fidelityLimitations": ["Declared unit realization; the unit program is implemented in WP-13 to WP-17."]},
                 RUNTIME: {
                     "schemaVersion": "0.2.0", "environmentId": ENVIRONMENT_ID, "provider": dict(PROVIDER), "actions": actions,
-                    "process": {"executable": executable, "arguments": ["-B", "-m", f"assured_aeb.units.{unit.replace('-', '_')}"],
+                    "process": {"executable": executable, "arguments": unit_arguments(unit),
                                 "workingDirectory": f"/xverse-run/assured-aeb/work/{unit}",
-                                "environmentNames": ["HOME", "PATH", "PYTHONPATH"], "inheritedHandles": "closed", "implicitShell": False,
+                                "environmentNames": environment_names(unit), "inheritedHandles": "closed", "implicitShell": False,
                                 "stop": {"graceSeconds": STOP_GRACE_S}, "stderr": dict(STDERR)},
                     "evidence": {"maturity": "architectural-target",
                                  "limitations": [f"{unit_class} unit; module path and working directory are declared, substituted "
-                                                 "by the run harness as in the Phase 7 blueprint; no live execution is authorized."]},
+                                                 "by the run harness as in the Phase 7 blueprint; no live execution is authorized.",
+                                                 "Isolated interpreter (-S -s -B, PYTHONDONTWRITEBYTECODE=1); the harness supplies the "
+                                                 "named values, with PYTHONPATH naming the unit venv's own site-packages first "
+                                                 "(topology.unit_environment)."]},
                 },
             },
         })

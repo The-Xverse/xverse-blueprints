@@ -112,12 +112,15 @@
             "environmentId": "assured-aeb-owned",
             "evidence": {
               "limitations": [
-                "environment unit; module path and working directory are declared, substituted by the run harness as in the Phase 7 blueprint; no live execution is authorized."
+                "environment unit; module path and working directory are declared, substituted by the run harness as in the Phase 7 blueprint; no live execution is authorized.",
+                "Isolated interpreter (-S -s -B, PYTHONDONTWRITEBYTECODE=1); the harness supplies the named values, with PYTHONPATH naming the unit venv's own site-packages first (topology.unit_environment)."
               ],
               "maturity": "architectural-target"
             },
             "process": {
               "arguments": [
+                "-S",
+                "-s",
                 "-B",
                 "-m",
                 "assured_aeb.units.carla_adapter"
@@ -125,6 +128,7 @@
               "environmentNames": [
                 "HOME",
                 "PATH",
+                "PYTHONDONTWRITEBYTECODE",
                 "PYTHONPATH"
               ],
               "executable": "/usr/bin/python3.10",
@@ -221,12 +225,15 @@
             "environmentId": "assured-aeb-owned",
             "evidence": {
               "limitations": [
-                "experiment-control unit; module path and working directory are declared, substituted by the run harness as in the Phase 7 blueprint; no live execution is authorized."
+                "experiment-control unit; module path and working directory are declared, substituted by the run harness as in the Phase 7 blueprint; no live execution is authorized.",
+                "Isolated interpreter (-S -s -B, PYTHONDONTWRITEBYTECODE=1); the harness supplies the named values, with PYTHONPATH naming the unit venv's own site-packages first (topology.unit_environment)."
               ],
               "maturity": "architectural-target"
             },
             "process": {
               "arguments": [
+                "-S",
+                "-s",
                 "-B",
                 "-m",
                 "assured_aeb.units.vehicle_loop"
@@ -234,6 +241,7 @@
               "environmentNames": [
                 "HOME",
                 "PATH",
+                "PYTHONDONTWRITEBYTECODE",
                 "PYTHONPATH"
               ],
               "executable": "/home/jefferson/.pyenv/versions/3.13.13/bin/python3.13",
@@ -330,12 +338,15 @@
             "environmentId": "assured-aeb-owned",
             "evidence": {
               "limitations": [
-                "runtime unit; module path and working directory are declared, substituted by the run harness as in the Phase 7 blueprint; no live execution is authorized."
+                "runtime unit; module path and working directory are declared, substituted by the run harness as in the Phase 7 blueprint; no live execution is authorized.",
+                "Isolated interpreter (-S -s -B, PYTHONDONTWRITEBYTECODE=1); the harness supplies the named values, with PYTHONPATH naming the unit venv's own site-packages first (topology.unit_environment)."
               ],
               "maturity": "architectural-target"
             },
             "process": {
               "arguments": [
+                "-S",
+                "-s",
                 "-B",
                 "-m",
                 "assured_aeb.units.front_zone"
@@ -343,6 +354,7 @@
               "environmentNames": [
                 "HOME",
                 "PATH",
+                "PYTHONDONTWRITEBYTECODE",
                 "PYTHONPATH"
               ],
               "executable": "/home/jefferson/.pyenv/versions/3.13.13/bin/python3.13",
@@ -439,19 +451,26 @@
             "environmentId": "assured-aeb-owned",
             "evidence": {
               "limitations": [
-                "runtime unit; module path and working directory are declared, substituted by the run harness as in the Phase 7 blueprint; no live execution is authorized."
+                "runtime unit; module path and working directory are declared, substituted by the run harness as in the Phase 7 blueprint; no live execution is authorized.",
+                "Isolated interpreter (-S -s -B, PYTHONDONTWRITEBYTECODE=1); the harness supplies the named values, with PYTHONPATH naming the unit venv's own site-packages first (topology.unit_environment)."
               ],
               "maturity": "architectural-target"
             },
             "process": {
               "arguments": [
+                "-S",
+                "-s",
                 "-B",
                 "-m",
                 "assured_aeb.units.adas_hpc"
               ],
               "environmentNames": [
                 "HOME",
+                "OMP_NUM_THREADS",
+                "OPENBLAS_NUM_THREADS",
+                "ORT_DISABLE_TELEMETRY",
                 "PATH",
+                "PYTHONDONTWRITEBYTECODE",
                 "PYTHONPATH"
               ],
               "executable": "/home/jefferson/.pyenv/versions/3.13.13/bin/python3.13",
@@ -548,12 +567,15 @@
             "environmentId": "assured-aeb-owned",
             "evidence": {
               "limitations": [
-                "runtime unit; module path and working directory are declared, substituted by the run harness as in the Phase 7 blueprint; no live execution is authorized."
+                "runtime unit; module path and working directory are declared, substituted by the run harness as in the Phase 7 blueprint; no live execution is authorized.",
+                "Isolated interpreter (-S -s -B, PYTHONDONTWRITEBYTECODE=1); the harness supplies the named values, with PYTHONPATH naming the unit venv's own site-packages first (topology.unit_environment)."
               ],
               "maturity": "architectural-target"
             },
             "process": {
               "arguments": [
+                "-S",
+                "-s",
                 "-B",
                 "-m",
                 "assured_aeb.units.vc_functional"
@@ -561,6 +583,7 @@
               "environmentNames": [
                 "HOME",
                 "PATH",
+                "PYTHONDONTWRITEBYTECODE",
                 "PYTHONPATH"
               ],
               "executable": "/home/jefferson/.pyenv/versions/3.13.13/bin/python3.13",
@@ -657,12 +680,15 @@
             "environmentId": "assured-aeb-owned",
             "evidence": {
               "limitations": [
-                "runtime unit; module path and working directory are declared, substituted by the run harness as in the Phase 7 blueprint; no live execution is authorized."
+                "runtime unit; module path and working directory are declared, substituted by the run harness as in the Phase 7 blueprint; no live execution is authorized.",
+                "Isolated interpreter (-S -s -B, PYTHONDONTWRITEBYTECODE=1); the harness supplies the named values, with PYTHONPATH naming the unit venv's own site-packages first (topology.unit_environment)."
               ],
               "maturity": "architectural-target"
             },
             "process": {
               "arguments": [
+                "-S",
+                "-s",
                 "-B",
                 "-m",
                 "assured_aeb.units.vc_assurance"
@@ -670,6 +696,7 @@
               "environmentNames": [
                 "HOME",
                 "PATH",
+                "PYTHONDONTWRITEBYTECODE",
                 "PYTHONPATH"
               ],
               "executable": "/home/jefferson/.pyenv/versions/3.13.13/bin/python3.13",

@@ -465,3 +465,163 @@ def test_logic_modules_import_no_ml_and_u4_u5_stay_apart():
         assert not any(x in name for name in imported for x in ("onnxruntime", "numpy", "perception", "labels")), module
     assert "vc_functional" not in names["fusion_aeb"] and "fusion_aeb" not in names["vc_functional"]
     assert "radar_zone" not in names["fusion_aeb"] | names["vc_functional"] | names["aeb_rule"]
+
+
+# Independent-review regressions R13-1 to R13-4; all values are the existing TEST-ONLY fixture values.
+
+def test_stale_camera_with_positive_radar_cannot_release_a_fired_latch():
+    fusion, radar = F.FusionRiskAeb(projection()), Radar()
+    first = fusion.step(WORLD, radar=radar.at(WORLD, NEAR), perception=perception(WORLD))
+    assert first["brakeRequest"] == 1.0
+    for cycle in range(1, 5):
+        now = WORLD + cycle * 100 * MS
+        record = fusion.step(now, radar=radar.at(now, NEAR))
+        assert record["brakeRequest"] == 1.0
+        assert record["state"] == "UNCERTAIN" and record["reason"] == "camera-unusable"
+        assert fusion.latch.absent == 0
+
+
+def test_unknown_radar_cannot_release_the_fallback_latch():
+    fallback, radar = V.RadarFallback(projection()), Radar()
+    def speed(now):
+        return {"speedMps": 12.0, "originNs": now, "state": "NOMINAL"}
+    first = fallback.step(WORLD, radar=radar.at(WORLD, NEAR, V.RADAR_STREAM), ego_speed=speed(WORLD))
+    assert first["brakeRequest"] == 1.0
+    for cycle in range(1, 5):
+        now = WORLD + cycle * 50 * MS
+        message = radar.at(now, NEAR, V.RADAR_STREAM)
+        message["checks"]["integrity"]["verdict"] = "fail"
+        record = fallback.step(now, radar=message, ego_speed=speed(now))
+        assert record["brakeRequest"] == 1.0 and record["state"] == "UNCERTAIN"
+        assert fallback.latch.absent == 0
+
+
+def test_uncertainty_breaks_consecutive_observed_absence():
+    latch = A.Latch(A.rule_from(TEST_ONLY_ENTRIES, "aeb"))
+    assert latch.decide(True, True, 12.0) == 1.0
+    assert latch.decide(False, False, None) == 1.0
+    assert latch.decide(False, False, None) == 1.0
+    assert latch.uncertain() == 1.0 and latch.absent == 0
+    assert latch.decide(False, False, None) == 1.0
+    assert latch.decide(False, False, None) == 1.0
+    assert latch.decide(False, False, None) == 0.0
+
+
+@pytest.mark.parametrize("key,value", [
+    ("frame", "invalid"), ("frame", -1), ("frame", True),
+    ("oodScore", math.nan), ("oodScore", math.inf), ("oodScore", True),
+    ("binProbabilities", "invalid"), ("binProbabilities", []), ("binProbabilities", [math.nan]),
+    ("binProbabilities", [-0.1]), ("binProbabilities", [1.1]), ("binProbabilities", [True]),
+    ("provenance", None), ("provenance", {}),
+    ("inputQuality", None), ("inputQuality", {"value": math.nan}),
+    ("predictedBin", "bin-9999"), ("predictedBin", "bin-" + "9" * 5000),
+    ("reason", 1), ("state", "unknown"),
+])
+def test_malformed_perception_fields_are_unusable_without_crashing(key, value):
+    record = perception(WORLD)
+    record[key] = value
+    result = F.FusionRiskAeb(projection()).step(WORLD, radar=Radar().at(WORLD, NEAR), perception=record)
+    assert result["state"] == "UNCERTAIN" and result["reason"] == "camera-unusable"
+    assert result["brakeRequest"] == 0.0
+
+
+@pytest.mark.parametrize("key", ["modelDigest", "preprocessParamsSha256", "postprocessSha256"])
+def test_each_perception_provenance_digest_is_checked(key):
+    record = perception(WORLD)
+    record["provenance"][key] = "not-a-digest"
+    result = F.FusionRiskAeb(projection()).step(WORLD, radar=Radar().at(WORLD, NEAR), perception=record)
+    assert result["state"] == "UNCERTAIN" and result["reason"] == "camera-unusable"
+
+
+@pytest.mark.parametrize("check", [None, {}, {"verdict": "not-evaluated"}, {"verdict": "unknown"}])
+def test_unavailable_radar_statistical_check_is_uncertain(check):
+    message = Radar().at(WORLD, NEAR)
+    if check is None:
+        message["checks"]["sensorSelfCheck"].pop("statistical")
+    else:
+        message["checks"]["sensorSelfCheck"]["statistical"] = check
+    view = A.qualify_radar(message, F.RADAR_STREAM, WORLD, 80 * MS)
+    assert view.state == "UNCERTAIN" and "sensor-statistical-unknown" in view.failures
+
+
+def test_negative_ego_speed_cannot_satisfy_the_degraded_odd():
+    result = V.RadarFallback(projection()).step(
+        WORLD, radar=Radar().at(WORLD, NEAR, V.RADAR_STREAM),
+        ego_speed={"speedMps": -100.0, "originNs": WORLD, "state": "NOMINAL"})
+    assert result["state"] == "UNCERTAIN" and result["reason"] == "ego-speed-unknown"
+    assert result["fired"] is False and result["brakeRequest"] == 0.0
+
+
+# R13-6: oversized JSON integers are rejected at public consumer boundaries.
+# The 1001-digit fixture is below the existing wire limit; it is not a protocol value.
+LARGE_JSON_INTS = (json.loads("1" + "0" * 1000), json.loads("-1" + "0" * 1000))
+
+
+@pytest.mark.parametrize("value", LARGE_JSON_INTS, ids=("large-positive", "large-negative"))
+@pytest.mark.parametrize("field", ("occupancyProbability", "binProbabilities", "oodScore"))
+def test_oversized_perception_number_is_uncertain_and_keeps_an_active_latch(value, field):
+    fusion, radar = F.FusionRiskAeb(projection()), Radar()
+    assert fusion.step(WORLD, radar=radar.at(WORLD, NEAR), perception=perception(WORLD))["brakeRequest"] == 1.0
+    now = WORLD + 50 * MS
+    record = perception(now)
+    record[field] = [value] if field == "binProbabilities" else value
+    result = fusion.step(now, radar=radar.at(now, NEAR), perception=record)
+    assert result["state"] == "UNCERTAIN" and result["reason"] == "camera-unusable"
+    assert result["brakeRequest"] == 1.0 and result["latched"] is True
+    assert fusion.latch.absent == 0
+
+
+@pytest.mark.parametrize("value", LARGE_JSON_INTS, ids=("large-positive", "large-negative"))
+def test_oversized_ego_speed_is_uncertain_and_keeps_an_active_fallback_latch(value):
+    fb, radar = V.RadarFallback(projection()), Radar()
+    assert fb.step(WORLD, radar=radar.at(WORLD, NEAR, V.RADAR_STREAM), ego_speed=speed(WORLD, 12.0))["brakeRequest"] == 1.0
+    now = WORLD + 50 * MS
+    result = fb.step(now, radar=radar.at(now, NEAR, V.RADAR_STREAM), ego_speed=speed(now, value))
+    assert result["state"] == "UNCERTAIN" and result["reason"] == "ego-speed-unknown"
+    assert result["brakeRequest"] == 1.0 and result["fired"] is False and result["latched"] is True
+    assert fb.latch.absent == 0
+
+
+@pytest.mark.parametrize("value", LARGE_JSON_INTS, ids=("large-positive", "large-negative"))
+def test_oversized_radar_detection_is_uncertain(value):
+    record = Radar().at(WORLD, NEAR)
+    record["payload"]["detections"][0][3] = value
+    view = A.qualify_radar(record, F.RADAR_STREAM, WORLD, 80 * MS)
+    assert view.state == "UNCERTAIN" and "malformed-detections" in view.failures
+    assert view.detections == ()
+
+
+@pytest.mark.parametrize("value", LARGE_JSON_INTS, ids=("large-positive", "large-negative"))
+def test_oversized_arbiter_request_uses_only_the_existing_bounded_hold(value):
+    arbiter = V.FunctionalArbiter(projection())
+    first = arbiter.step(WORLD, [("selector-command", selector(1, "C_NOMINAL")), ("adas-cycle", adas(1, WORLD, 1.0))])
+    assert first["value"] == 1.0
+    now = WORLD + 50 * MS
+    result = arbiter.step(now, [("adas-cycle", adas(2, now, value))])
+    assert result["value"] == 1.0 and arbiter.evidence[-1]["kind"] == "held"
+    assert "non-finite" in arbiter.evidence[-1]["flags"]
+    now = WORLD + 101 * MS
+    result = arbiter.step(now, [("adas-cycle", adas(3, now, value))])
+    assert result["value"] == 0.0 and arbiter.evidence[-1]["kind"] == "no-valid-source"
+
+
+@pytest.mark.parametrize("value", LARGE_JSON_INTS, ids=("large-positive", "large-negative"))
+@pytest.mark.parametrize("identifier,shape", [
+    ("aeb.decelerationMps2", "scalar"), ("aeb.marginM", "scalar"),
+    ("fusion.occupancyThreshold", "scalar"), ("aeb.brakeLevel", "scalar"),
+    ("radar.mountM", "xy"), ("fusion.distanceBinEdgesM", "list"),
+])
+def test_oversized_numeric_parameter_is_a_named_projection_refusal(value, identifier, shape):
+    if shape == "xy":
+        value = [value, 0.0]
+    elif shape == "list":
+        value = [value]
+    params = projection(**{identifier.replace(".", "__"): value})
+    with pytest.raises(ValueError, match=identifier.replace(".", r"\.")):
+        F.FusionRiskAeb(params)
+
+
+def test_numeric_projection_preserves_finite_values_and_bool_refusal():
+    assert F.FusionRiskAeb(projection(fusion__occupancyThreshold=0.5)).values["fusion.occupancyThreshold"] == 0.5
+    with pytest.raises(ValueError, match=r"fusion\.occupancyThreshold"):
+        F.FusionRiskAeb(projection(fusion__occupancyThreshold=True))
