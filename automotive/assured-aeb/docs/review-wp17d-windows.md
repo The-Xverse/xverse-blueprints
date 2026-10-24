@@ -162,3 +162,54 @@ The parent coordinator confirmed D17d-1 to D17d-5 under the recorded delegation:
 The implementation will keep integer-nanosecond quantities exact, report upper bounds with floor and reserve/lower
 bounds with ceil, and leave every numeric protocol entry unset until supplied by an admitted Protocol. No code or
 verification result is accepted by this disposition. WP-17a remains an unaccepted dependency at d2baa8b.
+
+## Finding 3: offline implementation candidate and limited probes (Codex, 2026-10-24)
+
+**Status: IMPLEMENTED CANDIDATE; NOT independently reviewed/accepted, no scientific protocol chosen.**
+WP-17a d2baa8b remains the unaccepted dependency. FR-038/V31 O-5 is implemented as an offline generator and
+synthetic controls; actual frozen-record generation, independent review and integration remain pending.
+
+`assured_aeb/window_tables.py` supplies `generate(admitted_protocol) -> report` and `TableRefused` with a copied
+assessment. It reads the map and every scientific value through public `Protocol.entry(identifier)`. Units,
+categories, numeric domains, positive declared deadlines and explicit scope entries are checked. Exact rational
+arithmetic uses the adopted canonical stored numeric representation; no scientific value/default is in the module.
+Every derived row includes its rule, complete referenced entries and IDs, exact result/unit and comparison, plus
+integer bound/reserve rounding where applicable. The detached report carries Protocol/source/table identities;
+input failures and failed declared inequalities refuse a valid table without changing any declaration.
+
+The report distinguishes the physical ODD bound used for validity from conservative measured envelope speed;
+finite, zero-budget, no-solution and unbounded-by-this-model states are explicit. The AD-05 trigger direction is
+recorded separately from the available-delay inequality. Total transition includes confirmation; the output records
+its earlier-expiry runtime obligation, not T+C. Fallback/MRC rows stop at request emission.
+
+The API is intentionally offline; no runtime module imports it and no runtime projection is changed. Example
+consumer action after Protocol admission is `json.dumps(generate(protocol), sort_keys=True, allow_nan=False)`.
+This does not add an alternate admission path, run a simulator or freeze/approve the supplied protocol.
+Route validation checks abstract continuity/coverage and explicit latency declarations only: proving that the declared
+stage latencies include all physical/processing contributions remains a protocol/experiment review obligation.
+Runtime execution, deadline enforcement, clock synchronization and physical fitness are not established here.
+
+`tests/test_window_tables.py` uses genuine digest/chronology-bound characterisation admission, with every fixture
+value/provenance labelled TEST-ONLY. Seventeen stdlib test methods cover complete by-ID provenance and deterministic
+report digests, independent fraction reference, equality, fractional-ns floor/ceil, every rule's failed comparison,
+strict input units/status/types/categories/identifiers, route and scope checks, explicit zero-speed/no-solution/zero
+budget cases and runtime-import boundaries. These fixture values are not protocol recommendations.
+
+Actual checks while the parent reserved the heavy verification slot:
+- AST parsed the two new Python files; `git diff --check` passed.
+- Eight selected tiny stdlib controls passed (two groups of four, 0.028 s and 0.035 s): complete report/provenance,
+  fractional bounds/reserve rounding, negative-budget zero/positive speed, included confirmation/earlier expiry,
+  simultaneous equal boundaries, independent fraction reference/trigger direction, separated speed meanings and
+  all nine failed-inequality diagnostics. No pytest/NumPy/torch/ORT import occurred.
+- The other test methods and full pytest suite have **not** run. These are limited probes, not a suite pass.
+
+Deferred exact command, from this worktree's `automotive/assured-aeb`, when the coordinator schedules it:
+
+```sh
+env PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 \
+  /dev/shm/compat-p6-venv/bin/python -I -B -m pytest -q -p no:cacheprovider tests/test_window_tables.py --tb=short
+```
+
+Then run the assembled blueprint suite after reconciling the accepted Protocol dependency, review both API and
+report formulas independently, and exercise a genuinely frozen/admitted author record only when authorized.
+No acceptance, merge, protocol freeze, principal run or factory action is included in this candidate.
