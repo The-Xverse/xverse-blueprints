@@ -357,3 +357,47 @@ Verified no pytest, torch, numpy or onnxruntime import. No additional source blo
 assembly remain pending before engineering acceptance or merge; no protocol value or live/scientific claim.
 The older Protocol dependency is now accepted under delegation in the reviewed integration assembly; prior
 'unaccepted17a' statements describe their historical review time, not a new blocker.
+
+## Finding 8: owning failure inspection and test-only repair design BEFORE code (Codex, 2026-10-24)
+
+Independently inspected exact assembled HEAD a5e151ac4e003af885c1184b67f6ede79be6c1de and the root-scheduled
+owning receipt/log at thesis `review/codex-post-platform-verification-20261024/windows-deadlines/`. The actual
+result is **1 failed, 973 passed, 89 subtests passed**, exit1, not accepted/merged. Preserve this failure: exact
+copies are now `docs/evidence/wp17d-owning-failure-20261024/{receipt.json,pytest.log}`. Receipt log SHA256
+e45468e4e9189b96c94c8671a4701e30c810fcc8e703e3a29b1d4c7034f407cd matches actual bytes. No rerun of pytest or
+framework occurred. Called the exact failed inventory test directly with stdlib only and reproduced its original
+assertion naming projection_builder.py. No generator/window/source change was made in this inspection pass.
+
+**R17d-3, test/inventory integration defect:** test_generator_and_protocol_are_not_imported_by_runtime_inventory
+enumerates every top-level package module except window_tables/protocol/protocol_audit as runtime. The merged
+projection_builder.py explicitly declares OFFLINE and its accepted WP17b design finding1 permits/needs its Protocol
+import; it publishes per-unit runtime projections and must never itself execute in a runtime unit. Its legitimate
+offline import is therefore misclassified by this old WP17d inventory. runtime_projection is the distinct actual
+runtime reader. The current scanner also misses `from . import protocol` (AST module=None) and does not guard
+runtime imports of the actual projection builder/auditor, so simply excluding a file without retaining a complete
+explicit import boundary would be insufficient.
+
+Root authorizes only a test classification successor. Design: keep an explicit reviewed four-module offline
+inventory (window_tables, protocol, protocol_audit, projection_builder), rather than classifying arbitrary files
+by a permissive docstring or excluding runtime_projection. Continue scanning **every other top-level package
+module**, including package initializer and runtime reader, with AST only. Add a small test-owned import-target
+resolver for import and from-import forms, aliases, package-qualified names and relative module/member forms.
+Resolve relative syntax in the owning package context; check actual known offline module targets/prefixes rather
+than indiscriminately banning any symbol named protocol from an unrelated allowed module. Guard runtime imports
+of all four actual offline modules; the declared offline perception package is also an import boundary, not an
+automatically approved runtime dependency. This is a static import guard, not full V21 process/dynamic-import proof.
+
+Meaningful regressions: actual projection_builder is excluded only by its reviewed classification and retains its
+real Protocol import; runtime_projection stays in the guarded inventory. Synthetic source snippets for each offline
+target must fail the same scanner used for the actual inventory across absolute/import alias, package-relative
+module and `from . import ...` forms, including nested-package relative resolution. Legitimate runtime relative
+dependencies, stdlib imports and similarly named symbols from unrelated modules remain allowed. No product module
+is imported/executed to scan it. New failure/control sources are TEST-ONLY; no protocol/scientific parameter is
+introduced. Do not change runtime files, window algebra, metadata/expiry rules, projection behavior or the owning
+failed artifacts. Commit this finding/design before the separate test-only source repair.
+
+Sol/high is recommended for the narrow test resolver and independent successor review. Thesis freshness fetch
+succeeded at HEAD/upstream d97fdd1167bbd48b97aad5d4071ad59403665f42; unchanged fully read working-note blob
+ba244ddb7df388386455524ab7667d4a1e86d5a3; no newer note/pull or note mutation. All work/scratch is external loop10.
+Only direct stdlib controls/AST/diff checks are currently allowed; root's CAPA verification owns the execution slot.
+Independent re-review and root-scheduled full owning suite remain required. No acceptance, merge or scope change.
