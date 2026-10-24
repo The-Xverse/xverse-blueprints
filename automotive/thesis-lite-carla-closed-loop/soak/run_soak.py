@@ -27,6 +27,10 @@ Protocol, fixed before the first run (FR-019):
   P1), not a server failure; a run counts as PASS only if its harness also exited 0 (its own assertions); a server
   that fails to start twice in a row stops the soak; every server failure, including those during repeats and
   failed restarts, counts toward the limit of 3 and is recorded in the manifest.
+- Warm-up (S1c finding 47; thesis DR-18): after every healthy CARLA server start, one warm-up nominal run through
+  the same Maestro path. It is recorded (status, audit, ready latencies) and reported separately under ``warmUps``,
+  and is excluded from the case statistics, the validity share and P2. A failed warm-up does not stop the soak;
+  a warm-up that leaves the server unhealthy (INVALID) is a failed start (a server failure, DR-11).
 Writes ``soak-manifest.json`` (append-only run list) and, at the end, ``soak-report.json``.
 """
 
@@ -54,6 +58,7 @@ AUTOVERSE = Path.home() / "autoverse"
 RATE_CASES = ("nominal", "freeze-vcu", "cancel-paused", "long-run")
 ROUNDS, BLOCK, BASELINE_EVERY = 30, 10, 3
 NO_CARLA_GAPS = (3, 3, 2, 2)
+WARM_UP_CASE = "nominal"  # DR-18: one warm-up run after every CARLA server start
 LOAD_START_MAX, LOAD_RUN_MAX, LOAD_PERIOD_S = 5.0, 10.0, 5.0
 MAX_SERVER_FAILURES, INVALID_SHARE = 3, 0.10
 
@@ -302,13 +307,29 @@ class Soak:
             stop_server(self.out / f"carla-server-{self.server_index}")
 
     def _start(self):
-        """Start a server in the next slot and record the event; returns (server_dir, healthy)."""
+        """Start a server in the next slot, record the event and run its warm-up (DR-18); returns (server_dir,
+        healthy)."""
         self.server_index += 1
         server_dir = self.out / f"carla-server-{self.server_index}"
         check = start_server(server_dir, self.home)
         self.runs.append({"serverEvent": "started", "server": self.server_index, "healthy": check["healthy"]})
         self._save()
-        return server_dir, check["healthy"]
+        healthy = check["healthy"]
+        if healthy and not self._warm_up():
+            self.runs.append({"serverEvent": "warm-up left the server unhealthy", "server": self.server_index})
+            self._save()
+            healthy = False  # a failed start for the callers (DR-11)
+        return server_dir, healthy
+
+    def _warm_up(self) -> bool:
+        """One warm-up nominal run after a server start (DR-18): recorded, excluded from the statistics, never a
+        soak stop. Returns False when the warm-up left the server unhealthy (INVALID)."""
+        self._wait_load()
+        entry = self.run_one(WARM_UP_CASE, carla=True)
+        entry.update(warmUp=True, case="warm-up", warmUpCase=WARM_UP_CASE,
+                     readyLatencyS=_ready_latency_of(self.out / entry["run"]))
+        self._save()
+        return entry["status"] != "INVALID"
 
     def _restart(self, reason: str, failed_starts: int = 0):
         """Count a server failure, stop the server and start a fresh one (M1, M2; S1c finding 36). Returns None when
@@ -420,7 +441,7 @@ class Soak:
                     return self._stop(f"criterion failure in {entry['run']} (FR-020)")
             self._stop_running()
         report = summarize(self.runs)
-        report["P2"] = dispersion([self.out / e["run"] for e in self.runs if e.get("status") == "PASS"],
+        report["P2"] = dispersion([self.out / e["run"] for e in self.runs if e.get("status") == "PASS" and not e.get("warmUp")],
                                   script_dir=self.script_dir)  # an observation (plan.md P2), passing runs only
         (self.out / "soak-report.json").write_text(json.dumps(report, indent=1, sort_keys=True) + "\n")
         self._save("complete")
@@ -432,8 +453,16 @@ def upper_bound(n: int) -> float | None:
     return round(1 - 0.05 ** (1 / n), 4) if n else None
 
 
+def _ready_latency_of(run_dir: Path):
+    """The run's owned-unit ready latencies (maestro-run.json readyLatencyS), or None when not recorded."""
+    try:
+        return json.loads((run_dir / "maestro-run.json").read_text()).get("readyLatencyS")
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
 def summarize(runs: list[dict]) -> dict:
-    entries = [r for r in runs if "case" in r]
+    entries = [r for r in runs if "case" in r and not r.get("warmUp")]  # warm-ups are reported apart (DR-18)
     by_case = {}
     for e in entries:
         by_case.setdefault(e["case"], []).append(e)
@@ -456,6 +485,7 @@ def summarize(runs: list[dict]) -> dict:
         out["cases"][case]["p8PathsOfPassingRuns"] = paths
         out["cases"][case]["flowRootStates"] = sorted({(e.get("flowRoot") or {}).get("writerState") or "n/a" for e in items})
     out["serverEvents"] = [r for r in runs if "serverEvent" in r]
+    out["warmUps"] = [{k: r.get(k) for k in ("run", "server", "status", "audit", "readyLatencyS")} for r in runs if r.get("warmUp")]
     pooled = sum(out["cases"].get(c, {}).get("valid", 0) for c in RATE_CASES)
     out["pooledRateCases"] = {"valid": pooled, "upperBound95": upper_bound(pooled)}
     out["valid"] = valid

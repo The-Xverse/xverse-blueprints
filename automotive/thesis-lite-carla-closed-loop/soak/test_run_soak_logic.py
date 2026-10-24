@@ -17,7 +17,7 @@ import run_soak
 class Fake:
     def __init__(self, statuses, start_health=None):
         self.statuses, self.start_health = list(statuses), list(start_health or [])
-        self.runs, self.starts, self.stops = [], 0, 0
+        self.runs, self.starts, self.stops, self.warm_ups = [], 0, 0, []
 
     def run_one(self, soak, case, carla):
         status = self.statuses.pop(0) if self.statuses else "PASS"
@@ -37,8 +37,10 @@ class Fake:
 
 @pytest.fixture
 def soak(tmp_path, monkeypatch):
-    def make(statuses, start_health=None):
+    def make(statuses, start_health=None, warm_up=False):
         fake = Fake(statuses, start_health)
+        if not warm_up:  # the warm-up (DR-18) has its own tests below; here it neither runs nor consumes a status
+            monkeypatch.setattr(run_soak.Soak, "_warm_up", lambda self: fake.warm_ups.append(self.server_index) or True)
         monkeypatch.setattr(run_soak, "identities", lambda c, b: {"compat": {"clean": True, "detached": True},
                                                                   "blueprints": {"clean": True, "detached": True},
                                                                   "runnerMatchesPinned": True})
@@ -180,3 +182,32 @@ def test_the_child_run_keeps_the_pinned_platform_export_and_driver_venv(tmp_path
     (command, env), = seen
     assert command[0] == "timeout" and command[2].endswith("run-live.sh") and entry["status"] == "FAIL"  # no run directory
     assert "XVERSE_PLATFORM_SRC" not in env and "XVERSE_LIVE_DRIVER_VENV" not in env and env["XVERSE_COMPAT_SRC"] == str(tmp_path / "c")
+
+
+def test_every_server_start_gets_one_warm_up_excluded_from_the_statistics(soak):
+    """DR-18 (S1c finding 47): one warm-up nominal run after each healthy start, reported apart."""
+    s, fake = soak([], warm_up=True)
+    assert s.execute() == 0
+    warm = [e for e in s.runs if e.get("warmUp")]
+    assert len(warm) == fake.starts == 3 and all(e["case"] == "warm-up" and e["warmUpCase"] == "nominal" for e in warm)
+    assert [c for c, _ in fake.runs].count("nominal") == 30 + 3  # the harness ran nominal for each warm-up
+    report = json.loads((s.out / "soak-report.json").read_text())
+    assert report["cases"]["nominal"]["runs"] == 30 and "warm-up" not in report["cases"]
+    assert [w["status"] for w in report["warmUps"]] == ["PASS"] * 3 and report["valid"]
+
+
+def test_a_failed_warm_up_is_recorded_and_does_not_stop_the_soak(soak):
+    s, fake = soak(["PASS"] * 3 + ["FAIL"], warm_up=True)  # three gap no-carla runs, then the first warm-up FAILs
+    assert s.execute() == 0
+    report = json.loads((s.out / "soak-report.json").read_text())
+    assert report["warmUps"][0]["status"] == "FAIL" and report["valid"]
+    assert report["cases"]["nominal"]["failures"] == 0
+
+
+def test_a_warm_up_that_leaves_the_server_unhealthy_is_a_failed_start(soak):
+    s, fake = soak(["PASS"] * 3 + ["INVALID"], warm_up=True)
+    assert s.execute() == 0
+    events = [r["serverEvent"] for r in s.runs if "serverEvent" in r]
+    assert "warm-up left the server unhealthy" in events and "start failed health" in events
+    assert s.server_failures == 1 and fake.starts == 3 + 1
+    assert len([e for e in s.runs if e.get("warmUp")]) == 4  # the restarted server gets its own warm-up
