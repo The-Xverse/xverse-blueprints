@@ -115,3 +115,23 @@ Next full-suite command, from this worktree's `automotive/assured-aeb`, only aft
 ```sh
 env PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 XVERSE_AEB_SENSOR_SITE=/dev/shm/xverse-aeb-sensor-20261024/venv/lib/python3.13/site-packages XVERSE_PLATFORM_PROFILES=/tmp/codex-xverse-review-20261024-q93eotxv/xdl/profiles /dev/shm/compat-p6-venv/bin/python -I -B -m pytest -q -p no:cacheprovider tests --tb=short
 ```
+
+## Finding 5: independent full-suite finding and fixture repair design (Codex, 2026-10-24)
+
+Exact `2a71f2eb98b14cdc29c4ffcccd3598c0c919e32f` gives **9 failed, 478 passed in 33.13 s**, no skips.
+The nine genuine Argus cases fail at adapter construction: the fixture opens its accepted Argus run without
+`clocks`. The platform API derives `declared_domains` from explicit `open_run(clocks=...)`, not from plan time
+domains. Thus the adapter correctly rejects an undeclared simulator domain. Full log/receipt are in the thesis
+`review/codex-successor-verification-20261024/role-contract/`; no acceptance follows.
+
+Repair design, before code: keep the product refusal. In the genuine test fixture explicitly declare its TEST-ONLY
+carla-simulation/ns clock with the opening value, and register every opened writer for teardown before adapter
+construction so an initialization failure cannot leave it open. Add a genuine writer control proving missing/wrong
+domain declarations are refused without claiming the writer, and that explicitly matching clocks allow an event
+to be written/read. No topology time-domain, epoch, scientific clock mapping or product default changes.
+Repeat the full owning suite and actual eight-form authority checks; independently review this successor.
+
+The independent source review has additionally inspected typed closed records, projected versus received versus
+payload sources, unchanged productive aliases, acknowledged-only local causation, append-failure poisoning,
+one-writer claims and digest-only offline joins. No additional source blocker is recorded at this pass. Unit-entry
+opening/projection wiring remains14f; supplying a local allow-list does not independently prove process isolation.
