@@ -347,3 +347,18 @@ Independent parent re-review is now required; no acceptance or merge is claimed.
 cases after the host slot is released, the finding-3 full-suite command remains applicable; a focused first pass is
 that command with `tests/test_camera_inference.py` in place of `tests`. The fixture's scientific/model approval and
 all remaining wiring, protocol and live gates are unchanged.
+
+## Finding 7: independent parent R13ML-1 successor review, PASS; genuine runtime suite pending
+
+Reviewed repair `289117f1b9c6cafded655e7747d792831e33f012` against design `cf467d3` and finding 4.
+The parent did not author the repair. The exact three-class self-check map and verdict/failure-code consistency
+checks now refuse the reproduced malformed records before inference; source-conforming statistical failures retain
+the declared degraded outcome. Existing output/provenance, frozen binding, inference and diagnostic thresholds are
+unchanged. The synthetic failing fixture was corrected to match the real producer's format.
+
+Seven tiny independent public-consumer checks pass: the extra class, contradictory integrity, passing/failing
+real SmartCamera/FrontZone forms and a contradictory logical/plausibility/statistical check. `git diff --check`
+passes. No pytest, NumPy or ONNX Runtime was run while the platform suite owns the test slot. R13ML-1 is closed
+at source-review level. Full candidate/assembled suites and all nine genuine isolated numerical probes remain
+required before acceptance; missing environments/skips do not establish them. No model/method/threshold, live run
+or protocol freeze is accepted.
