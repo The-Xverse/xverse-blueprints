@@ -1,0 +1,10 @@
+{
+  "command": "four selected unittest methods via explicit stdlib runner; no pytest",
+  "revision": "d8181481ffb4c268013881a96aa58d0d641ba023",
+  "tests": 4,
+  "returncode": 0,
+  "log_sha256": "7f194635feba82b0abb60f8273781235828c34ff5d5a52cfe363464d012d0e24",
+  "product_source_unchanged_from": "a5e151ac4e003af885c1184b67f6ede79be6c1de",
+  "accepted": false,
+  "merged": false
+}
