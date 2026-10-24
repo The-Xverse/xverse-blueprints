@@ -161,3 +161,100 @@ NumPy image execution, export/ONNX/ORT import, download, factory/C1/live operati
 Next gates: parent4a suite/acceptance; independent4b source review; coordinator-admitted genuine worker driver and
 owning suite; then separate reviewed4c export/raw-logit worker.4d/4e/#5/#7/AD27 and real scientific choices remain
 open. Keep this exact candidate pinned for review; no running queue is silently retargeted.
+
+## Finding 5: independent source review — changes requested (2026-10-24)
+
+Independently reviewed exact candidate `03987de1542d542b05b6fd2ddcfd314dd09c953d`, pre-code design `7571b13`,
+pre-repair findings `9ec494f`/`aad1711`, both contracts, all four product modules, the owning stdlib tests and the
+genuine driver against accepted pipeline `a89a52e`/DN1–7. The worktree was clean and the candidate remained pinned
+through this review. Direct physical location is loop10 `codex-20261024/worktrees/xverse-blueprints/phase8-wp09-training4b-20261024`.
+Thesis freshness fetch succeeded; HEAD/upstream remain `d97fdd1167bbd48b97aad5d4071ad59403665f42`, no incoming note
+change, working canonical-note blob `ba244ddb7df388386455524ab7667d4a1e86d5a3` unchanged from fully read context.
+Dirty thesis files were preserved. Sol/high is an informational task-based recommendation for this admission/
+determinism review, not a model switch or benchmark.
+
+### R4b-1 — MAJOR: timeout/interruption loses available worker evidence
+
+`tests/training4b_integration.py:71–79` writes `worker.stdout`/`worker.stderr` only after `subprocess.run` returns.
+On `TimeoutExpired`, available partial captured output is attached to the exception, but this driver does not
+persist it. Interruption or other launch/capture exceptions likewise bypass these files. It also records no
+per-attempt exact child command, actual terminal status/timeout or capture failure. A top-level driver traceback
+is not a retained worker stdout/stderr record. This conflicts with the contract's explicit command/status/output
+retention requirement and leaves the decisive failed genuine verification difficult to audit.
+
+A tiny stdlib-only control extracted the actual `run` function by AST and supplied a controlled `subprocess.run`
+that raises `TimeoutExpired` containing distinct TEST-ONLY stdout/stderr. The exception propagated and neither
+worker output file existed. No unshare, interpreter worker, framework or real training was executed by this probe.
+
+Recommended repair: design and implement an owned per-attempt supervisor that creates fresh diagnostic artifacts,
+retains actual command/status/timeout/error and partial stdout/stderr on all supported terminal paths, and refuses
+success after capture failure. Preserve failures without synthesizing successful framework receipts, overwriting
+existing attempt outputs or turning an unavailable namespace into a pass. Keep diagnostics outside deterministic
+weight/report bytes and use explicit engineering bounds rather than inventing scientific values.
+
+### R4b-2 — MAJOR: the verification timeout does not establish owned descendant cleanup
+
+The same `subprocess.run` call starts no fresh process group/session and checks no descendant completion. Its
+POSIX timeout implementation kills and waits for the immediate child; a descendant created during the actual
+framework invocation can survive. A descendant retaining the captured pipes can also prevent an otherwise
+exited leader's communication from completing until the watchdog fires. The worker's own Python alarm does not
+establish process-tree termination. A fresh user/network namespace is not a PID namespace or descendant cleanup.
+
+This is a source-control-flow finding, not an observed training leak: no genuine framework process was launched
+in this review. The genuine driver is the proposed owning verification path, so this gap must be resolved before
+its execution is counted. The parent accepted both driver findings for a separate pre-code supervisor repair;
+the four product modules and unchanged4a closure need not change for that repair.
+
+Recommended repair: establish cancellation-safe ownership of a fresh group, use bounded TERM/KILL plus group/
+leader completion checks on timeout, interruption and spawn/capture failure, and record incomplete/unknown cleanup
+as refusal. Waiting only for a leader is insufficient; ensure cancellation during actual process construction
+cannot lose ownership. Test normal completion, nonzero refusal, timeout with a TERM-ignoring descendant, interruption
+and spawn failure using tiny processes before scheduling real training. Do not claim to control descendants that
+deliberately escape the owned group or silently convert incomplete cleanup into success.
+
+### Product/source boundaries independently confirmed
+
+The exact named4b closure recomputes to `009804472ccd52670758bd9ee21595a4f9520c47e85dda770d3f3420a692c6eb`.
+The three-module4a closure recomputes to `d83ba1f5e7ce1056d82a924157aad617d64db84862e4be4005abf47fcf1a3e32`;
+its files are byte-unchanged from `5244fbd`. Stage/job identities remain separate. Actual closed job/location/
+stage/source/dataset admission, fresh-worker/netns/cache checks and actual environment identity/lock/tree/origin
+checks precede lazy numpy/torch imports. Source/preprocessor/environment and netns stability are rechecked before
+output. These checks retain the documented trusted immutable-input limit and do not authenticate hostile code.
+
+The CPU float32 Conv/ReLU/GAP/Flatten/two-head construction consumes record settings, checks names/shapes/count,
+and overwrites parameters in sorted order using the independent initialization-seed generator. All SGD settings
+and framework/data-order seeds are explicit. Every admitted fit example contributes weighted BCE logits and bin
+cross-entropy; data order is identity-hash based; final short batches remain. Checkpoint inference is no-grad on
+selection only, loss aggregation weights examples equally, and exact ties retain the earliest declared epoch.
+Finite guards cover inputs, logits, loss, gradients, parameters, optimizer tensor state and emitted weights.
+
+**All-partition integrity admission is allowed and preserved.** The unchanged4a consumer verifies calibration/test
+bytes and coverage before fitting. The4b fit path requests only fit samples, and checkpoint computation requests
+only selection samples. No calibration/test frame enters shared preprocessing, forward, optimization or checkpoint
+selection in this increment. This is not a zero-held-out-I/O claim. The driver genuinely rebinds held-out pixels,
+label raw hashes, manifest and job before its intended weight-invariance comparison.
+
+The development artifact has explicit sorted float32-le tensors, closed descriptors, exact job-derived names/
+shapes/ranges, finite values, external expected descriptor/blob pins and no pickle/object serialization. A different
+internally consistent package fails unchanged external pins. Fresh output checks/aggregate byte limits/fsync and
+own-file cleanup are present; final atomic candidate publication is still4e. Runtime imports remain separate.
+No further product-source blocker was identified, but this is not a demonstrated optimizer/environment result.
+
+### Checks actually performed and deferred gates
+
+Independent stdlib probes at external `codex-20261024/scratch/review_wp15/training4b-review-probes.py` completed
+ten control groups: exact closures; valid/three invalid separate-stage cases; genuine owner-produced label/store/
+manifest admission with requested-fit order and duplicate/foreign refusals; deterministic order/equal-example/
+earliest-tie controls; named shape/count/private safe-weight roundtrip; six typed/rehashed/nonfinite corruption
+refusals; valid-package replacement refused by unchanged external pins; fresh/aggregate-limit/no-overwrite outputs;
+the driver timeout evidence-loss witness; and absence of torch/numpy/ORT imports. One initial independent harness
+run omitted its synthetic `args.lock` locator and failed before the timeout seam; correcting that harness field
+produced the stated witness without a product change. Both source/tests parse, and whitespace/unchanged4a checks
+pass. All new scratch/temp files were on loop10; tiny fixture directories were removed by their owning context.
+
+No pytest, framework import, actual namespace worker, environment-tree walk, training/export/calibration/ORT,
+download, factory/live run, acceptance or merge was performed. After independently reviewed driver repair, root
+still schedules the owning `test_training_admission.py`/`test_training_fit.py` suite and genuine four-case driver
+with actual admitted environment and explicit engineering bounds. Parent4a owning verification/acceptance,
+actual4b repeated fitting/held-out invariance/nonfinite refusal, then4c–4e and all scientific/AD27 gates remain
+pending. This finding records required repairs before code; it grants no execution or implementation acceptance.
