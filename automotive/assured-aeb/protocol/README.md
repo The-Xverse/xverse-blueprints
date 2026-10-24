@@ -21,3 +21,21 @@ source-bound reviewed structural exceptions. It cannot classify scientific meani
 itself; qualitative literals and parameter provenance also need the reviewed 17b/AD-27 audit.
 
 See `../docs/review-wp17a-protocol.md` for scope, decisions, verification and pending gates.
+
+The UTC representation is `YYYY-MM-DDTHH:MM:SS[.digits](Z|+00:00)` with a valid Gregorian date/time and ordinary
+seconds. Arbitrary fractional precision is compared exactly using integer date/time components and normalised
+fractional digits, without float conversion or microsecond truncation. Equal fractions with trailing zeroes compare
+equal. Unsupported syntax, other offsets and leap-second forms are refused; the representation imposes no scientific
+window, deadline or precision cap.
+
+The explicit placeholder vocabulary is checked recursively in JSON values. After repeatedly removing balanced
+bracket (`[]`, `()`, `{}`, `<>`), quote and Markdown emphasis/strike/inline-code wrappers, a leading `TODO`, `TBD`
+or `NEEDS DATA` token is unresolved. `PENDING` is recognised only as a complete status, a `PENDING:` directive, or
+an exact pending-status phrase for measurement, author decision, validation, approval, data, review or freeze.
+Checks are case-insensitive. Ordinary prose containing pending (including a sentence beginning “Pending proposals”)
+is not rejected by that word alone. This is a supported marker vocabulary, not detection of every missing human decision.
+
+`Protocol.entry(identifier)` gives the offline projection builder a private copy of that single checked entry's
+value and metadata (unit, source, status, category). It shares the mode/status/placeholder and missing-identifier
+gates with `value(identifier)`. Reading entry metadata selects no runtime projection membership and exposes no whole
+record; runtime units still receive only the separately reviewed WP-17b projections.

@@ -197,3 +197,35 @@ entry tests in both modes. This interface addition does not choose an identifier
 Implementation follows this separate design commit. Only small standard-library probes, AST/schema JSON parsing and
 whitespace checks may run while the platform regression is active; pytest remains queued. A separate independent
 review of the repaired delta and the owning suite are required before acceptance.
+
+## Finding 5: successor implementation and bounded checks (2026-10-24); independent re-review and pytest pending
+
+Implemented the separate finding 4 design after commit `798c259464aef9246e5cb811c44f090fa98ea5c0`:
+- **R17a-1:** explicit leading TODO/TBD/NEEDS DATA tokens are recognised after balanced bracket, quote and Markdown
+  wrappers, recursively in nested values. PENDING follows the documented explicit-status/directive/phrase contract;
+  ordinary prose such as “Pending proposals are rejected with a record” remains usable. This recognises the stated
+  marker vocabulary only; it does not authenticate or infer missing human decisions.
+- **R17a-2:** strict supported UTC syntax is parsed into integer date/time components and normalised fractional
+  digits. Calendar validation uses datetime only for integer components, never fractional conversion. Comparisons
+  preserve arbitrary fractional precision and equality of trailing-zero forms. The record/pin timestamp schema
+  properties and README now state the same UTC syntax; no precision cap or scientific timing choice is introduced.
+- **WP-17b API:** `Protocol.entry(identifier)` returns a private deep copy of one mode/status/placeholder-checked
+  entry. `value(identifier)` delegates to that same path. Metadata access selects no projection membership and
+  remains offline; runtime units still receive separate projections.
+
+Added 13 regression test functions (with parametrised marker, prose, syntax and mode cases) in
+`tests/test_protocol.py`. The cases include the two original bracketed-marker failures, nested reads in both modes,
+legitimate final prose, all three sub-microsecond chronology boundaries, equal trailing-zero forms, arbitrary long
+fractions, invalid/unsupported UTC forms, schema syntax alignment, entry private copies, missing identifiers and
+characterisation status. The existing one-second-late control remains.
+
+Performed **29 tiny standard-library checks** on pinned CPython 3.13.13 with `-S -s -B`,
+`PYTHONDONTWRITEBYTECODE=1`, and blueprint-only `PYTHONPATH`: supported/non-marker forms, exact fractional ordering
+and equality, positive principal admission, entry-copy isolation, and both sub-microsecond/one-second late approval
+refusals. Every fixture value was TEST-ONLY. AST parsing passed for both modules and the test file; both schemas parse
+as JSON; `git diff --check` passes. These checks are not a substitute for pytest or full JSON Schema validation.
+
+No pytest, external numerical framework, real record/pin, live execution, approval, acceptance or merge was produced.
+The full platform regression still owns the heavy-test slot. Run the finding 3 focused and owning-suite commands when
+that slot is released, then independently re-review this repaired delta and its exact-source evidence before acceptance.
+Global inventory/qualitative audit, projection membership and actual pilot/run-kind bindings remain 17b/17f gates.

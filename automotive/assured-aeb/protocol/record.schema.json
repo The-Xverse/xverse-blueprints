@@ -20,7 +20,12 @@
     },
     "declaredAt": {
       "type": "string",
-      "format": "date-time"
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]+)?(?:Z|\\+00:00)$",
+      "not": {
+        "pattern": "[\\r\\n]"
+      },
+      "description": "Valid Gregorian UTC date/time; arbitrary fractional digits are compared exactly. Only Z or +00:00 is supported."
     },
     "entries": {
       "type": "object",
