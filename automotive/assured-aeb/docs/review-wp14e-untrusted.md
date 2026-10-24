@@ -118,3 +118,62 @@ scheduled by the coordinator. FR-035/V28 is implemented only at role-module leve
 H3 injection/sets, full unit projection/entry, transport source attestation, independent gate/manager authority and
 scientific freeze remain later gates. Inherited platform SADS model integration/execution targets are not completed
 by these role modules. No acceptance/merge, AD-27 freeze, principal result or live readiness is claimed.
+
+## Finding 2: first direct controls and lifecycle tightening, before repair (2026-10-24)
+
+Fifteen stdlib direct test methods passed on the first draft, without pytest or frameworks. A subsequent design
+cross-check found two missing boundary controls: an objective received partway through its freshness window could
+create a goal whose new origin extended that source freshness, and a later contradictory manager record could
+reopen proposal generation after terminal receipt. Neither creates direct authority, but both violate the intended
+bounded lifetime/terminal graph boundary.
+
+Scope-preserving repair: goal constraint expiry becomes `min(original validUntilNs, objective originNs + declared
+objective freshness)`; no source lifetime is renewed by interpretation. A fresh source-validated terminal
+configuration latches proposal suppression for the role instance, even if later messages contradict it. No edge out
+of terminal or reset API is added. Add decisive aged-objective and post-terminal contradiction tests before repeating
+all small direct controls. Also make the genuine fusion fixture obtain its requested sequence from real repeated
+producer steps, and replace an unnecessary skipped large-int assertion with an actual refusal check. No scientific
+value, target vocabulary, typed schema or authority changes.
+
+Before finalizing the candidate, also make the existing ambiguity boundary explicit for basis references: actual
+message IDs used for objective, goal, configuration and fusion basis must be distinct, because the typed proposal's
+basisRefs cannot disambiguate two different records sharing an ID. Refuse that candidate rather than deduplicating
+away its provenance. Local decision diagnostics bind the admitted instance prefix and consumed-policy digest; they
+carry no productive payload. Add the corresponding small collision control.
+
+## Finding 3: role implementation candidate and actual bounded checks (2026-10-24)
+
+Implemented the two untrusted roles and closed own-U4 policy slice in `u4_untrusted.py`; source identities,
+existing objective/goal/proposal/configuration schemas and proposal-basis wire alias are preserved. The projection
+holds the actual token mappings and all five positive freshness/validity values; no real vocabulary or numeric
+protocol value is chosen. Goal lifetime includes original objective freshness, terminal receipt latches suppression,
+and actual source-message references must be unambiguous. The gate still owns every AD-08 authorization decision.
+No existing source/schema/topology/event file is changed.
+
+Added nineteen deterministic stdlib test methods (with additional refusal subcases) in `test_u4_untrusted.py`.
+The positive basis runs actual SmartRadar, FrontZone and FusionRiskAeb producers, including their real sequence
+increments; perception inputs and all model-free values are explicit TEST-ONLY fixtures. The real RoleEvents
+adapter is shared once by both roles, with a TEST-ONLY recording writer. Its event ownership, bindings, digest-only
+references, local actual-prior-event causation and poison-on-append behavior are checked; durable Argus storage is
+not re-executed or claimed in these controls. The synthetic principal mapping admits exactly one token, while the
+separate intact-chain fixture admits a hold token as well; runtime receives no arm/runKind selector.
+
+**Performed:** all nineteen methods called directly under the stdlib unittest assertion API, two in-memory syntax
+checks and `git diff --check`, all passed. The first fifteen-method pass preceded the lifecycle corrections in
+finding 2; the final nineteen-method pass includes aged-objective expiry, contradictory post-terminal configuration,
+spoofed terminal receipt, explicit engineering identity capacity and actual-message-ID collision refusal. No pytest,
+framework inference/training, durable Argus run, CARLA, factory run, download or live action occurred.
+
+The coordinator subsequently reported delivered blueprint main `b8a154571bd3c7529849a3e8e3f89011ba5036d9`, whose
+product matches this candidate's `12bc746` base, with **955 owning tests/no skips and eight genuine compiled-plan
+digests**. That evidence belongs to the accepted base, not the new 14e delta. Preserve this work and assemble with
+that main/delivery record before the coordinator's next owning verification. Independent review, full suite and
+acceptance/merge of this increment are still outstanding. Transport source attestation, real run-unique prefixes,
+unit-wide projection slicing, actual principal one-token freeze admission and U4 entry composition remain 14f/
+WP-16/WP-17 obligations; a selected slice is not proof those steps happened.
+
+Deferred full-suite command, from `automotive/assured-aeb`, only when the coordinator schedules its heavy slot:
+
+```sh
+env PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 XVERSE_PLATFORM_PROFILES=/tmp/codex-xverse-review-20261024-q93eotxv/xdl/profiles XVERSE_AEB_SENSOR_SITE=/dev/shm/xverse-aeb-sensor-20261024/venv/lib/python3.13/site-packages XVERSE_COMPAT_SENSOR_ENV=/dev/shm/xverse-aeb-sensor-20261024 XVERSE_COMPAT_SRC=/home/jefferson/xverse-compat/src XVERSE_AEB_U4_SITE=/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/cache/xverse-aeb-inference-20261024/venv/lib/python3.13/site-packages /dev/shm/compat-p6-venv/bin/python -I -B -m pytest tests -q -ra -p no:cacheprovider --tb=short
+```
