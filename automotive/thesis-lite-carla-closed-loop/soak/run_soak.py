@@ -36,9 +36,11 @@ Protocol, fixed before the first run (FR-019):
   failed start (a server failure, DR-11).
 - Run directories (DR-19 (3), H2): run-live.sh stages the units' run directory on tmpfs during the run and copies
   it into the evidence directory at cleanup; durability is that of the copy after the run.
-- Operator stop (S1c finding 60): SIGTERM or SIGINT sets a flag only; the run in progress completes its own cleanup,
-  the soak stops before the next run (manifest ``stopped``, ``operator signal …``) and the server is stopped. An
-  operator stop is not a criterion failure; a stopped soak restarts from zero.
+- Operator stop (S1c findings 60-61): SIGTERM, SIGINT or SIGHUP sets a flag only; the run in progress completes its
+  own cleanup, the soak stops before the next run or server start (manifest ``stopped``, ``operator signal …``) and
+  the server is stopped. Every helper process runs in its own session, so a process-group signal reaches only the
+  runner. A stop may wait for a run or a start in progress (up to ~15 min); never escalate to SIGKILL. An operator stop
+  is not a criterion failure; a stopped soak restarts from zero.
 Writes ``soak-manifest.json`` (append-only run list) and, at the end, ``soak-report.json``.
 """
 
@@ -102,7 +104,7 @@ MAX_SERVER_FAILURES, INVALID_SHARE = 3, 0.10
 def _audit(script_dir: Path, run_dir: Path) -> dict:
     """audit.py from the pinned blueprints checkout, never this runner's directory (S1c finding 34)."""
     try:
-        done = subprocess.run(["python3", "-B", str(script_dir / "soak" / "audit.py"), str(run_dir)],
+        done = subprocess.run(["python3", "-B", str(script_dir / "soak" / "audit.py"), str(run_dir)], start_new_session=True,
                               capture_output=True, text=True, timeout=300)
     except subprocess.TimeoutExpired:
         return {"pass": False, "failedChecks": ["audit exceeded 300 s"]}
@@ -157,14 +159,14 @@ def schedule() -> list[dict]:
 
 
 def _git(path: Path, *args) -> str:
-    return subprocess.check_output(["git", "-C", str(path), *args], text=True).strip()
+    return subprocess.check_output(["git", "-C", str(path), *args], text=True, start_new_session=True).strip()
 
 
 def identities(compat: Path, blueprints: Path) -> dict:
     out = {}
     for name, path in (("compat", compat), ("blueprints", blueprints)):
         status = _git(path, "status", "--porcelain")
-        branch = subprocess.run(["git", "-C", str(path), "symbolic-ref", "-q", "HEAD"], capture_output=True, text=True).stdout.strip()
+        branch = subprocess.run(["git", "-C", str(path), "symbolic-ref", "-q", "HEAD"], capture_output=True, text=True, start_new_session=True).stdout.strip()
         out[name] = {"path": str(path), "head": _git(path, "rev-parse", "HEAD"), "clean": status == "", "detached": branch == ""}
     try:
         out["platformSrc"] = (PLATFORM_SRC / ".export-revision").read_text().strip()
@@ -209,9 +211,9 @@ class LoadSampler:
 def health(home: Path) -> dict:
     home.mkdir(parents=True, exist_ok=True)
     try:
-        done = subprocess.run(["env", "-i", "PATH=/usr/bin", f"HOME={home}", "/usr/bin/python3.10", "-s", "-B",
+        done = subprocess.run(["env", "-i", "PATH=/usr/bin", f"HOME={home}", "/usr/bin/python3.10", "-s", "-B",  # own session (finding 61)
                                str(HERE / "health_check.py"), "--carla-site", str(CARLA_SITE)],
-                              capture_output=True, text=True, timeout=90, cwd="/tmp")
+                              capture_output=True, text=True, timeout=90, cwd="/tmp", start_new_session=True)
     except subprocess.TimeoutExpired:  # a hung check is an unhealthy server, never a crashed soak (finding 34)
         return {"healthy": False, "error": "health check exceeded 90 s", "exit": None}
     try:
@@ -224,12 +226,12 @@ def health(home: Path) -> dict:
 
 
 def carla_pids() -> list[int]:
-    out = subprocess.run(["ps", "-eo", "pid=,comm="], capture_output=True, text=True).stdout.splitlines()
+    out = subprocess.run(["ps", "-eo", "pid=,comm="], capture_output=True, text=True, start_new_session=True).stdout.splitlines()
     return [int(line.split()[0]) for line in out if len(line.split()) > 1 and line.split()[1].startswith("CarlaUE4-Linux")]
 
 
 def port_listening(port: int) -> bool:
-    return f":{port} " in subprocess.run(["ss", "-tln"], capture_output=True, text=True).stdout
+    return f":{port} " in subprocess.run(["ss", "-tln"], capture_output=True, text=True, start_new_session=True).stdout
 
 
 def start_server(out: Path, home: Path) -> dict:
@@ -244,7 +246,7 @@ def start_server(out: Path, home: Path) -> dict:
     gpu_end = time.monotonic() + 200
     while time.monotonic() < gpu_end:
         used = subprocess.run(["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"],
-                              capture_output=True, text=True).stdout.strip().splitlines()
+                              capture_output=True, text=True, start_new_session=True).stdout.strip().splitlines()
         if used and int(used[0]) > 5000:
             break
         time.sleep(5)
@@ -265,7 +267,10 @@ def stop_server(out: Path) -> None:
     while carla_pids() and time.monotonic() < end:
         time.sleep(1)
     for pid in carla_pids():  # a server that ignores TERM (instance 6, Phase 7) is killed and recorded
-        os.kill(pid, 9)
+        try:
+            os.kill(pid, 9)
+        except ProcessLookupError:  # it exited meanwhile (finding 61, LOW-5)
+            continue
         (out / "killed.txt").write_text(f"SIGKILL {pid}\n")
     (out / "stopped-at.txt").write_text(time.strftime("%Y-%m-%dT%H:%M:%S%z") + "\n")
 
@@ -357,6 +362,7 @@ class Soak:
     def _start(self):
         """Start a server in the next slot, record the event and run its warm-up (DR-18); returns (server_dir,
         healthy)."""
+        self._check_signal()  # a pending operator stop is acted on before a ~510 s start (finding 61, MEDIUM-2)
         self.server_index += 1
         server_dir = self.out / f"carla-server-{self.server_index}"
         check = start_server(server_dir, self.home)
@@ -433,9 +439,11 @@ class Soak:
         self._signal = None
 
         def on_signal(signum, frame):  # only a flag: the runner stops between runs, never inside one (finding 60)
-            self._signal = signal.Signals(signum).name
+            if self._signal:  # finding 61, LOW-2: acknowledged, still graceful; do not escalate to SIGKILL
+                print(f"soak: {signal.Signals(signum).name} again; stopping after the current step", file=sys.stderr)
+            self._signal = self._signal or signal.Signals(signum).name
 
-        previous = {s: signal.signal(s, on_signal) for s in (signal.SIGTERM, signal.SIGINT)}
+        previous = {s: signal.signal(s, on_signal) for s in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)}
         try:
             try:
                 return self._execute()

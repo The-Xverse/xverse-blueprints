@@ -279,4 +279,38 @@ def test_an_operator_signal_stops_the_soak_between_runs(soak, monkeypatch):
     manifest = json.loads(s.manifest.read_text())
     assert manifest["state"] == "stopped" and "operator signal SIGTERM" in manifest["stopReason"]
     assert len(fake.runs) == 2 and stops  # no run after the signal; the server was stopped
-    assert signal.getsignal(signal.SIGTERM) is signal.SIG_DFL or callable(signal.getsignal(signal.SIGTERM))
+    assert signal.getsignal(signal.SIGTERM) is signal.SIG_DFL  # the handlers are restored (finding 61, LOW-1)
+
+
+def test_the_real_run_one_refuses_to_start_a_run_after_an_operator_signal(tmp_path, monkeypatch):
+    """finding 61, LOW-1: the check at the top of run_one, on the real method, before any subprocess starts."""
+    monkeypatch.setattr(run_soak, "identities", lambda c, b: {"compat": {"clean": True, "detached": True},
+                                                              "blueprints": {"clean": True, "detached": True},
+                                                              "runnerMatchesPinned": True})
+    s = run_soak.Soak(tmp_path / "c", tmp_path / "b", tmp_path / "out")
+    started = []
+    monkeypatch.setattr(run_soak.subprocess, "run", lambda *a, **k: started.append(a))
+    s._signal = "SIGINT"
+    with pytest.raises(run_soak.OperatorStop):
+        s.run_one("nominal", carla=True)
+    assert started == []
+
+
+def test_a_pending_operator_signal_stops_before_a_server_start(soak, monkeypatch):
+    """finding 61, MEDIUM-2: a signal during the gap no-carla runs stops the soak before the first server start."""
+    import os
+    import signal
+
+    s, fake = soak([])
+    original = fake.run_one
+
+    def run_one(soak_, case, carla):
+        entry = original(soak_, case, carla)
+        if len(fake.runs) == 3:  # the last gap no-carla run; the next step is the first server start
+            os.kill(os.getpid(), signal.SIGHUP)
+        return entry
+
+    monkeypatch.setattr(run_soak.Soak, "run_one", lambda self, case, carla: run_one(self, case, carla))
+    monkeypatch.setattr(run_soak.Soak, "_wait_load", lambda self: 0)  # isolates the check in _start
+    assert s.execute() == 2
+    assert fake.starts == 0 and "operator signal SIGHUP" in json.loads(s.manifest.read_text())["stopReason"]
