@@ -178,3 +178,12 @@ Accepted the offline WP-13 #4b port on finding 3, with finding 2 residuals carri
 `specs/002-assured-aeb/decisions.md` §G and "WP-13 R-1 to R-7", R-7; the author's continuation instruction.
 This does not accept the unreviewed sensor-venv increment, select a live unit implementation, fix a D-4c budget,
 authorize Phase 8 live execution or establish any scientific result. Merge and assembled-main verification follow.
+
+## Finding 5: assembled-main verification (Codex, 2026-10-24)
+
+Merged with `--no-ff` onto main containing accepted WP-12b (`fa96554`) in clean isolated
+`codex-integration-20261024`. Merge: `32040e39bee32ce974f2f8ece71ae40a40368b35`.
+The full assembled blueprint suite with the same pinned sensor site and rc.1 profiles gives **403 passed**,
+no skip, in 30.56 s. This covers both the regenerated isolated unit commands and the NumPy selection hook/port.
+The independently reviewed WP-13 #1 logic candidate is excluded; it has open findings. No soak input changed.
+Main synchronization and push follow; remote equality is recorded in the hand-off.
