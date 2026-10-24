@@ -282,3 +282,76 @@ provenance input. No test may substitute max probability or fabricate a live-mod
 TEST-ONLY; generic PP/CI permutation support must survive. Only stdlib direct controls/AST/diff are currently
 authorized. Root schedules pytest/owning/topology verification and independently reviews the exact successor.
 No acceptance, merge, new scientific decision or canonical-note update is implied.
+
+## Finding 6: R14b0-1 repair candidate and limited verification (Codex, 2026-10-24)
+
+Repair design `1a230cd` precedes source `e102ec0357d2c36a14f1f57569893366600822b7`. **Independent re-review,
+owning execution and delivery pending; not accepted.** `ModelOutputBinding` retains exactly the detached frozen
+label tuple and derived postprocess digest. Its constructor accepts only metadata, verifies the existing PP code
+binding and parses the canonical record; there is no separately supplied hash/order pair. Fusion now requires this
+exact type explicitly and checks the complete edge-derived label vocabulary/count. It indexes the selected label
+in that bound actual order. An incoming postprocess digest mismatch makes both new confidence fields null while
+retaining the original provenance and all existing productive calculations/latch behavior. No max-probability
+substitution, default, wire field, vector/order leakage, full retained PP record or new scientific value is added.
+
+All 31 prior current-Fusion test construction sites now pass an explicit metadata-derived fixture binding. Existing
+projection/refusal tests retain their original invalid parameter stimulus; old-owner equivalence constructors are
+unchanged. Canonical fixtures derive postprocess provenance from real metadata instead of an unrelated placeholder.
+The generic PP/CI APIs, PP code hash, original model fixture bytes, schema documents, XDL/topology documents and
+artifact pins are unchanged, verified by exact Git diff for those paths. The declared interface remains F11 /2.
+
+The new permutation regression writes unchanged-fixture-generated TEST-ONLY model bytes with the explicit permuted
+record, verifies their actual SHA through genuine compat `loader.verified_bytes`, inspects that verified model with
+the genuine bounded static reader, and constructs the binding from its metadata. The real SmartCamera/FrontZone/
+CameraInference-contract chain uses the same parsed labels and actual model/postprocess digests. The vector
+`[.05,.05,.7,.05,.05,.1]` selects bin-2 and Fusion emits **.7**, not the former canonical-position .05. This executes
+the digest/static-metadata/producer-contract path; its deterministic inference callable is model-free and does not
+claim ORT execution, scientific calibration or full CI.load readiness. Future14f must perform genuine CI.load of the
+same admitted frozen model before readiness as specified in finding5; this composition remains an execution gate.
+
+**Actually performed on final source:** 13 interface methods called directly, including metadata/code/canonical
+refusals, immutable/detached binding, no pair constructor, missing/wrong Fusion binding, wrong label set/count,
+permutation, provenance mismatch, actual selected probability rather than max, p=0/threshold behavior, exact wire
+consumer checks, unchanged schemas and twelve productive pairs against the real prechange owner (canonical,
+permuted and mismatched bindings); all passed. Thirteen existing functional controls passed for association edge,
+unusable/stale/adjacent inputs, no-input hold, absence release, WP04 request, clamp, hold expiry, uncertainty,
+nonfinite/replay/foreign requests, deterministic epoch streams and import isolation. These existing bodies were
+compiled with only pytest import/decorators omitted, without rewriting assertions. Two genuine U4 chain/duplicate-
+cycle controls passed. Seven AST parses and `git diff --check` passed. Total **28** direct control methods/bodies.
+
+Two exploratory harness attempts were corrected before that final successful pass: one attempted an existing
+`pytest.approx`-dependent body without importing pytest (NameError), and another misspelled the U4 test class
+(`UntrustedTests` instead of `U4UntrustedTests`). Neither produced a product assertion failure or required a product
+change; the final harness uses 13 pytest-independent functional bodies and the exact U4 class. No pytest/framework,
+NumPy/torch/ONNX/ORT import, model session, durable Argus, topology compilation, C1/live/factory execution or download
+occurred. The final probe asserted absence of those modules. All new files/temporary roots are external loop10.
+
+Root can independently repeat the narrow controls from this worktree's `automotive/assured-aeb` using stdlib only:
+
+```sh
+env TMPDIR=/media/jefferson/11c42dee-73a3-4c2b-ab42-a0440011d9e0/.x-verse-build/codex-20261024/scratch/review_compat_envs \
+  PYTHONDONTWRITEBYTECODE=1 python3 -S -B - <<'PY'
+import pathlib, sys
+root = pathlib.Path.cwd()
+sys.path[:0] = [str(root), str(root / "tests"), "/home/jefferson/xverse-compat/src"]
+from test_wp14b0_interface import InterfaceTests
+case = InterfaceTests()
+for name in (
+    "test_real_permuted_model_metadata_and_camera_owner_bind_selected_confidence",
+    "test_binding_is_metadata_derived_frozen_detached_and_refuses_unrelated_pairs",
+    "test_provenance_mismatch_is_unavailable_without_productive_change",
+    "test_bound_confidence_indexes_selected_label_instead_of_maximum",
+    "test_functional_equivalence_to_prechange_owner_and_metadata_origin",
+):
+    getattr(case, name)()
+    print("PASS", name)
+assert not any(n.split(".")[0] in {"pytest", "numpy", "torch", "onnx", "onnxruntime"} for n in sys.modules)
+PY
+```
+
+The exact root-scheduled targeted pytest command in finding3 remains applicable; complete owning/topology/capacity
+and actual compiled identities, genuine CI.load/14f composition and independent acceptance/integration remain
+deferred. Thesis remains read-only during coordinator relocation; its prior complete note/disposition context is
+retained, with no new freshness claim or canonical-note mutation. Source repair is scoped to finding4's metadata
+attribution defect; later14b qualification/diagnostic/startup/scientific decisions remain open. Sol/high is
+recommended for independent review of this narrow successor. No acceptance or merge is claimed.
