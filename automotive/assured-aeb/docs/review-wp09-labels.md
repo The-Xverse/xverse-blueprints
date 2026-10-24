@@ -829,3 +829,20 @@ binding; the manifest cannot prove those facts from supplied metadata. Hash/prov
 label geometry or establish source truth. Training/export must validate the label fields it consumes and preserve
 recorded exclusions. Existing planar/visibility and single-writer limits remain; no dataset or principal result
 is accepted by this source review. No numeric protocol value was chosen.
+
+## Finding 11: queued full-suite provenance assertion failure; repair design before edit (2026-10-24)
+
+The serialized owning suite on assembled candidate `92dfe5ad4b77f9a4aa8aecfbb116872811a69267` returned **1 failed,
+526 passed** in 31.28 s. The coordinator's receipt is thesis
+`specs/002-assured-aeb/review/codex-serial-verification-20261024/dataset-labels/receipt.json`.
+`test_provenance_and_no_pixels` still expects the SHA-256 of raw `labels.py` alone (`616539fd…d06c20`), whereas the
+label correctly carries the named, ordered `labels.py` plus `scenario.py` closure digest (`651a3a66…6c20a5`).
+The delegated 16:02 amendment explicitly requires that closure, implemented and reviewed in findings 7–10.
+Changing production back to the single-file hash would violate that approved contract.
+
+Repair only the stale test expectation: independently build the canonical `[{file, sha256}]` record for the
+explicitly required two filenames, hash it, and compare the emitted provenance against it. Assert the required
+closure membership/order as well; do not merely compare the value to the production constant or call the production
+hash helper. Keep the observer, parameter, frame and no-pixel assertions. No product, parameter, manifest or original
+snapshot change is needed. Run the corrected tiny direct test and syntax/diff checks only; the coordinator retains
+the heavy execution slot and must repeat the full owning suite on the new exact revision before acceptance.
