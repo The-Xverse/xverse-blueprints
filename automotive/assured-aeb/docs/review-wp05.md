@@ -193,3 +193,118 @@ All parameter values in the tests are labelled test values (50 ms grid, quanta 0
    simulation clock. Episode-relative consumers must convert, as the WP-04 review found for F17.
 
 The next step is an independent read-only review of `329eaf4`, then acceptance and merge.
+
+## Finding 3: independent review of findings 1 and 2 (2026-10-24 11:50:32)
+
+**Reviewer and method.**
+- An independent, read-only reviewer who did not write this increment.
+- Read `5f20a0b`, `329eaf4` and `d89530e` against base `7851c47`, and checked them against thesis FR-004,
+  V14, AD-32 option C, AD-30, PAIR-1 (`decisions.md` 221), §J and §K. Also read the WP-12 topology on this
+  branch, and compat `driver_profile.py` and `live/loop.py` at main `855878a`.
+- **Record note, verified.** `39722ef` committed an empty `docs/review-wp05.md` (0 lines). The amended
+  `5f20a0b` (150 lines) precedes the code commit `329eaf4` (11:43:07), so the design was recorded before
+  any code.
+- Commands (`/dev/shm/compat-p6-venv/bin/python -I`, rc.1 profiles from a scratch export):
+  - `tests/test_motion_sensor.py`: 40 passed;
+  - the whole blueprint suite: 114 passed;
+  - `check_topology.py`: exit 0.
+- In-memory probes: the same episode-relative trajectory at different world epochs, and the sampling
+  phase on a 100 ms grid. Nothing in the worktree changed except this entry. No CARLA, no live run.
+
+### Verdict: **FAIL: one HIGH issue blocks the merge** (a small repair)
+
+This is the residual 5 class, the same class as WP-04 HIGH-1. It breaks PAIR-1 and run-to-run
+reproducibility. Everything else is sound.
+
+### Confirmed
+- **Sampling** (motion_sensor.py 151–159).
+  - At most one sample per slot `originNs // samplingPeriodNs`. A non-advancing or rewinding input is
+    refused (`not-advancing`), and a repeated slot emits nothing.
+  - There is never a sample without an input frame, so no sample is invented between frames.
+- **Noise** (92–98). Each draw is a fresh `random.Random` seeded from `SHA-256(params schema | seed | slot
+  | channel)`, so it depends only on seed, slot and channel, with no history state.
+- **Clamping and quantisation** (160–165).
+  - Speed is clamped at 0 after the noise and before quantisation. The signed acceleration is not
+    clamped.
+  - Quantisation is `round(x / q) · q`.
+  - With zero noise, the output is the quantised input.
+- **Parameters.** An exact-member record with no defaults, integer period, seed and latency, positive
+  quanta and non-negative σ. The canonical digest is carried as `modelDigest`.
+- **Latency.**
+  - F10 is not in WP-12's `HUB_DELAYED` set (F04, F14, F15b, F17), and the sensor stamps
+    `deliverAtNs = originNs + latencyNs`. So the hub step is not added to F10, and the single AD-30
+    entry is stated (residual 3).
+  - See LOW-3 for the element's `computeLatency`.
+- **Separation (V14, FR-021).** The module imports only standard-library modules. It refuses
+  `evaluationOnly` and `evaluation-observer` content and other flows. In every arm the topology sends
+  `motion-evidence` only to `chassis-zone`, admits no relay fault on F10, and declares no observer or
+  oracle element.
+- **E-5.** The driver receives `motion-raw` from `loop-gateway` (topology.py 235), and WP-03 `_motion`
+  accepts only `flowId == "vehicle-motion"`. The sensor item has no `flowId`, so the driver cannot read
+  it. Confirmed.
+
+### Issues
+
+**HIGH-1: the sampling grid and the noise are keyed to the absolute world clock, so two arms (or two
+repeats) of the same episode get different noise and a different sampling phase.** This blocks the
+merge.
+- Where: motion_sensor.py 156 and 160–161; finding 1 §1.2 ("epoch 0 of the `carla-simulation` domain");
+  residual 5.
+- `slot = originNs // samplingPeriodNs`, and the noise key is that slot. `originNs` is the absolute
+  CARLA `elapsed_seconds` clock, which keeps running across runs on one server (the Phase 7 and S1 runs
+  do not reload the world).
+- Probe: an identical episode-relative trajectory (10 m/s, six 50 ms frames, seed 7, test σ):
+  - world at 1000 s: speeds `[10.06, 10.09, 10.09, 10.16, 9.89, 10.13]`;
+  - world at 1600 s: `[9.8, 10.06, 9.95, 9.9, 9.88, 10.06]`.
+- With a 100 ms grid, the sampled frames are `[0, 2, 4]` or `[0, 1, 3, 5]` depending only on the
+  epoch's offset modulo the period.
+- PAIR-1 requires "the sensor observations of the two arms are identical up to the first divergent
+  action". The arms of a pair start at different world times, so this fails before any divergence. D-5
+  repeatability is affected the same way.
+- `test_paired_arms_see_identical_evidence_up_to_the_divergent_input` (test_motion_sensor.py 119–127)
+  feeds both arms identical *absolute* origins, which hides the issue.
+- Repair:
+  - key `slot` (and therefore the grid and the noise) on episode-relative time,
+    `originNs − episodeOriginNs`;
+  - keep the absolute `originNs` and `deliverAtNs` stamps for the hub and U5;
+  - make the episode origin a required input with no default. Given WP-04 finding 6 MEDIUM-A, it should
+    be bound late from the first frame (the loop's `episode_ns`), and the sensor refuses to sample until
+    it is bound;
+  - add a PAIR-1 test with two different world epochs.
+
+### Consumers of the absolute stamps (residual 5)
+Each consumer was checked against the clock it uses:
+- **The hub (WP-10).** It delivers F10 at the absolute `deliverAtNs`. The U2 hub sees absolute frame
+  `originNs`, so this is consistent.
+- **The chassis zone, vehicle state and evidence validator (WP-04, WP-14).** They take absolute integer-ns
+  `sim_ns`, as the WP-04 node does, so the FR-007 ages are consistent.
+- **The offline oracle and V34 joins.** They are absolute, consistent with WP-01 `simElapsedNs` and the
+  frame.
+- **The driver.** It does not consume the sensor.
+
+The only consumer that is wrong is the sensor's own grid and noise key (HIGH-1).
+
+### New notes (LOW, none blocking)
+- **LOW-1: the noise stream depends on `random.gauss`.** CPython guarantees reproducibility only for
+  `random()` under a compatible seeder, not for `gauss()` across versions. U2 is pinned to 3.13.13, so
+  record that pin as a reproducibility condition, or derive the Gaussian from `random()` with a declared
+  Box–Muller transform.
+- **LOW-2: wording.** Finding 1 §1.2 says "zero-order hold on the newest frame", but the code samples
+  the *first* frame that falls in a new slot. Quantised values also carry float artefacts (for example
+  `9.950000000000001`). That is harmless, but the record should not claim exact grid values.
+- **LOW-3: a third latency entry.** WP-12 also declares `computeLatency` (`TODO: author decision
+  (AD-30)`, topology.py 454) for the `motion-sensor-model` element instance. State that `latencyNs`
+  subsumes it (or that it is 0), so AD-30 does not count the sensor delay twice.
+- **LOW-4: the hub's step quantises the latency.** With `latencyNs` 20 ms and 50 ms steps, delivery at
+  `deliverAtNs` happens at the next step boundary, an effective 50 ms. The AD-30 declaration should say
+  whether `latencyNs` is applied exactly or rounded up to the step (residual 3).
+
+### Residuals 1 to 5
+- Residuals 1 to 4 are accurate.
+- Residual 5 is correct about the stamps but misses the sensor's own keying (HIGH-1). After the repair,
+  it should state the split: absolute stamps, episode-relative grid and noise.
+
+### Recommendation
+- Repair HIGH-1 with a two-epoch PAIR-1 test.
+- Record LOW-1 to LOW-4.
+- Then a focused re-review, followed by acceptance and merge.
