@@ -1,0 +1,58 @@
+{
+  "$id": "urn:xverse:assured-aeb:diagnostic-verdict:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "diagnosticId": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "evidenceRefs": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "originNs": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "reasons": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "schema": {
+      "const": "assured-aeb.diagnostic-verdict/1"
+    },
+    "sequence": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "source": {
+      "const": "diagnostics-supervision"
+    },
+    "state": {
+      "enum": [
+        "NOMINAL",
+        "DEGRADED",
+        "UNCERTAIN",
+        "UNSAFE"
+      ]
+    }
+  },
+  "required": [
+    "diagnosticId",
+    "evidenceRefs",
+    "originNs",
+    "reasons",
+    "schema",
+    "sequence",
+    "source",
+    "state"
+  ],
+  "type": "object"
+}

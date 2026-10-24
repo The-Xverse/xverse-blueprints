@@ -1,0 +1,78 @@
+{
+  "$id": "urn:xverse:assured-aeb:assessment:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "admissible": {
+      "type": "boolean"
+    },
+    "assessmentId": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "configuration": {
+      "enum": [
+        "C_NOMINAL",
+        "C_DEGRADED_RADAR",
+        "S_MRC_REQUESTED"
+      ]
+    },
+    "deadlineMarginNs": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "evidenceRefs": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "originNs": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "recurrence": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "schema": {
+      "const": "assured-aeb.assessment/1"
+    },
+    "sequence": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "source": {
+      "const": "safety-monitor"
+    },
+    "state": {
+      "enum": [
+        "NOMINAL",
+        "DEGRADED",
+        "UNCERTAIN",
+        "UNSAFE"
+      ]
+    }
+  },
+  "required": [
+    "admissible",
+    "assessmentId",
+    "configuration",
+    "deadlineMarginNs",
+    "evidenceRefs",
+    "originNs",
+    "recurrence",
+    "schema",
+    "sequence",
+    "source",
+    "state"
+  ],
+  "type": "object"
+}

@@ -2,7 +2,7 @@
   "apiVersion": "xverse.io/xdl/v1alpha1",
   "extensions": {
     "io.xverse.assured-aeb": {
-      "authorityClass": "executor",
+      "authorityClass": "configuration-manager",
       "kind": "component-authority",
       "permittedOutputs": [
         "configuration-state",
@@ -33,7 +33,7 @@
   },
   "kind": "Component",
   "metadata": {
-    "description": "Assured AEB element configuration-manager (executor); module of its host unit, not a Maestro unit.",
+    "description": "Assured AEB element configuration-manager (configuration-manager); module of its host unit, not a Maestro unit.",
     "name": "aeb-configuration-manager",
     "namespace": "org.xverse.assured-aeb",
     "provenance": {
@@ -45,7 +45,7 @@
   },
   "spec": {
     "capabilities": [
-      "assured-aeb-executor"
+      "assured-aeb-configuration-manager"
     ],
     "endpoints": [
       {

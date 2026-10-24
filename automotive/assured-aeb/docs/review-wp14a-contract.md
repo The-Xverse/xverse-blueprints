@@ -70,3 +70,48 @@ the direction and would not establish the required U4/U6/U5 trace. Existing obje
 transition binding ids join the events offline; no cross-run Argus causation is added. This changes the evidence
 vocabulary only, with no authority, scientific parameter or evaluation signal. Record this clarification before
 adding that kind to the implementation.
+
+## Finding 3: initial structural probe, routed WP-04 source identity (2026-10-24)
+
+The first small structural probe refused the genuine `ChassisZone.step` output. Inspection confirmed that WP-04
+changes the routed record's payload `source` to `chassis-zone`, retaining the original arbiter in `route`; it does not
+retain `source=functional-arbiter`. The new adapter had assumed the latter. Correct the adapter to require the actual
+unchanged owner shape/source for each variant (direct arbiter versus routed chassis), before repeating the probe.
+No WP-04 source, wire record or route will be changed.
+
+## Finding 4: implementation and bounded verification (2026-10-24)
+
+The candidate implements the closed role records, projected expected/received/payload source separation, explicit
+URN-to-wire aliases and matching schema documents. F14 is an explicit authorization/gate-state union. WP-04 direct
+and routed brake requests keep their actual owner members/source/route; WP-13 selector and three-member perception
+provenance stay unchanged. Other legacy productive aliases name the existing owner schema; their validators remain
+with those owners, and the new generic consumer refuses them rather than claiming to validate their semantics.
+
+The ED-12 adapter accepts an already-open Argus writer, explicitly selected local roles and admitted engineering
+byte bound. Its root event omits causation, later events use actual acknowledged local IDs, failed appends poison
+the adapter, and source references carry only message IDs/digests. Genuine Argus writer/reader fixtures cover all
+23 event kinds, the U4/U6/U5 chain, U5/U2 passive MRC receipt, comparator absence of U6, duplicate claims, foreign
+causation, byte/source-reference refusal and failure poisoning. These Argus fixtures are written but **not run**
+while the full platform regression owns execution. Unit-entry opening and admitted projection composition remain
+14f; monitor, supervisor, gate, objective, manager and verifier semantics remain later increments. No process
+isolation, deadline, scientific threshold or protocol approval is claimed by this typed contract.
+
+The manager authority term is regenerated in all eight arm/form combinations. The local extension profile's enum
+was updated to the accepted term so validation can recognize it. Existing pins and `check_topology.py` are unchanged;
+`MANAGER_INPUTS`, selector chain and permitted outputs remain covered. The nine generated/profile document byte
+hash pairs are recorded in `docs/evidence/wp14a-generated-document-digests.json`; these are **not** compiled-plan
+semantic digests. Actual compilation, semantic-digest recording and all authority checks remain queued.
+
+Performed: 74 direct deterministic structural/identity cases (including closed records, spoofing, F14, exact WP-04
+and WP-13 preservation, generated-schema equality and forbidden imports); equality of all eight generated forms
+against the pinned generator; seven Python syntax checks; whitespace diff check. The initial WP-04 routed-source
+failure and correction are documented in finding 3. A later verification invocation passed the generator arguments
+in the wrong order, was corrected without code changes, and then passed. No pytest runner, actual Argus execution,
+CARLA, model inference or download was performed. Independent review and the full owning suite remain mandatory
+before acceptance or merge.
+
+Next full-suite command, from this worktree's `automotive/assured-aeb`, only after the active platform regression:
+
+```sh
+env PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 XVERSE_AEB_SENSOR_SITE=/dev/shm/xverse-aeb-sensor-20261024/venv/lib/python3.13/site-packages XVERSE_PLATFORM_PROFILES=/tmp/codex-xverse-review-20261024-q93eotxv/xdl/profiles /dev/shm/compat-p6-venv/bin/python -I -B -m pytest -q -p no:cacheprovider tests --tb=short
+```

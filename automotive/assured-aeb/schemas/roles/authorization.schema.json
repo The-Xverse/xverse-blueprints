@@ -1,0 +1,128 @@
+{
+  "$id": "urn:xverse:assured-aeb:authorization:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "properties": {
+        "assessmentRef": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "authorizationId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "fromConfiguration": {
+          "enum": [
+            "C_NOMINAL",
+            "C_DEGRADED_RADAR",
+            "S_MRC_REQUESTED"
+          ]
+        },
+        "gateSequence": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "issuedAtNs": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "originNs": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "proposalId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "schema": {
+          "const": "assured-aeb.authorization/1"
+        },
+        "sequence": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "source": {
+          "const": "safety-gate"
+        },
+        "toConfiguration": {
+          "enum": [
+            "C_NOMINAL",
+            "C_DEGRADED_RADAR",
+            "S_MRC_REQUESTED"
+          ]
+        },
+        "validUntilNs": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "assessmentRef",
+        "authorizationId",
+        "fromConfiguration",
+        "gateSequence",
+        "issuedAtNs",
+        "originNs",
+        "proposalId",
+        "schema",
+        "sequence",
+        "source",
+        "toConfiguration",
+        "validUntilNs"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "gateSequence": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "monitorAssessmentAgeNs": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "originNs": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "schema": {
+          "const": "assured-aeb.gate-state/1"
+        },
+        "sequence": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "source": {
+          "const": "safety-gate"
+        },
+        "state": {
+          "enum": [
+            "open",
+            "closed"
+          ]
+        }
+      },
+      "required": [
+        "gateSequence",
+        "monitorAssessmentAgeNs",
+        "originNs",
+        "schema",
+        "sequence",
+        "source",
+        "state"
+      ],
+      "type": "object"
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "$id": "urn:xverse:assured-aeb:goal-model:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "basisRefs": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "constraints": {
+      "type": "object"
+    },
+    "goalId": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "objectiveId": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "originNs": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "schema": {
+      "const": "assured-aeb.goal-model/1"
+    },
+    "sequence": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "source": {
+      "const": "goal-interpreter"
+    }
+  },
+  "required": [
+    "basisRefs",
+    "constraints",
+    "goalId",
+    "objectiveId",
+    "originNs",
+    "schema",
+    "sequence",
+    "source"
+  ],
+  "type": "object"
+}
