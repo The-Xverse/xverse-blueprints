@@ -419,3 +419,39 @@ Allowed all-partition integrity admission remains separate from fit/selection-on
 Torch/NumPy/ORT, actual unshare training worker, environment-tree walk, scientific value, acceptance or merge
 occurred. Parent4a owning verification/acceptance and root-scheduled genuine4b repeated fitting/held-out invariance/
 nonfinite refusal remain pending, followed by separate4c–4e and all scientific/AD27 gates.
+
+## Finding 11: actual genuine namespace failure and detailed pre-code successor proposal (Codex, 2026-10-24)
+
+Independently read exact20af4185371735ebd240830ec869e74bb0dc8f51, original root/worker receipts and stdout/stderr.
+The owning1104pass/5subtest result did not demonstrate genuine isolation: the first actual unshare -rn case exits1
+before framework import, PermissionError at parent /proc/<pid>/ns/net readlink. Capture/cleanup completed, but no
+training output exists and no learned result is claimed. The following parent user-namespace read has the same
+cross-userns permission dependency. Both require repair; fixing network alone is insufficient.
+
+R4b-4 is an actual genuine-launch isolation-check defect, not evidence that unshare is unavailable or permission
+to run plain/-cn. Root accepts the structural **two parent namespace FD** direction. Detailed proposed ABI, local
+primary UAPI evidence, original-parent/self type/dev/inode proof, mandatory successful-worker API, lifecycle/
+spawn/validation cleanup, bad-job-before-effects boundary and source/test obligations are in
+`training4b-namespace-proof-design.md`. Root/independent detailed review remains required **before** worker/driver
+repair. The old string-only CLI cannot be a fallback. Keep all FD/PID/ns operational identities out of deterministic
+learned artifacts and explicitly change4b's four-file stage closure if worker code changes;4a remains untouched.
+
+Exact failure copies are retained under `docs/evidence/training4b-parent-ns-failure-20261024/`, with source paths,
+SHA256/size and five actual local primary-header bindings in design-input-bindings.json. Worker stderr hash is
+bc2873eb98e390195f2f392ef3b873746a878ae6040e12c43cba1e80cac3f363; stdout is genuinely empty. Verified the actual
+worker receipt's exit1/non-timeout/complete-capture/complete-cleanup and stream hashes; no failure was overwritten
+or reclassified as the expected nonfinite refusal. No namespace probe or worker was executed by this design pass.
+
+No product/driver/supervisor/test source,4a/4b module closure, job/stage or existing attempt changed. All new data
+is loop10. No pytest, framework, environment-tree walk, C1/live/factory or heavy work. Sol/high is recommended for
+independent detailed design review, then explicitly authorized repair and separately scheduled genuine verification.
+No scientific value, implementation acceptance, merge or reduced4b–4e obligation is selected.
+
+Design integrity checks passed: all four retained failure records and five local primary-header SHA256/size
+bindings match. Exact named source-file hashing confirms4a closure remains
+d83ba1f5e7ce1056d82a924157aad617d64db84862e4be4005abf47fcf1a3e32 and4b remains
+009804472ccd52670758bd9ee21595a4f9520c47e85dda770d3f3420a692c6eb. Product/tests diff against20af418 is empty;
+whitespace check passes. No product module was imported to compute these tiny fixed source-file hashes.
+Fresh thesis fetch --prune origin succeeded; HEAD/upstream d97fdd1167bbd48b97aad5d4071ad59403665f42 and unchanged
+fully read working-note blob ba244ddb7df388386455524ab7667d4a1e86d5a3, no incoming note/pull. Unrelated dirty
+work is preserved; no canonical-note mutation. No runtime verification outcome is inferred from these checks.
