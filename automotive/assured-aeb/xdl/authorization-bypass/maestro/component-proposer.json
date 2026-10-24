@@ -75,6 +75,25 @@
       {
         "compatibility": "exact",
         "direction": "output",
+        "extensions": {
+          "io.xverse.xcom": {
+            "kind": "interface-policy",
+            "policy": {
+              "encoding": "json",
+              "interactionKind": "message",
+              "schemaId": "proposal-schema",
+              "schemaVersion": "1.0.0",
+              "semanticCompatibility": "exact"
+            },
+            "schemaVersion": "0.1",
+            "target": {
+              "apiVersion": "xverse.io/xdl/v1alpha1",
+              "kind": "Component",
+              "name": "aeb-proposer",
+              "namespace": "org.xverse.assured-aeb"
+            }
+          }
+        },
         "id": "proposal",
         "payloadSchema": "urn:xverse:assured-aeb:proposal:v1",
         "unitSemantics": "typed-proposal"

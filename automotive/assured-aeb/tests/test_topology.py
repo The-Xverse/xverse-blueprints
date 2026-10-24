@@ -169,3 +169,115 @@ def test_configuration_size_is_measured(schema_paths):
     with tempfile.TemporaryDirectory() as work:
         size = C.configuration_bytes(prepared, result, validation.resources, schedule, Path(work))
     assert size > 0
+
+
+# ---- finding 4 repairs ------------------------------------------------------------------------------------------
+
+def _pair(onset_b=100, duration_b=10):
+    return [C.fault("mloc", "a", "freeze", "vc-functional-unit", 100, 10),
+            C.fault("mloc", "b", "freeze", "vc-assurance-unit", onset_b, duration_b)]
+
+
+def test_lone_vc_functional_freeze_is_refused():  # HIGH-1
+    refusals = C.check_fault_admission(C.load("mloc", "topology"), [C.fault("mloc", "a", "freeze", "vc-functional-unit", 100, 10)])
+    assert refusals and "every member" in refusals[0]
+
+
+@pytest.mark.parametrize("onset_b, duration_b", [(300, 10), (100, 20)])
+def test_non_concurrent_cc1_pair_is_refused(onset_b, duration_b):  # HIGH-1: same onset and same duration required
+    refusals = C.check_fault_admission(C.load("mloc", "topology"), _pair(onset_b, duration_b))
+    assert any("vc-functional-unit" in r for r in refusals)
+
+
+def test_concurrent_cc1_pair_is_admitted():  # HIGH-1 positive
+    assert C.check_fault_admission(C.load("mloc", "topology"), _pair()) == []
+
+
+def test_cc1_pair_is_refused_in_the_comparator_where_vc_assurance_does_not_exist():
+    docs = C.load("comparator", "topology")
+    assert C.check_fault_admission(docs, [C.fault("comparator", "a", "freeze", "vc-functional-unit", 100, 10)])
+
+
+def test_freeze_duration_is_bounded_by_a_supplied_thaw_bound(schema_paths):  # MEDIUM-2
+    validation, result = C.compile_docs(T.documents("mloc", T.read_pins(), form="maestro"), schema_paths)
+    schedule = C.admit(C.prepare(validation, result), 0.29)
+    thaw = C.LIVE["cadence"] - schedule.health_scan_seconds  # from the admitted schedule, not hard-coded
+    bound = C.FreezeBound(thaw_bound_s=thaw, max_cycle_s=0.1)  # 0.1 s: a test value standing in for the D-4c maximum
+    docs = C.load("mloc", "topology")
+    ok = C.fault("mloc", "ok", "freeze", "adas-hpc-unit", 100, bound.max_ticks)
+    long = C.fault("mloc", "long", "freeze", "adas-hpc-unit", 100, bound.max_ticks + 1)
+    assert C.check_fault_admission(docs, [ok], bound) == []
+    assert any("thaw bound" in r for r in C.check_fault_admission(docs, [long], bound))
+    assert C.check_fault_admission(docs, [long]) == []  # without a bound the duration is not checked
+
+
+@pytest.mark.parametrize("arm", T.ARMS)
+def test_every_cross_unit_cycle_crosses_a_hub_delay_point(arm):  # MEDIUM-1
+    result = C.check_cycles(C.load(arm, "topology"))
+    assert result["crossUnitCycles"] == []
+    assert {"f04-actuation-command", "f17-brake-command"} <= set(result["delayPoints"])
+
+
+def _without_delay(docs, flow_id):
+    docs = copy.deepcopy(docs)
+    for flow in docs["system.json"]["spec"].get("flows", []):
+        if flow["id"] == flow_id:
+            del flow["extensions"][T.EXT]["hubDelay"]
+    for flow in docs["system.json"]["extensions"][T.EXT]["returnFlows"]:
+        if flow["id"] == flow_id:
+            del flow["declaration"]["hubDelay"]
+    return docs
+
+
+@pytest.mark.parametrize("flow_id, loop", [
+    ("f17-brake-command", {"loop-gateway", "brake-esc-node"}),  # brake loop U2 -> U3 -> U4 -> U5 -> U2
+    ("f14-authorization", {"safety-gate", "configuration-manager"}),  # authorization loop U5 -> U6 -> U5
+    ("f04-actuation-command", {"carla-client", "loop-gateway"}),  # adapter link U1 <-> U2
+])
+def test_each_delay_point_is_necessary(flow_id, loop):
+    cycles = C.check_cycles(_without_delay(C.load("mloc", "topology"), flow_id))["crossUnitCycles"]
+    assert any(loop <= set(component) for component in cycles), cycles
+
+
+def test_f15b_return_flow_is_needed_for_xdl_acyclicity(schema_paths):  # F15b breaks the XDL-visible cycle
+    docs = copy.deepcopy(C.load("mloc", "topology"))
+    system = docs["system.json"]
+    row = next(f for f in system["extensions"][T.EXT]["returnFlows"] if f["id"] == "f15b-configuration-state-proposer")
+    system["spec"]["flows"].append({"id": row["id"], "sourceEndpointId": row["source"], "destinationEndpointIds": [row["destination"]],
+                                    "interfaceId": row["interfaceId"], "deliveryIntent": "ordered", "networkId": row["networkId"],
+                                    "timeDomainId": "carla-simulation"})
+    _, result = C.compile_docs(docs, schema_paths)
+    assert any(d.code == "XDL1-PLAN-DEPENDENCY-CYCLE" for d in result.diagnostics)
+
+
+def test_degraded_path_takes_radar_directly_not_through_the_validator():  # MEDIUM-3
+    msgs = C.messages(C.load("mloc", "topology"))
+    into_fallback = {(m["producer"], m["interface"]) for m in msgs if m["consumer"] == "radar-fallback"}
+    assert ("vc-ingress", "radar-evidence") in into_fallback
+    f09 = next(m for m in msgs if m["id"] == "f09-radar-vc")
+    assert (f09["producer"], f09["consumer"]) == ("front-zone", "vc-ingress")
+    into_arbiter = {(m["producer"], m["interface"]) for m in msgs if m["consumer"] == "functional-arbiter"}
+    assert ("vc-ingress", "adas-cycle") in into_arbiter
+
+
+@pytest.mark.parametrize("arm", T.ARMS)
+def test_forms_are_equal_apart_from_the_declared_projection(arm):  # LOW-1
+    assert C.forms_difference(arm) == []
+
+
+def test_forms_difference_can_fail():  # LOW-1: the assertion is real
+    maestro = copy.deepcopy(C.load("mloc", "maestro"))
+    maestro["system.json"]["spec"]["componentInstances"][0]["nodeId"] = "ivi-hpc"
+    maestro["deployment.json"]["spec"]["bindings"][0]["targetId"] = "mutated-target"
+    difference = C.forms_difference("mloc", maestro_docs=maestro)
+    assert {"system.componentInstances", "deployment.bindings"} <= set(difference)
+
+
+def test_a4_right_producer_wrong_consumer_is_rejected():  # LOW-4
+    docs = _add_flow(copy.deepcopy(C.load("mloc", "topology")), "neg-arbiter-to-brake-node", "functional-arbiter",
+                     "brake-request", "brake-esc-node")
+    assert any(v.startswith("A-4") and "to brake-esc-node" in v for v in C.check_authority(docs, "mloc"))
+
+
+def test_proposal_contract_is_carried_by_the_proposer_not_the_relay():  # LOW-3
+    assert T.contract_owner("proposal", "mloc") == "proposer"

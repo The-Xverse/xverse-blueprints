@@ -57,6 +57,12 @@
         "id": "qualified-evidence-in",
         "interfaceId": "qualified-evidence",
         "ownerId": "aeb-radar-fallback"
+      },
+      {
+        "direction": "input",
+        "id": "radar-evidence-in",
+        "interfaceId": "radar-evidence",
+        "ownerId": "aeb-radar-fallback"
       }
     ],
     "interfaces": [
@@ -91,6 +97,13 @@
         "direction": "input",
         "id": "qualified-evidence",
         "payloadSchema": "urn:xverse:assured-aeb:qualified-evidence:v1",
+        "unitSemantics": "evidence-item"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "radar-evidence",
+        "payloadSchema": "urn:xverse:assured-aeb:radar-evidence:v1",
         "unitSemantics": "evidence-item"
       }
     ]

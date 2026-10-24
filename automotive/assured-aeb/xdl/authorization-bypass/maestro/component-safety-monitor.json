@@ -63,6 +63,12 @@
         "id": "qualified-evidence-in",
         "interfaceId": "qualified-evidence",
         "ownerId": "aeb-safety-monitor"
+      },
+      {
+        "direction": "input",
+        "id": "transition-verdict-in",
+        "interfaceId": "transition-verdict",
+        "ownerId": "aeb-safety-monitor"
       }
     ],
     "interfaces": [
@@ -105,6 +111,13 @@
         "id": "qualified-evidence",
         "payloadSchema": "urn:xverse:assured-aeb:qualified-evidence:v1",
         "unitSemantics": "evidence-item"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "transition-verdict",
+        "payloadSchema": "urn:xverse:assured-aeb:transition-verdict:v1",
+        "unitSemantics": "verdict"
       }
     ]
   }

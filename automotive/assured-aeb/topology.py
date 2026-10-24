@@ -62,6 +62,9 @@ ENGINEERING_SOURCES = {
     "horizonTicks": "S1 accepted engineering long-run capacity S-D1 (600 Maestro ticks); protocol horizon TODO (AD-25)",
     "observeTick": "Phase 7 blueprint OBSERVE_TICK (test_live_closed_loop.py 79)",
     "scenarioSeed": "structural placeholder 0: the experiment profile requires an integer; seed lists TODO (P-4)",
+    "stepScheduleTolerance": "0 ticks, as the platform Maestro fixture steps (tests/thesis_lite/maestro/fixtures/scenario.json)",
+    "hubDelayTicks": "one simulator step: the hub's lockstep delivery of a cycle-closing flow, as the Phase 7 loop applies a "
+                     "command at the next tick; its relation to the AD-30 latency declaration is TODO (AD-30)",
 }
 ACTION_TIMEOUTS = {"prepare": 2, "start": 5, "observe": 4, "stop": 5, "cleanup": 5}
 STOP_GRACE_S = 0.6
@@ -138,6 +141,10 @@ ELEMENTS: dict[str, tuple[str, str, str, tuple[str, ...], tuple[str, ...]]] = {
     "proposer": ("proposer", "adas-hpc", "adas-hpc", MLOC_ARMS, ("proposal",)),
     "goal-interpreter": ("goal-interpreter", "adas-hpc", "adas-hpc", MLOC_ARMS, ("goal-model",)),
     # U5 Vehicle Control functional (with the chassis zone and brake node, CC-2c)
+    # U5 inbound fan-out (finding 4, MEDIUM-3): one route per inbound flow (the loopback 4-route cap), delivered unchanged
+    # to every design consumer of that flow, so the radar fallback takes the direct radar stream ([N] 1497) and the
+    # functional arbiter the ADAS cycle, neither through the validator. It forwards only; it emits no command.
+    "vc-ingress": ("evidence-router", "vc-functional", "vehicle-control-hpc", ALL, ("radar-evidence", "adas-cycle")),
     "evidence-validator": ("productive", "vc-functional", "vehicle-control-hpc", ALL, ("qualified-evidence",)),
     "functional-arbiter": ("productive", "vc-functional", "vehicle-control-hpc", ALL, ("brake-request",)),
     "radar-fallback": ("productive", "vc-functional", "vehicle-control-hpc", ALL, ("fallback-request",)),
@@ -181,15 +188,19 @@ FLOWS: dict[str, tuple[str, str, str, str, str, tuple[str, ...]]] = {
     "f06-radar-sensor-out": ("loop-gateway", "radar-sensor-out", "smart-radar", "net-u3", "sensor-sampling", ALL),
     "f07-camera-adas": ("front-zone", "camera-evidence", "perception", "net-u4", "network", ALL),
     "f08-radar-adas": ("front-zone", "radar-evidence", "fusion-risk-aeb", "net-u4", "network", ALL),
-    "f09-radar-vc": ("front-zone", "radar-evidence", "evidence-validator", "net-u5", "network", ALL),
+    "f09-radar-vc": ("front-zone", "radar-evidence", "vc-ingress", "net-u5", "network", ALL),
     "f10-motion-chassis": ("motion-sensor-model", "motion-evidence", "chassis-zone", "net-u5", "sensor-sampling", ALL),
-    "f11-adas-cycle": ("fusion-risk-aeb", "adas-cycle", "evidence-validator", "net-u5", "compute-and-network", ALL),
+    "f11-adas-cycle": ("fusion-risk-aeb", "adas-cycle", "vc-ingress", "net-u5", "compute-and-network", ALL),
     "f12-proposal": ("proposer", "proposal", "safety-gate", "net-u6", "compute-and-network", MLOC_ARMS),
     "f13-qualified-evidence": ("evidence-validator", "qualified-evidence", "safety-monitor", "net-u6", "network", MLOC_ARMS),
     "f14-authorization": ("safety-gate", "authorization", "configuration-manager", "net-u5", "network", MLOC_ARMS),
     "f15a-configuration-state-assurance": ("configuration-manager", "configuration-state", "safety-monitor", "net-u6", "network",
                                            MLOC_ARMS),
     "f15b-configuration-state-proposer": ("configuration-manager", "configuration-state", "proposer", "net-u4", "network",
+                                          MLOC_ARMS),
+    # Design §4 F15a has two producers; its transition-verifier part is this flow (finding 4, MEDIUM-3). net-u6 then has
+    # 4 routes, the loopback cap.
+    "f15c-transition-verdict-assurance": ("transition-verifier", "transition-verdict", "safety-monitor", "net-u6", "network",
                                           MLOC_ARMS),
     "f16-objective": ("objective-source", "objective", "goal-interpreter", "net-u4", "network", MLOC_ARMS),
     "f17-brake-command": ("brake-esc-node", "brake-command", "loop-gateway", "net-u2-returns", "actuation", ALL),
@@ -206,10 +217,18 @@ RELAY_ADMITTED = {
 }
 ABLATION_EXCEPTIONS = {"f19-bypass-proposal": "authorization-bypass"}
 #: XDL Lite orders component instances by their flows and refuses a cycle (XDL1-PLAN-DEPENDENCY-CYCLE,
-#: experiment_plan.py 1340-1404). A closed loop therefore cannot be planned as flows only. The minimal set of feedback
-#: flows that breaks every cycle is declared as *return flows* in the System extension and bound by the hub directly,
-#: as the Phase 7 loop binds its runtime flows (review R-5). Finding 2 records this platform limit.
+#: experiment_plan.py 1340-1404). The return flows below are the minimal set that breaks the cycles *visible to XDL*
+#: (forward flows only); they are bound by the hub directly, as the Phase 7 loop binds its runtime flows (review R-5).
+#: They do not break the loops closed through intra-unit messages, which XDL cannot see (finding 3, MEDIUM-1).
 RETURN_FLOWS = ("f04-actuation-command", "f15b-configuration-state-proposer")
+#: Hub delay points (finding 4, MEDIUM-1): the hub delivers these flows one simulator step later (lockstep), which breaks
+#: every cross-unit loop of the full graph (forward, return and intra-unit messages; check_topology.check_cycles):
+#: - F17, the only U5 -> U2 flow with a successor, closes the brake loop U2 -> U3 -> U4 -> U5 -> U2;
+#: - F14, the only U6 -> U5 flow, closes every MLOC loop through the assurance unit (via F13, F15a or F15c);
+#:   delaying F15a alone would leave the loop through F13 and F14 closed;
+#: - F04 and F15b, the return flows, are hub-delayed by construction.
+HUB_DELAYED = ("f04-actuation-command", "f14-authorization", "f15b-configuration-state-proposer", "f17-brake-command")
+HUB_DELAY = {"unit": "simulator-step", "value": 1}
 
 #: Intra-unit messages (design §4), declared in the System extension; never routed through U2.
 INTRA: tuple[tuple[str, str, str, tuple[str, ...]], ...] = (
@@ -223,6 +242,10 @@ INTRA: tuple[tuple[str, str, str, tuple[str, ...]], ...] = (
     ("goal-interpreter", "goal-model", "proposer", MLOC_ARMS),
     ("chassis-zone", "motion-evidence", "vehicle-state", ALL),
     ("vehicle-state", "vehicle-state-record", "evidence-validator", ALL),
+    ("vc-ingress", "radar-evidence", "radar-fallback", ALL),
+    ("vc-ingress", "radar-evidence", "evidence-validator", ALL),
+    ("vc-ingress", "adas-cycle", "functional-arbiter", ALL),
+    ("vc-ingress", "adas-cycle", "evidence-validator", ALL),
     ("evidence-validator", "qualified-evidence", "functional-arbiter", ALL),
     ("evidence-validator", "qualified-evidence", "radar-fallback", ALL),
     ("evidence-validator", "qualified-evidence", "diagnostics-supervision", ALL),
@@ -261,7 +284,7 @@ DEGRADED_PATH = {
         {"dependency": "radar", "elements": ["smart-radar"], "flows": ["f02-radar-raw", "f06-radar-sensor-out"]},
         {"dependency": "front-zone", "elements": ["front-zone"], "flows": ["f09-radar-vc"]},
         {"dependency": "network", "elements": ["loop-gateway"], "flows": ["f09-radar-vc", "f10-motion-chassis", "f17-brake-command"]},
-        {"dependency": "vehicle-control-hpc", "elements": ["evidence-validator", "radar-fallback", "vehicle-state", "functional-arbiter",
+        {"dependency": "vehicle-control-hpc", "elements": ["vc-ingress", "evidence-validator", "radar-fallback", "vehicle-state", "functional-arbiter",
                                                            "configuration-manager", "transition-verifier",
                                                            "fixed-fallback-supervisor"], "flows": []},
         {"dependency": "vehicle-motion", "elements": ["motion-sensor-model"], "flows": ["f03-motion-raw", "f10-motion-chassis"]},
@@ -358,8 +381,11 @@ def _inputs(arm: str) -> dict[str, set[str]]:
 def contract_owner(interface: str, arm: str) -> str | None:
     """Return the element whose Component carries the X-COM contract of ``interface`` in ``arm``."""
 
-    producers = sorted(e for e, v in elements_of(arm).items() if interface in v[4])
-    return producers[0] if producers else None
+    # Prefer a productive or role producer over experiment control or the environment (finding 3, LOW-3): the carrier
+    # is only where the X-COM contract is attached, never the message's owner.
+    rank = {"experiment-control": 2, "environment": 1}
+    producers = sorted((rank.get(v[0], 0), e) for e, v in elements_of(arm).items() if interface in v[4])
+    return producers[0][1] if producers else None
 
 
 def component(element: str, arm: str) -> dict[str, Any]:
@@ -444,6 +470,8 @@ def system(arm: str, form: str = "topology") -> dict[str, Any]:
                            faultAdmission=RELAY_ADMITTED.get(flow_id, []))
         if flow_id in ABLATION_EXCEPTIONS:
             payload["ablationException"] = ABLATION_EXCEPTIONS[flow_id]
+        if flow_id in HUB_DELAYED:
+            payload["hubDelay"] = dict(HUB_DELAY)
         row = {"id": flow_id, "sourceEndpointId": endpoint(producer, interface, "output"),
                "destinationEndpointIds": [endpoint(consumer, interface, "input")], "interfaceId": interface,
                "deliveryIntent": "ordered", "networkId": network, "timeDomainId": "carla-simulation",

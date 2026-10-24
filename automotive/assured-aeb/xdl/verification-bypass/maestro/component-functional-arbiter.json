@@ -54,6 +54,12 @@
       },
       {
         "direction": "input",
+        "id": "adas-cycle-in",
+        "interfaceId": "adas-cycle",
+        "ownerId": "aeb-functional-arbiter"
+      },
+      {
+        "direction": "input",
         "id": "aeb-status-in",
         "interfaceId": "aeb-status",
         "ownerId": "aeb-functional-arbiter"
@@ -84,6 +90,13 @@
         "id": "brake-request",
         "payloadSchema": "urn:xverse:assured-aeb:brake-request:v1",
         "unitSemantics": "brake-request"
+      },
+      {
+        "compatibility": "exact",
+        "direction": "input",
+        "id": "adas-cycle",
+        "payloadSchema": "urn:xverse:assured-aeb:adas-cycle:v1",
+        "unitSemantics": "evidence-item"
       },
       {
         "compatibility": "exact",

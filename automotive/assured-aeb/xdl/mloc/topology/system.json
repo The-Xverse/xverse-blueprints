@@ -90,6 +90,7 @@
           {
             "dependency": "vehicle-control-hpc",
             "elements": [
+              "vc-ingress",
               "evidence-validator",
               "radar-fallback",
               "vehicle-state",
@@ -209,6 +210,26 @@
           "source": "vehicle-state-vehicle-state-record-out"
         },
         {
+          "destination": "radar-fallback-radar-evidence-in",
+          "interfaceId": "radar-evidence",
+          "source": "vc-ingress-radar-evidence-out"
+        },
+        {
+          "destination": "evidence-validator-radar-evidence-in",
+          "interfaceId": "radar-evidence",
+          "source": "vc-ingress-radar-evidence-out"
+        },
+        {
+          "destination": "functional-arbiter-adas-cycle-in",
+          "interfaceId": "adas-cycle",
+          "source": "vc-ingress-adas-cycle-out"
+        },
+        {
+          "destination": "evidence-validator-adas-cycle-in",
+          "interfaceId": "adas-cycle",
+          "source": "vc-ingress-adas-cycle-out"
+        },
+        {
           "destination": "functional-arbiter-qualified-evidence-in",
           "interfaceId": "qualified-evidence",
           "source": "evidence-validator-qualified-evidence-out"
@@ -301,6 +322,10 @@
             "deadline": "TODO: author decision (AD-07)",
             "faultAdmission": [],
             "freshness": "TODO: author decision (AD-06)",
+            "hubDelay": {
+              "unit": "simulator-step",
+              "value": 1
+            },
             "intraUnit": false,
             "kind": "flow-declaration",
             "latencyKind": "actuation",
@@ -318,6 +343,10 @@
             "deadline": "TODO: author decision (AD-07)",
             "faultAdmission": [],
             "freshness": "TODO: author decision (AD-06)",
+            "hubDelay": {
+              "unit": "simulator-step",
+              "value": 1
+            },
             "intraUnit": false,
             "kind": "flow-declaration",
             "latencyKind": "network",
@@ -462,6 +491,7 @@
               "functional-arbiter",
               "radar-fallback",
               "transition-verifier",
+              "vc-ingress",
               "vehicle-state"
             ],
             "kind": "unit-host",
@@ -849,6 +879,30 @@
         },
         "id": "goal-interpreter",
         "nodeId": "adas-hpc"
+      },
+      {
+        "componentRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "kind": "Component",
+          "name": "aeb-vc-ingress",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "extensions": {
+          "io.xverse.assured-aeb": {
+            "arms": [
+              "comparator",
+              "mloc",
+              "authorization-bypass",
+              "verification-bypass"
+            ],
+            "computeLatency": "TODO: author decision (AD-30)",
+            "hostUnit": "vc-functional-unit",
+            "kind": "element-placement",
+            "schemaVersion": "0.1"
+          }
+        },
+        "id": "vc-ingress",
+        "nodeId": "vehicle-control-hpc"
       },
       {
         "componentRef": {
@@ -1381,6 +1435,12 @@
       },
       {
         "direction": "input",
+        "id": "functional-arbiter-adas-cycle-in",
+        "interfaceId": "adas-cycle",
+        "ownerId": "functional-arbiter"
+      },
+      {
+        "direction": "input",
         "id": "functional-arbiter-aeb-status-in",
         "interfaceId": "aeb-status",
         "ownerId": "functional-arbiter"
@@ -1561,6 +1621,12 @@
       },
       {
         "direction": "input",
+        "id": "radar-fallback-radar-evidence-in",
+        "interfaceId": "radar-evidence",
+        "ownerId": "radar-fallback"
+      },
+      {
+        "direction": "input",
         "id": "safety-gate-assessment-in",
         "interfaceId": "assessment",
         "ownerId": "safety-gate"
@@ -1593,6 +1659,12 @@
         "direction": "input",
         "id": "safety-monitor-qualified-evidence-in",
         "interfaceId": "qualified-evidence",
+        "ownerId": "safety-monitor"
+      },
+      {
+        "direction": "input",
+        "id": "safety-monitor-transition-verdict-in",
+        "interfaceId": "transition-verdict",
         "ownerId": "safety-monitor"
       },
       {
@@ -1630,6 +1702,30 @@
         "id": "transition-verifier-transition-verdict-out",
         "interfaceId": "transition-verdict",
         "ownerId": "transition-verifier"
+      },
+      {
+        "direction": "input",
+        "id": "vc-ingress-adas-cycle-in",
+        "interfaceId": "adas-cycle",
+        "ownerId": "vc-ingress"
+      },
+      {
+        "direction": "output",
+        "id": "vc-ingress-adas-cycle-out",
+        "interfaceId": "adas-cycle",
+        "ownerId": "vc-ingress"
+      },
+      {
+        "direction": "input",
+        "id": "vc-ingress-radar-evidence-in",
+        "interfaceId": "radar-evidence",
+        "ownerId": "vc-ingress"
+      },
+      {
+        "direction": "output",
+        "id": "vc-ingress-radar-evidence-out",
+        "interfaceId": "radar-evidence",
+        "ownerId": "vc-ingress"
       },
       {
         "direction": "input",
@@ -1809,7 +1905,7 @@
       {
         "deliveryIntent": "ordered",
         "destinationEndpointIds": [
-          "evidence-validator-radar-evidence-in"
+          "vc-ingress-radar-evidence-in"
         ],
         "extensions": {
           "io.xverse.assured-aeb": {
@@ -1859,7 +1955,7 @@
       {
         "deliveryIntent": "ordered",
         "destinationEndpointIds": [
-          "evidence-validator-adas-cycle-in"
+          "vc-ingress-adas-cycle-in"
         ],
         "extensions": {
           "io.xverse.assured-aeb": {
@@ -1940,6 +2036,10 @@
             "deadline": "TODO: author decision (AD-07)",
             "faultAdmission": [],
             "freshness": "TODO: author decision (AD-06)",
+            "hubDelay": {
+              "unit": "simulator-step",
+              "value": 1
+            },
             "intraUnit": false,
             "kind": "flow-declaration",
             "latencyKind": "network",
@@ -1979,6 +2079,29 @@
       {
         "deliveryIntent": "ordered",
         "destinationEndpointIds": [
+          "safety-monitor-transition-verdict-in"
+        ],
+        "extensions": {
+          "io.xverse.assured-aeb": {
+            "deadline": "TODO: author decision (AD-07)",
+            "faultAdmission": [],
+            "freshness": "TODO: author decision (AD-06)",
+            "intraUnit": false,
+            "kind": "flow-declaration",
+            "latencyKind": "network",
+            "modelledLatency": "TODO: author decision (AD-30)",
+            "schemaVersion": "0.1"
+          }
+        },
+        "id": "f15c-transition-verdict-assurance",
+        "interfaceId": "transition-verdict",
+        "networkId": "net-u6",
+        "sourceEndpointId": "transition-verifier-transition-verdict-out",
+        "timeDomainId": "carla-simulation"
+      },
+      {
+        "deliveryIntent": "ordered",
+        "destinationEndpointIds": [
           "goal-interpreter-objective-in"
         ],
         "extensions": {
@@ -2009,6 +2132,10 @@
             "deadline": "TODO: author decision (AD-07)",
             "faultAdmission": [],
             "freshness": "TODO: author decision (AD-06)",
+            "hubDelay": {
+              "unit": "simulator-step",
+              "value": 1
+            },
             "intraUnit": false,
             "kind": "flow-declaration",
             "latencyKind": "actuation",

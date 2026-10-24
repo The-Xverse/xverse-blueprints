@@ -93,6 +93,7 @@
           "tap-f13-qualified-evidence",
           "tap-f14-authorization",
           "tap-f15a-configuration-state-assurance",
+          "tap-f15c-transition-verdict-assurance",
           "tap-f16-objective",
           "tap-f17-brake-command",
           "tap-f18-mrc-request",
@@ -305,6 +306,21 @@
         "targetRef": {
           "apiVersion": "xverse.io/xdl/v1alpha1",
           "element": "f15a-configuration-state-assurance",
+          "kind": "System",
+          "name": "assured-aeb-authorization-bypass",
+          "namespace": "org.xverse.assured-aeb"
+        },
+        "timeDomainId": "carla-simulation",
+        "unitSemantics": "count"
+      },
+      {
+        "evidenceSinkRef": "urn:xverse:assured-aeb:argus-flow-evidence",
+        "id": "tap-f15c-transition-verdict-assurance",
+        "payloadSchema": "urn:xverse:assured-aeb:flow-evidence:v1",
+        "samplingIntent": "every delivered item; flow verdicts at the vehicle-loop hub",
+        "targetRef": {
+          "apiVersion": "xverse.io/xdl/v1alpha1",
+          "element": "f15c-transition-verdict-assurance",
           "kind": "System",
           "name": "assured-aeb-authorization-bypass",
           "namespace": "org.xverse.assured-aeb"
