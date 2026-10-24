@@ -258,3 +258,32 @@ still schedules the owning `test_training_admission.py`/`test_training_fit.py` s
 with actual admitted environment and explicit engineering bounds. Parent4a owning verification/acceptance,
 actual4b repeated fitting/held-out invariance/nonfinite refusal, then4c–4e and all scientific/AD27 gates remain
 pending. This finding records required repairs before code; it grants no execution or implementation acceptance.
+
+## Finding 6: driver supervisor repair design before code (coordinator, 2026-10-24)
+
+Accept R4b-1/R4b-2 in independent review-onlya20aeeb. Preserve every byte of the four product modules and the
+three4a modules. Repair only the verification driver and its explicit stdlib supervisor controls. No framework,
+pytest or actual training execution is authorized by this design. Sol/high is appropriate for independent
+cancellation/evidence review; no model switch, benchmark or scientific parameter is selected.
+
+Use a fresh owned session/group per worker with stdout/stderr streamed directly into exclusive attempt files.
+Reserve the receipt before spawning; capture actual command, selected explicit environment, input-before/after
+hashes, driver identity, parent namespace, actual exit/timeout/error, elapsed host time, output hashes and bounded
+group cleanup. Keep this diagnostic record outside deterministic learned weights/reports. A capture failure,
+timeout, input change or incomplete cleanup is never the expected nonfinite model refusal. Expected refusal
+still needs actual nonzero worker exit, correct retained refusal diagnostic and no trained output.
+
+Defer throwing installed cancellation handlers during Popen construction until the actual handle is assigned;
+do not inherit a blocked termination mask into the worker. After assignment, always finalize ownership, including
+interruptions and spawn/capture failure. TERM then KILL the owned group with separately supplied positive finite
+engineering cleanup bounds; check group disappearance and reap the leader. A leader exit alone is insufficient.
+Block repeated interruption during bounded cleanup/receipt persistence, then restore prior handlers/mask. A child
+deliberately escaping the group is outside this trusted-owned-worker claim; make no hostile-tree-containment claim.
+I/O failure may prevent a durable receipt: preserve partial files and fail, never overwrite or synthesize one.
+
+Require explicit --cleanup-term-seconds and --cleanup-kill-seconds alongside the existing --timeout. Test tiny
+normal/nonzero children, real partial diagnostics on timeout, a TERM-ignoring descendant with retained leader,
+the actual spawn-assignment interrupt seam, post-assignment interruption, missing executable and no-overwrite.
+Controls may use short explicit TEST-ONLY bounds and fork/subprocesses, with independent cleanup; they must not
+launch frameworks or manufacture successful training receipts. A separately reviewed successor and actual owning
+suite plus genuine isolated fitting driver remain mandatory before implementation acceptance.
