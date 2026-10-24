@@ -475,3 +475,20 @@ under a second and launched no simulation, inference, heavy suite or platform pr
 predicate, and a fresh review independent of this R13-6 repair. The 365-test result of finding 5 predates this repair
 and is not a full-regression result for it. R13-5 and all other carried composition/freeze obligations are unchanged.
 This candidate is not accepted or merged. No protocol bound, tolerance, live execution or scientific result is set.
+
+## Finding 9: independent root review of the R13-6 successor (2026-10-24), PASS; full suite queued
+
+Reviewer: parent Codex, independent of the worker's overflow repair `2926cd886bac7190ea463498ab51539ef35bb492`.
+Reviewed the entire delta after design `dd54fd5`: the shared non-throwing numeric predicate, parameters' delegation,
+all 25 regression cases and finding 8. No product change was made in this pass. The earlier independent worker
+review in finding 6 covers the parent's preceding R13-1 to R13-4 changes; the two review scopes are distinct.
+
+Confirmed the predicate rejects oversized positive/negative JSON integers, NaN/infinity, bool and string while
+preserving finite exact numeric values. Direct tiny probes independently exercised 12 public-consumer cases:
+perception fields, fallback speed, radar detections and the arbiter's selected-source bounded hold. All passed;
+`git diff --check` passes. No pytest or heavy process was started during the active platform regression.
+
+R13-6 is closed at source-review level. Acceptance is still withheld until the entire owning blueprint suite
+passes on this successor and the assembled main. Terminal `arbiter.mrcSource` reconciliation is a separate WP-15
+successor under the now-decided DN-1 entry-value hold; it is not implemented by this numeric repair. All recorded
+integration/freeze obligations remain, with no live or scientific claim.
