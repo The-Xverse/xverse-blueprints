@@ -636,3 +636,84 @@ belongs with the in-corridor visibility option of finding 5 residual 4, and is f
   an increment #6 obligation.
 - Repair LOW-2 to LOW-5 or record them.
 - Then acceptance and the merge of increment #1. Neither has happened.
+
+## Finding 7: disposition of finding 6 and the repair plan (recorded at 2026-10-24 16:07:10, before any change)
+
+**Source of the dispositions.** Thesis `specs/002-assured-aeb/decisions.md` (working copy, blob `3c051132`): the row
+"WP-09 data separation, amendment 1" (16:02; under the author's delegation). It amends (2) of "WP-09 data
+separation". Also `design/wp09-training-pipeline.md` "Alignment 2, 16:02". Thesis HEAD is `d97fdd1`, equal to its
+upstream after `git fetch --prune`, with no incoming change to the canonical note. These dispositions are the
+coordinator's relay of those rows. They are not an approval of the merge.
+
+1. **MEDIUM-1: repaired as amended (2).**
+   - **Schema.** The manifest becomes `assured-aeb.dataset-manifest/3`.
+   - **Evaluation set.** `evaluation.segment` (one `{map, roadId, sectionId}`) is replaced by
+     `evaluation.segmentSections`, a declared **set** of lane sections:
+     - a non-empty list of `{map, roadId, sectionId}` with integer ids;
+     - unique and in canonical order (sorted by `(map, roadId, sectionId)`), so that one set has one identity;
+     - required by `build_manifest`, with no default;
+     - its value is `TODO: engineering verification` on Town10HD_Opt (residual 7, updated), and the tests use
+       marked test values.
+   - **Traversed set per run.** The run member `segment` (the spawn waypoint's section) is replaced by
+     `traversedSections`: the set of lane sections the ego actually traversed. It has the same form (non-empty,
+     unique, canonical order) and is required. Increment #6's recorder fills it from the ego waypoint of every recorded
+     frame (an obligation of #6). The spawn section is a member of that set, so nothing the old member carried is lost.
+     The map check against the verified scenario now applies to every traversed section.
+   - **Refusal.** A training or calibration run whose `traversedSections` meets `evaluation.segmentSections` is
+     refused **as a whole**, whatever its spawn point, with the intersecting sections named. A test-split run that
+     meets it is reported, not refused, as before. The shared-section report becomes per section.
+   - **Scope as decided.** The decided set is the **ego's** traversed sections. Finding 6 also proposed the sections
+     the target occupies; the row does not adopt that, so it is not implemented. This is recorded as a new residual 10
+     for a later decision; it is not a defect of this repair. Whether the traversed set is complete, that is one entry
+     per recorded frame, cannot be checked by the manifest. It is an obligation of #6.
+2. **LOW-1: repaired.** `check_manifest(manifest, scenarios, labels)` takes a third **required** mapping from
+   `runId` to that run's label records (no default; a missing run is refused). For each run it refuses:
+   - `labels_digest(records) != labelsSha256`;
+   - any label whose `provenance.labelCodeSha256` or `provenance.labelParamsDigest` differs from the manifest's,
+     or whose `provenance.observerSha256` differs from the run's;
+   - a labelled `(frame, rawSha256)` pair that is not among the run's `frames`, or a frame labelled twice.
+
+   It also refuses a manifest whose `labelCodeSha256` is not the running label code's `LABEL_CODE_SHA256`: the
+   identity must name the code that checks it. Verifying `labelParamsDigest` against a parameter record, and
+   `observerSha256` against the observer file's bytes, needs those artefacts. Both are left to #6, which holds
+   them (residual 11).
+3. **LOW-2: repaired.** `LABEL_CODE_SHA256` becomes the SHA-256 of the canonical list `[{file, sha256}]` over the
+   named, ordered closure `("labels.py", "scenario.py")`. It is computed by a function `label_code_digest(directory)`,
+   so a test can show that a change to `scenario.py` alone changes it.
+4. **LOW-4: repaired as decided.**
+   - **Sweep.** `FrameStore` takes a required keyword `writable` (a bool, no default). Only a writable open sweeps
+     stale temporary files. A read-only open never sweeps, and its `put` is refused.
+   - **Durability.** When `put` creates a new shard directory, it fsyncs the root after the `mkdir` and before
+     writing.
+   - **Limit kept.** Two concurrent *writable* opens are still not excluded. An advisory lock was not decided. This
+     single-writer limit stays declared in the docstring (residual 12).
+5. **LOW-5: repaired.** The fixture values of `test_perception_labels.py` and `test_perception_manifest.py` become
+   named constants marked as test values:
+   - spawn points 7 and 3;
+   - `distanceAheadM` 30.0;
+   - the blueprint `vehicle.test`;
+   - the target `hold`;
+   - the run seeds and road and section ids.
+6. **LOW-3: recorded as an obligation of increment #6, not repaired here.** Increment #6 binds the map to the
+   evaluation-only observer header's loaded-world map (`world.get_map().name`). It states how CARLA's reported name
+   is compared with `Town10HD_Opt` (`TODO: engineering verification`) and refuses a schema-1 scenario's `map`. The
+   obligation is added to `scenario.py`'s and `manifest.py`'s docstrings and to the residual list.
+7. **Tests to add.** For each repair, positive and negative cases:
+   - MEDIUM-1:
+     - an upstream-spawned training run that traverses an evaluation section is refused;
+     - a multi-section evaluation set protects its second section;
+     - a test split is reported, not refused;
+     - disjoint sets are admitted;
+     - malformed, duplicate or unordered sets are refused;
+     - a `traversedSections` map that differs from the scenario map is refused.
+   - LOW-1: each digest mismatch, a foreign frame, a duplicate label and a missing label list are refused, with a
+     real `label_run` output as the positive case.
+   - LOW-2: a change to `scenario.py` alone changes the digest.
+   - LOW-4:
+     - a read-only open does not sweep and refuses `put`;
+     - a read-only open during a writer's `put` leaves the writer's rename intact (the finding 6 probe);
+     - the root is fsynced on the first shard creation only.
+
+   Then the whole suite with the rc.1 profiles and `check_topology.py`, followed by finding 8.
+8. **Out of scope.** No CARLA, live run or download. The loop10 dataset and soak paths are not touched. The thesis
+   repository is read-only, and no thesis record is edited.
