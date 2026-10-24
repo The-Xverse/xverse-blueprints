@@ -14,8 +14,11 @@ export XVERSE_PLATFORM_SRC=${XVERSE_PLATFORM_SRC:-$L10/.x-verse-build/cache/xver
 export XVERSE_LIVE_DRIVER_VENV=$VENV  # units.py builds the owned units' PYTHONPATH from the same venv
 require_compat || exit 4
 export XVERSE_COMPAT_SRC
-export XVERSE_LIVE_RUN_DIR=$RUN XVERSE_LIVE_CASE=$CASE
-mkdir -p "$RUN/carla-home"
+# S1c finding 49 (H2): the units' run directory is staged on tmpfs during the run, because an fsync on the loop10 image
+# stalled a unit before its readiness marker; cleanup() copies it into the loop10 evidence directory.
+STAGE=/dev/shm/xverse-lite-run-$(basename "$RUN")
+export XVERSE_LIVE_RUN_DIR=$STAGE XVERSE_LIVE_CASE=$CASE
+mkdir -p "$RUN/carla-home" "$STAGE"
 exec > >(trap '' INT TERM; exec tee "$RUN/run-live.log") 2>&1  # the log survives a Ctrl-C of the group (S1c finding 7)
 echo "case=$CASE run=$RUN started=$(date -Is) wall_epoch_ns=$(date +%s%N)"
 OBS=; PYTEST=not-run;  # S1c finding 11 R4-1: an interrupted run never shows a harness exit it did not have
@@ -26,6 +29,10 @@ cleanup() {  # runs on every exit path, including an interrupt (review 1 R-7); a
   trap - EXIT; trap '' INT TERM PIPE  # a second signal or a closed log must not cut the guard short (S1c finding 7)
   ps -eo pid=,comm=,args= | awk '$2 !~ /^(bash|sh|grep|ps|awk|timeout|tee)$/' | grep -E 'xverse_compat_carla.main|xverse_compat.live|-B main.py' > "$RUN/residue-processes.txt"
   echo "residue processes: $(wc -l < "$RUN/residue-processes.txt")"
+  if [ -d "$STAGE" ]; then  # before the guard, which reads the owned-actor registry (finding 49); removed only if copied
+    if cp -a "$STAGE"/. "$RUN"/; then rm -rf "$STAGE"; echo "staged run directory copied from $STAGE"
+    else echo "staged run directory NOT copied; left in place at $STAGE"; fi
+  fi
   if [ "$CASE" != no-carla ] && [ -s "$RUN/world-before.json" ]; then  # residue first, then the guard (skipped after a BLOCKED preflight, review 2 N-5)
     (cd "$XVERSE_COMPAT_SRC/src" && env -i PATH=/usr/bin HOME="$RUN/carla-home" /usr/bin/python3.10 -s -B -m xverse_compat_carla.restore \
        --carla-site "$SITE" --settings-from "$RUN/world-before.json" --owned-registry "$RUN/owned-actors.json") > "$RUN/restore-guard.json"

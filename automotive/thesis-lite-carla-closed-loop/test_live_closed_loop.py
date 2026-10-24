@@ -1,7 +1,8 @@
 """Lite CARLA closed-loop integration run under Maestro (Phase 7; engineering integration, not AEB
 validation). One test = one run. Configuration comes from environment variables set by ``run-live.sh``:
 
-- ``XVERSE_LIVE_RUN_DIR``: evidence directory (loop10);
+- ``XVERSE_LIVE_RUN_DIR``: the run directory, staged on tmpfs by ``run-live.sh`` and copied into the loop10 evidence
+  directory at cleanup (S1c finding 49);
 - ``XVERSE_COMPAT_SRC``: the xverse-compat checkout (adapters and descriptors);
 - ``XVERSE_LIVE_CASE``: ``nominal`` | ``no-carla`` | ``cancel-paused`` | ``freeze-vcu`` | ``long-run`` (S1 FR-018).
 
