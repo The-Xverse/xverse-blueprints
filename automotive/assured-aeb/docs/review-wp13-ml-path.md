@@ -284,3 +284,30 @@ acceptance and merge remain separate. This branch still contains the old stacked
 with the independently reviewed #1 repair before assembled delivery; do not rebase or overwrite another worker's
 branch automatically. The null/not-evaluated output-form amendment, spool writer, unit readiness/wiring, real-model
 calibration/OOD choices and tolerances, inference budget and live/protocol gates remain open.
+
+## Finding 4: independent parent source review, CHANGES REQUIRED (2026-10-24)
+
+Input: ML implementation `33344df7f29c9053ec6cd4b51c3fff79e1de0916`, assembled with independently reviewed
+WP-13 #1 repairs as `8eda0f842a5211a1e9edd0628110d2c1b40fd3f7`. The parent did not author the ML implementation.
+Read the complete camera binding/spool, bounded static model reader, postprocessing, fixture writer/probe and tests.
+No pytest or numerical framework was run; the full platform regression still owns the test slot.
+
+**R13ML-1, MEDIUM: malformed/contradictory F07 checks can be nominal.** A tiny public `CameraInference.step` probe
+with the existing synthetic spool/inference fixture accepts a smart-camera logical verdict `pass` whose `failed`
+list contains `bad-input`; output is `NOMINAL`, probability 0.8. A second probe adds an undeclared fourth member
+under `sensorSelfCheck`, also yielding `NOMINAL`. `_verdict` validates member types but not the pass/failure-list
+consistency; `step` does not close the sensor-self-check member set. This contradicts the claimed strict F07/
+malformed-input refusal contract and can hide contradictory source evidence.
+
+Repair design must precede code: require the three declared self-check classes only and consistent verdict/failed
+forms (pass/not-evaluated with no failed codes; fail with actual failed codes). Unknown or inconsistent forms yield
+`UNCERTAIN` without calling inference. Preserve genuine fail->DEGRADED behaviour with valid source-format fixtures.
+Add public consumer cases for each malformed form and a genuine SmartCamera/FrontZone positive control.
+No scientific threshold, timing window or calibration method is chosen by this repair.
+
+Other source checks have no new blocker: byte-digest/schema/metadata/code/telemetry checks precede session creation;
+spool reads are bounded and pinned to directory descriptors; the runtime record keeps three bare digest identities;
+there is no training/update entry; unsupported ONNX constructs are explicitly refused as a local subset. This is
+source inspection only. All nine genuine-loader/NumPy reference probes, fixture regeneration, actual provider/schema
+and owner/assembled-suite checks remain mandatory and unrun. Scope/architecture limits and pending AD-03/AD-27
+choices remain as finding 3 records. No acceptance or merge is made.
