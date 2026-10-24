@@ -20,6 +20,7 @@ from . import adas_contract as AC
 from .aeb_rule import (SHARED_DECLARATION, Latch, corridor_from, nearest_in_corridor, qualify_radar, rule_declaration,
                        rule_from, weakest)
 from .checks import HEX64, is_int, is_number
+from .model_output_binding import ModelOutputBinding
 from .parameters import Projection, params_digest
 
 PERCEPTION_OUTPUT = "assured-aeb.perception-output/1"
@@ -81,7 +82,7 @@ def _perception_ok(record: Any) -> bool:
 
 
 class FusionRiskAeb:
-    def __init__(self, projection: Projection) -> None:
+    def __init__(self, projection: Projection, *, model_output_binding: ModelOutputBinding) -> None:
         if type(projection) is not Projection:
             raise TypeError("a validated Projection is required (no default parameters)")
         self.values = projection.take(DECLARATION)
@@ -90,7 +91,12 @@ class FusionRiskAeb:
         self.rule = rule_from(self.values, "aeb")
         self.latch = Latch(self.rule)
         self.edges = [float(e) for e in self.values["fusion.distanceBinEdgesM"]]
-        self.bin_labels = ("no-obstacle", "overlap", *(f"bin-{i}" for i in range(len(self.edges))), "beyond")
+        if type(model_output_binding) is not ModelOutputBinding:
+            raise TypeError("a verified ModelOutputBinding is required (no default)")
+        expected = {"no-obstacle", "overlap", *(f"bin-{i}" for i in range(len(self.edges))), "beyond"}
+        if len(model_output_binding.bin_labels) != len(expected) or set(model_output_binding.bin_labels) != expected:
+            raise ValueError("model-output labels differ from the declared distance edges")
+        self.model_output_binding = model_output_binding
         self.camera: dict[str, Any] | None = None
         self.radar: dict[str, Any] | None = None
         self.sequence = 0
@@ -112,7 +118,7 @@ class FusionRiskAeb:
         camera_src, camera_state, camera_rec = self._camera(now_ns)
         camera_src["inputQuality"] = AC.camera_quality(camera_rec["inputQuality"] if camera_rec is not None else None)
         camera_src["occupancyDecisionConfidence"], camera_src["distanceClassConfidence"] = AC.confidences(
-            camera_rec, threshold=self.values["fusion.occupancyThreshold"], bin_labels=self.bin_labels)
+            camera_rec, threshold=self.values["fusion.occupancyThreshold"], binding=self.model_output_binding)
         view = qualify_radar(self.radar, RADAR_STREAM, now_ns, self.values["fusion.radarFreshnessNs"]) if self.radar is not None \
             else None
         radar_state = view.state if view is not None else "UNCERTAIN"

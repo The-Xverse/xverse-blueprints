@@ -123,10 +123,12 @@ def radar_checks(value):
     return copy.deepcopy(value) if _matches(value, RADAR_CHECKS) else None
 
 
-def confidences(record, *, threshold, bin_labels):
+def confidences(record, *, threshold, binding):
     """Owner's admitted occupancy decision probability and actual selected calibrated class probability."""
     occupancy, distance = None, None
-    if type(record) is dict:
+    if (type(record) is dict and type(record.get("provenance")) is dict
+            and record["provenance"].get("postprocessSha256") == binding.postprocess_sha256):
+        bin_labels = binding.bin_labels
         probability = record.get("occupancyProbability")
         if _matches(probability, PROBABILITY):
             occupancy = probability if probability >= threshold else 1 - probability
