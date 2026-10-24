@@ -385,3 +385,19 @@ read the contract carrier as the proposal's owner. Optionally pick the carrier b
 - Record MEDIUM-1 to MEDIUM-3 in a disposition: the wording of L-2 and residual 4, an enforcement
   residual, and the §4 deviations for the design owner. Optionally repair LOW-1 to LOW-4.
 - Then a focused re-review, followed by acceptance and merge.
+
+## Finding 4: disposition of finding 3 (2026-10-24 11:22:19; recorded before any change)
+
+This disposition is the coordinator's, under the author's delegation of 2026-10-24, and is flagged for the
+author's review. Nothing in this entry repairs anything. The repairs follow in a later commit, and their
+result is finding 5.
+
+| Item | Disposition | Planned change |
+| --- | --- | --- |
+| HIGH-1 | Repair | In `check_fault_admission`, a member of an `admittedSet` that is not individually admitted is admitted only when every member of the set is frozen with the same onset and the same duration. Negative tests for a lone `vc-functional-unit` freeze and for a non-concurrent pair; a positive test for the concurrent pair. Correct the D-4a row of finding 2 (in finding 5; finding 2 stays as recorded) |
+| MEDIUM-1 | Correct | Correct the RETURN_FLOWS / L-2 claim: F04 and F15b break only the XDL-visible cycles. Declare the cross-unit cycle delay points as hub-delayed, with a one-tick delay, in the flow extension: **F17** (brake loop U2→U3→U4→U5→U2), and **F14 and F15a** (MLOC authorization loop U5→U6→U5). Name them in residual 4. A test checks that every remaining cycle in the graph, intra-unit messages included, crosses a declared delay point |
+| MEDIUM-2 | Residual and rule extension | WP-10 and WP-16 must call `check_fault_admission` on the exact schedule before `admit_schedule`. The rule takes an optional thaw bound and refuses a freeze whose duration exceeds it when that bound is known. The bound is a parameter: the 3.26 s of the dry run at 6 units and op 0.29 is passed in by the caller and is never hard-coded as a protocol value |
+| MEDIUM-3 | Repair F09; record the rest | Restore F09's direct radar input to `radar-fallback`, so the degraded path does not depend on the validator for its raw radar. For F03, F11 and F15a, restore the design where the route cap allows; otherwise record the deviation and its justification for the design owner (finding 5) |
+| LOW-1 | Repair | A real assertion that the topology and Maestro forms are equal apart from `form` and `unplannedFlows`, with a test that shows it can fail. `d4a-topology-form-maestro` must fail if the topology form becomes preparable |
+| LOW-2 | Record | Extend residual 4: the hub reads the relay faults and the flow evidence from the topology form |
+| LOW-3, LOW-4 | Optional | LOW-3: pick the contract carrier by authority class rather than name order. LOW-4: add the A-4 wrong-consumer negative, and the tolerance-0 source entry |
