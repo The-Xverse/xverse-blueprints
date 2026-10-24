@@ -154,3 +154,46 @@ from `automotive/assured-aeb`, after the full platform regression releases the h
 Record dispositions/design before code, then independently re-review repaired code and source-bound suite evidence.
 This candidate is not accepted or merged. Real protocol values, author approval, AD-27, projection membership,
 principal/live admission, M1 and scientific claims remain outside this review.
+
+## Finding 4: separately recorded successor design before code (2026-10-24)
+
+The coordinator dispositioned both independent findings before repair and requested one identifier-access addition
+for the later offline projection builder. This successor changes no scientific parameter, policy selection,
+projection membership, approval authority or runtime import boundary.
+
+### R17a-1 marker contract
+
+Unwrap balanced ordinary brackets (`[]`, `()`, `{}`, `<>`), quote marks and Markdown emphasis/strike/code wrappers,
+repeatedly, then recognise case-insensitive leading **tokens** `TODO`, `TBD` or `NEEDS DATA`. Nested JSON object/list
+values receive the same check. A token boundary is required, so unrelated words that merely start with those letters
+are not markers. Preserve `PENDING` as an explicit whole status, a `PENDING:` directive, or exactly a status phrase
+with measurement, author decision, validation, approval, data, review or freeze. Merely containing the word pending,
+including ordinary prose beginning “Pending proposals ...”, is not a placeholder. Tests will state both the supported
+marker forms and non-marker prose. This is an explicit vocabulary check, not a classifier for arbitrary unresolved
+human decisions.
+
+### R17a-2 exact UTC chronology representation
+
+Compare UTC instants exactly at arbitrary fractional-second precision. Accept the strict supported form
+`YYYY-MM-DDTHH:MM:SS[.digits](Z|+00:00)` with a valid Gregorian date/time; reject malformed/unsupported syntax rather
+than silently normalising it. Validate integer date/time components with the standard library, but store comparisons
+as the integer-second component tuple followed by fractional digits with trailing zeroes removed. Lexicographic
+comparison of those normalised fractional strings preserves exact order and equality without float conversion or
+microsecond truncation. No rounding, precision cap or coarser scientific timing policy is introduced.
+
+Align each timestamp property in the record/pin JSON Schemas and the README with that representation. Regress late
+pre-policy acceptance below a microsecond, final acceptance before declaration below a microsecond, acceptance after
+principal start below a microsecond, equal fractions with trailing zeroes, and the existing one-second-late control.
+
+### Identifier-only metadata access for WP-17b
+
+Add `Protocol.entry(identifier)` for the offline projection builder. It returns a private deep copy of exactly that
+entry's existing metadata and value after the same missing/status/placeholder checks used by `value(identifier)`.
+Make `value` delegate to the checked single-entry path so the gates cannot drift. The builder can then read category,
+status and provenance without accessing `_record`; it still must fix its own reviewed allow-lists in WP-17b and never
+expose the complete record or import this loader in runtime units. Add private-copy, missing-identifier and nonfinal
+entry tests in both modes. This interface addition does not choose an identifier's projection membership.
+
+Implementation follows this separate design commit. Only small standard-library probes, AST/schema JSON parsing and
+whitespace checks may run while the platform regression is active; pytest remains queued. A separate independent
+review of the repaired delta and the owning suite are required before acceptance.
