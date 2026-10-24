@@ -44,3 +44,15 @@ inventory and exception list; this increment must not call an import-only check 
 Full owning-suite verification and independent review are required before acceptance. The platform regression owns
 the heavy test slot now; perform only syntax and tiny stdlib probes until it finishes. Source-bound test commands
 and outstanding integration obligations must remain explicit in subsequent findings.
+
+## Finding 2: source implementation, dependency review and suite pending
+
+Implemented the offline builder, runtime-only reader, table schema, publication helper and synthetic tests.
+The reader uses the existing four-member WP-13 projection representation and imports no offline thesis/protocol/
+oracle/topology code. The builder's authoritative metadata access depends on WP-17a's reviewed `entry(identifier)`
+private-copy API; integrate that successor before execution. The full V21 provenance and process-delivery audit,
+actual membership table and global literal inventory remain explicitly open.
+
+Performed AST parsing on both new modules and the test file and `git diff --check`. No pytest, generator execution,
+real projection file, live run or protocol value is claimed. Full suite and independent source review are queued
+after dependency integration and release of the platform regression's heavy-test slot.

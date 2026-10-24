@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:xverse:assured-aeb:projection-table:1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "protocolRecordSha256",
+    "roles"
+  ],
+  "properties": {
+    "schema": {
+      "const": "assured-aeb.projection-table/1"
+    },
+    "protocolRecordSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "roles": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "unit",
+          "identifiers"
+        ],
+        "properties": {
+          "unit": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+          },
+          "identifiers": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][A-Za-z0-9]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+$"
+            }
+          }
+        }
+      }
+    }
+  }
+}
