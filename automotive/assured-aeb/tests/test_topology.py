@@ -281,3 +281,71 @@ def test_a4_right_producer_wrong_consumer_is_rejected():  # LOW-4
 
 def test_proposal_contract_is_carried_by_the_proposer_not_the_relay():  # LOW-3
     assert T.contract_owner("proposal", "mloc") == "proposer"
+
+
+# --------------------------------------------------------------------------------------------------
+# WP-12b: isolated unit commands (thesis row "WP-09 #3 unit isolation", R-1; review-wp12b finding 1)
+# --------------------------------------------------------------------------------------------------
+
+def _generated_units():
+    pins = T.read_pins()
+    cases = [(arm, form, T.documents(arm, pins, form=form)) for arm in T.ARMS for form in T.FORMS]
+    cases.append((T.VARIANT_7, "maestro", T.documents(T.VARIANT_7, pins, form="maestro")))
+    cases += [(arm, form + "-committed", C.load(arm, form)) for arm in T.ARMS for form in T.FORMS]
+    for arm, form, docs in cases:
+        for binding in docs["deployment.json"]["spec"]["bindings"]:
+            yield arm, form, binding["id"].removesuffix("-binding"), binding["extensions"][T.RUNTIME]["process"]
+
+
+@pytest.mark.parametrize("arm,form,unit,process", list(_generated_units()),
+                         ids=lambda v: v if isinstance(v, str) else None)
+def test_every_generated_unit_command_is_isolated(arm, form, unit, process):
+    module = "assured_aeb.units." + unit.replace("-", "_")
+    assert process["arguments"] == ["-S", "-s", "-B", "-m", module]
+    names = {"HOME", "PATH", "PYTHONDONTWRITEBYTECODE", "PYTHONPATH"}
+    if unit == "adas-hpc":
+        names |= {"ORT_DISABLE_TELEMETRY", "OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS"}
+    assert process["environmentNames"] == sorted(names)
+    assert process["executable"] in (T.PY310, T.PY313)
+    assert process["implicitShell"] is False and process["inheritedHandles"] == "closed"
+
+
+def test_every_unit_of_every_arm_is_covered():
+    seen = {(arm, unit) for arm, form, unit, _ in _generated_units()}
+    for arm in (*T.ARMS, T.VARIANT_7):
+        assert {u for a, u in seen if a == arm} == set(T.units_of(arm)), arm
+    assert ("mloc-7unit", "chassis-brake") in seen
+
+
+@pytest.mark.parametrize("unit", sorted({*T.UNITS, T.UNIT_7[0]}))
+def test_unit_environment_puts_the_venv_first_and_matches_the_declared_names(unit):
+    env = T.unit_environment(unit, "/venv/lib/python3.13/site-packages", home="/run/home", extra_paths=("/compat/src", "/bp"))
+    assert env["PYTHONPATH"] == "/venv/lib/python3.13/site-packages:/compat/src:/bp"
+    assert env["PYTHONDONTWRITEBYTECODE"] == "1" and env["PATH"] == "/usr/bin" and env["HOME"] == "/run/home"
+    assert sorted(env) == T.environment_names(unit)
+    if unit == T.INFERENCE_UNIT:
+        assert {k: env[k] for k in T.INFERENCE_ENVIRONMENT} == {"ORT_DISABLE_TELEMETRY": "1", "OMP_NUM_THREADS": "1",
+                                                                  "OPENBLAS_NUM_THREADS": "1"}
+    else:
+        assert not set(T.INFERENCE_ENVIRONMENT) & set(env)
+
+
+def test_unit_environment_requires_a_harness_home():
+    with pytest.raises(TypeError):
+        T.unit_environment("front-zone", "/venv")  # no default home: the harness supplies a run-scoped one
+
+
+@pytest.mark.parametrize("mutate", ["b-only", "no-bytecode-name", "extra-name", "flag-order"])
+def test_unit_command_check_rejects_a_non_isolated_command(mutate):
+    docs = copy.deepcopy(C.load("mloc", "maestro"))
+    assert C.check_unit_command(docs) == []
+    process = docs["deployment.json"]["spec"]["bindings"][0]["extensions"][T.RUNTIME]["process"]
+    if mutate == "b-only":
+        process["arguments"] = ["-B", *process["arguments"][3:]]
+    elif mutate == "no-bytecode-name":
+        process["environmentNames"].remove("PYTHONDONTWRITEBYTECODE")
+    elif mutate == "extra-name":
+        process["environmentNames"] = sorted([*process["environmentNames"], "PYTHONHOME"])
+    else:
+        process["arguments"] = ["-B", "-s", "-S", *process["arguments"][3:]]
+    assert C.check_unit_command(docs)
