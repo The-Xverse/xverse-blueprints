@@ -80,3 +80,77 @@ fixture plus changed-byte refusal; `git diff --check`. No pytest, numerical fram
 The platform full regression owns the heavy-test slot. Owning full-suite verification and independent re-review
 remain required before acceptance. Global literal/provenance coverage and run-kind wiring remain 17b/17f gates;
 the numeric scanner alone is deliberately not reported as a complete scientific-literal audit.
+
+## Finding 3: independent read-only review (Codex `/root/review_wp15`, 2026-10-24), CHANGES REQUIRED
+
+Input: `c80774360d60c7b1278be1fc5927fd58141e25cd`. Reviewed both complete modules, both JSON Schemas,
+representation README and all synthetic tests against WP-17 O-1 and the explicitly recorded ordering amendment.
+No product repair was made during this review. No pytest/heavy process was run while the full platform regression
+was active. AST parsing passed for both modules and `tests/test_protocol.py`.
+
+### R17a-1, MAJOR: ordinary bracketed project placeholders pass principal admission
+
+`protocol._placeholder()` checks only the raw string's starting word. With an otherwise valid synthetic record and
+pins, final `h2.statisticalMethod = "[NEEDS DATA]"` or `"[TODO: author decision]"` passes `policy_digest()` and
+`Protocol.principal()` and is returned unchanged by identifier. Plain `"TODO: citation needed"` is refused as a
+control. These are explicit unresolved project markers, not actual selected final method values. Principal admission
+must not be enabled by assigning a final status to a bracketed marker. The same helper is used for nested values
+and characterisation consumption, so its supported marker contract should be explicit and tested across those paths.
+
+Recommendation: recognise the explicit TODO/NEEDS DATA/TBD marker vocabulary through ordinary bracket/Markdown
+wrappers and nested values. Preserve legitimate final prose that merely contains an ordinary word such as
+“pending” in a sentence. State exactly which markers are recognised; do not claim automatic recognition of every
+unresolved human decision. Add negative wrapped/nested cases and positive prose controls, without choosing a real
+statistical method or supplying a scientific value.
+
+### R17a-2, MEDIUM: timestamp truncation can reverse required approval chronology
+
+`protocol._time()` accepts arbitrary fractional-second strings through `datetime.fromisoformat()`, which retains
+only microseconds. Reproduced on the pinned CPython 3.13.13 interpreter:
+- pre-pilot approval `2026-10-02T00:00:00.000000002Z` is admitted for pilot start
+  `2026-10-02T00:00:00.000000001Z`;
+- final approval `2026-10-03T00:00:00.000000001Z` is admitted for record declaration
+  `2026-10-03T00:00:00.000000002Z`;
+- the control with policy approval one second after pilot start is refused as `PROTOCOL-PILOT-POLICY`.
+
+The first two are out of order but compare equal after truncation. The JSON Schemas do not restrict fractional
+precision, so they do not establish representability either. This is approval metadata representation, not a new
+scientific deadline or simulator-time parameter.
+
+Recommendation: explicitly select and document a lossless timestamp representation. Either reject precision the
+comparison type cannot retain, or compare arbitrary fractional seconds exactly. Align the schemas and tests with
+that choice. Do not silently round a later approval into an earlier/equal instant. Cover record declaration/final
+acceptance, acceptance/principal start and pre-policy acceptance/pilot start, with ordered controls.
+
+### Boundaries assessed without a new blocker
+
+- Exact original record bytes are hashed before parsing. Duplicate JSON members and non-finite floating values are
+  refused; large finite JSON integers remain a typed-consumer responsibility as explicitly designed.
+- The external pin is a trusted decision-reference input, not an authenticated signature. The loader and README
+  state that limitation; this review does not infer author identity, validate a cited source or create a real pin.
+- The stable H2 subset includes metadata and provenance in its canonical digest. Final freeze may follow the pilot,
+  while the stable policy acceptance precedes pilot data, as required by the ordering amendment.
+- Principal/characterisation APIs and metadata remain distinct; characterisation does not create principal or live
+  execution authority. The 17f harness must still bind `is_pilot` and actual pilot chronology to run kind; caller
+  omission is not an implementation of that future integration gate.
+- The literal scanner reports numeric AST constants for an explicit file inventory and checks source/literal-bound
+  exception drift. It does not establish global inventory completeness or qualitative-parameter provenance, and the
+  README correctly carries those 17b/AD-27 gates. A small fixture is not a global no-scientific-literal proof.
+- Entry reads and returned principal-limit metadata are private copies. No runtime unit imports this whole-record
+  loader in this increment; future projection membership remains 17b's responsibility.
+
+### Reproduction and deferred verification
+
+Small standard-library probes used CPython 3.13.13 with `-S -s -B`, `PYTHONDONTWRITEBYTECODE=1`, and `PYTHONPATH`
+pointing only at this blueprint. Every fixture value and timestamp was TEST-ONLY. Positive valid-policy admission
+and plain-TODO/one-second-late refusal controls passed; the two defects above remain reproducible.
+
+The complete owning suite is **not run by this reviewer** and remains required after repairs:
+`env PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 XVERSE_PLATFORM_PROFILES=<rc.1>/xdl/profiles
+XVERSE_AEB_SENSOR_SITE=<pinned-sensor-site> /dev/shm/compat-p6-venv/bin/python -I -B -m pytest -q -p no:cacheprovider tests --tb=short`
+from `automotive/assured-aeb`, after the full platform regression releases the heavy-test slot. A focused run is
+`... -m pytest -q -p no:cacheprovider tests/test_protocol.py --tb=short` under the same environment.
+
+Record dispositions/design before code, then independently re-review repaired code and source-bound suite evidence.
+This candidate is not accepted or merged. Real protocol values, author approval, AD-27, projection membership,
+principal/live admission, M1 and scientific claims remain outside this review.
